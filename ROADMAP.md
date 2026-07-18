@@ -314,6 +314,11 @@ review queue. Shifts the system from **per-tap 1:1 verification** to a **continu
 pipeline + async tap↔face correlation**. **Designed for the RTX 1050 GPU box** — the current
 CPU box is a ~1/s functional demo only.
 
+> **Read [`docs/design-notes.md`](docs/design-notes.md) first.** It records the cross-cutting
+> constraints and failure behaviors this track must honor — single camera owner, **single backend
+> worker**, reader-throughput ceiling, camera-dead degraded mode, tap↔face correlation edge cases,
+> and the legal/consent + accuracy-eval gates before real deployment.
+
 ## Locked decisions (from design review)
 - **Strict card-required**: no tap = not present. Face only *verifies* the tapped student.
 - **Cardless 1:N = tailgater-ID tool, not a presence path**: a tracked face matching no buffered

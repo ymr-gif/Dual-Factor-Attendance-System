@@ -156,9 +156,14 @@ arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno arduino/nfc_scan
 
 ## Roadmap
 
-Next up is the user-facing layer (operator dashboard, browser enrollment, kiosk feedback screen,
-one-command setup). The ordered build plan is in [`ROADMAP.md`](ROADMAP.md) — Steps 10–16, each
-with dependencies and acceptance checks.
+Next up is the user-facing layer plus a continuous multi-student guardpost. The ordered build plan
+is in [`ROADMAP.md`](ROADMAP.md):
+- **UI track (10–16)** — one-command setup, API + live stream, SPA, operator dashboard.
+- **Backbone track (20–23)** — privacy/compliance, attendance sessions + digest, reliability, anti-fraud.
+- **Flow track (30–35)** — continuous perception + tap↔face correlation for a 3–5 students/sec guardpost, boxes-only public viewer, in-app register wizard, review queue.
+
+Cross-cutting constraints, failure modes, edge cases, and the legal/consent + accuracy-eval gates
+are in [`docs/design-notes.md`](docs/design-notes.md) — **read it before starting the Flow track.**
 
 ## Notes
 
