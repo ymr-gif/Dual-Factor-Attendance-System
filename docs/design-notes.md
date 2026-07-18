@@ -38,10 +38,17 @@ it's decided or still open.
 - **Single camera owner.** Only one process may open `/dev/video0`. The perception service
   (ROADMAP Step 30) owns it; `capture_probe()`-style per-tap opens and `preview.py` must not run
   against the same camera concurrently. Everything else subscribes to its published streams.
-- **Single backend worker (or shared state).** The tap buffer + events bus live in process memory.
-  Running uvicorn with `--workers >1` splits taps and face-events across processes and correlation
-  **fails invisibly**. Decision: **pin one worker**; if horizontal scale is ever needed, externalize
-  the buffer/bus to Redis. Document `--workers 1` in the systemd unit / compose.
+- **Single backend worker (or shared state).** The tap buffer + events bus **+ the runtime settings
+  cache and the single cached model instance** live in process memory. Running uvicorn with
+  `--workers >1` splits taps/face-events across processes (correlation **fails invisibly**) and would
+  also give each worker its own settings/model (hot-reload would only touch one). Decision: **pin one
+  worker**; if horizontal scale is ever needed, externalize buffer/bus + settings to Redis. Document
+  `--workers 1` in the systemd unit / compose.
+- **Config precedence (Tuning track, Steps 50–54)**: `DB settings override > env default (.env) >
+  code default`. Only the **tunable perf/device/resolution** set (device, camera res, `FACE_DET_SIZE`,
+  `MIN_FACE_PX`, probe/frame-skip, `ASSOC_WINDOW_SEC`) is DB-overridable and admin-toggleable **live**
+  (hot-reload). Infra/secrets (DB DSN, SMTP creds, `OPERATOR_TOKEN`) stay **env-only**. `.env.example`
+  still documents defaults; the DB just overrides the tunable subset at runtime.
 - **Reader throughput ceiling.** One RC522 on a **9600-baud** serial link cannot reliably sustain
   3–5 taps/s (UID read + anti-collision + framing ≈ 100–300 ms/card; 9600 baud ≈ 1 ms/byte). The
   3–5/s target assumes **either** a higher baud + faster read loop **or multiple readers** with a

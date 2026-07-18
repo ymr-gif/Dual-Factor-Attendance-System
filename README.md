@@ -162,6 +162,7 @@ is in [`ROADMAP.md`](ROADMAP.md):
 - **Backbone track (20–23)** — privacy/compliance, attendance sessions + digest, reliability, anti-fraud.
 - **Flow track (30–35)** — continuous perception + tap↔face correlation for a 3–5 students/sec guardpost, boxes-only public viewer, in-app register wizard, review queue.
 - **Deploy track (40–44)** — one-touch install onto the GPU box as a boot-on appliance (Linux primary, Windows `.exe` fallback), in-UI first-run wizard, updates/backup, release CI.
+- **Tuning track (50–54)** — admin runtime panel: GPU/CPU device toggle, resolution presets + advanced, and an optimizer (auto-detect button, presets, adaptive), all hot-applied without a restart.
 
 Cross-cutting constraints, failure modes, edge cases, and the legal/consent + accuracy-eval gates
 are in [`docs/design-notes.md`](docs/design-notes.md) — **read it before starting the Flow track.**

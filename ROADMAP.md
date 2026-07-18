@@ -561,3 +561,101 @@ Tasks:
 ## Deploy-track deferred (needs the actual box)
 - Live install on the RTX 1050 (driver/CUDA/onnxruntime-gpu), kiosk auto-start, camera + serial on
   the real hardware. The installer is built + testable in a VM/container up to the GPU/device steps.
+
+---
+
+# Tuning track (Steps 50–54) — runtime device/resolution/optimizer panel
+
+**Goal**: one build **adapts to whatever machine it's installed on** (CPU dev laptop ↔ RTX 1050 box)
+via an **admin, runtime-toggleable** performance panel — device (GPU/CPU), resolution, and an
+optimizer — no rebuild, no config-file editing. Promotes today's import-time env knobs (`USE_GPU`,
+`FACE_DET_SIZE`, camera resolution, probe/frame settings) to live, persisted settings.
+
+## Locked decisions
+- **Hot-apply (live reload)**: a change pauses perception ~1–2 s, rebuilds the model on the new
+  device/resolution, and resumes; in-flight recognition drained first, taps buffered across the gap.
+- **Optimizer = all three**: an **"Optimize for this machine" button** (detect + benchmark + apply),
+  **manual presets** (Quality / Balanced / Fast), and an **adaptive auto-tune** loop (optional).
+- **Resolution UI = presets + advanced**: Low/Med/High (bundles camera res + `FACE_DET_SIZE`) with an
+  advanced section to set each independently.
+- **Admin-only** (roles, Step 35). Infra values (DB DSN, SMTP creds) stay **env-only** — not runtime.
+
+## Config precedence (new)
+`DB settings override  >  env default (.env)  >  code default`. Only the **tunable perf/device/
+resolution** set is DB-overridable; everything else keeps the current env-driven behavior. Single
+backend worker (design-notes §3) means one settings cache + one model instance to reload — required.
+
+## Progress summary (tuning)
+- [ ] Step 50 — Runtime settings layer (persisted, precedence)
+- [ ] Step 51 — Model hot-reload (pause/drain/rebuild/resume)
+- [ ] Step 52 — Device toggle + resolution controls (backend/API)
+- [ ] Step 53 — Optimizer (button + presets + adaptive)
+- [ ] Step 54 — Settings/optimizer UI panel
+
+---
+
+## Step 50 — Runtime settings layer
+**Goal**: live, persisted, admin-tunable settings with clear precedence.
+**Depends on**: DB; roles (Step 35) for write-gating.
+Tasks:
+- [ ] `settings` key/value table (+ idempotent migration); `backend/settings.py` typed getters that
+      return the **effective** value (DB → env → default), with an in-process cache + invalidation.
+- [ ] Define the **tunable set**: device (auto/gpu/cpu), camera resolution, `FACE_DET_SIZE`,
+      `MIN_FACE_PX`, probe/frame-skip, `ASSOC_WINDOW_SEC`. Everything else stays env-only.
+- [ ] Read paths in `face.py` / `liveness.py` / perception use `settings.get(...)` not raw env.
+**Acceptance**: set a value via API → effective value changes and **persists across restart**;
+non-tunable/infra keys are rejected.
+
+## Step 51 — Model hot-reload
+**Goal**: swap device/resolution on a live pipeline without a crash or a restart.
+**Depends on**: Step 50; perception (Flow Step 30).
+Tasks:
+- [ ] `face.reload()` / `liveness.reload()`: drop cached `_app` / `_sessions`, rebuild from current
+      settings. Camera-resolution change = release + reopen `VideoCapture`; det_size/device = rebuild model.
+- [ ] Perception coordinator: **pause capture → drain in-flight recognition → reload → resume**; taps
+      during the gap are buffered (matcher window absorbs ~1–2 s).
+- [ ] **Fail-safe**: reload error (e.g. force-GPU, no CUDA) → fall back to CPU, surface the error,
+      keep running (never leave the pipeline dead).
+**Acceptance (sim)**: trigger a reload on the video-file perception harness → brief pause, correct new
+device/session, no crash, buffered taps still resolve.
+
+## Step 52 — Device toggle + resolution controls
+**Goal**: the actual knobs behind the panel, with guards.
+**Depends on**: Steps 50–51.
+Tasks:
+- [ ] Device setting **Auto / Force GPU / Force CPU**; `gpu_runtime()` reads the effective setting
+      (keeps auto CPU-fallback). Report **detected GPU + current effective device** to the UI.
+- [ ] Resolution: camera capture W×H + `FACE_DET_SIZE`; **Low/Med/High** preset map + advanced
+      independent values. Report the **actually applied** camera res (devices may not honor a request).
+- [ ] Guards: warn/prevent High-on-CPU footguns; validate ranges.
+- [ ] Endpoints: `GET/PUT /api/settings`, `GET /api/settings/capabilities` (GPU present, cores, cam modes).
+**Acceptance**: switch device/res via API → hot-reload → effective config + capabilities reported;
+force-GPU with no CUDA reports the fallback rather than failing.
+
+## Step 53 — Optimizer (button + presets + adaptive)
+**Goal**: make good settings automatic — critical for the install-anywhere / non-technical goal.
+**Depends on**: Step 52; metrics (Backbone Step 22); overlaps Flow Step 32 (GPU perf work).
+Tasks:
+- [ ] **Optimize button**: detect GPU + cores; short **benchmark** (time N recognitions across
+      candidate device/res configs on a sample) → pick + apply the recommended profile; show the result.
+- [ ] **Presets**: Quality / Balanced / Fast bundling device + resolution + probe + frame-skip.
+- [ ] **Adaptive auto-tune** (toggleable): controller monitors fps/latency vs a target; steps
+      resolution/frame-skip **down** under target, **up** with headroom; **hysteresis** to avoid
+      flapping; bounded by Step 52 guards; logs each change.
+**Acceptance (sim)**: benchmark picks a config on a known fake machine; presets apply; the adaptive
+loop lowers resolution on a simulated fps drop and recovers on headroom, without flapping.
+
+## Step 54 — Settings / optimizer UI panel
+**Goal**: the admin-facing surface for all of the above.
+**Depends on**: SPA (UI Step 12), Steps 50–53.
+Tasks:
+- [ ] Admin settings page: device picker (Auto/GPU/CPU + shows detected GPU), resolution presets +
+      advanced, **"Optimize for this machine"** button (shows benchmark result), adaptive toggle +
+      target fps, and a **live readout** (current fps, latency, device, applied resolution — reuses metrics).
+- [ ] Hot-apply feedback: show the ~1–2 s reload state; confirm the new effective config.
+**Acceptance (sim)**: panel changes device/res and reflects the new effective config + live fps;
+optimize button round-trips; adaptive toggle visibly engages.
+
+## Tuning-track deferred (needs real hardware)
+- Real GPU↔CPU hot-swap timing + benchmark numbers on the RTX 1050; camera-mode enumeration on the
+  actual webcam; adaptive tuning against real load. Logic is built + simulation-tested before then.
