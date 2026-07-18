@@ -44,10 +44,11 @@ NFC identifies the student; the face check confirms it's really them (2nd factor
 - CPU-tuned: recognition runs once on the largest face, so tap cost (~0.7s) is independent of crowd size. `USE_GPU=true` moves both face + liveness onto CUDA (auto-fallback to CPU) — flip it on after migrating to the RTX 1050 box, no code change.
 
 ```
-python -m backend.enroll S001 --capture 5   # enroll from webcam (3–5 shots, averaged)
+python -m backend.enroll S001 --images a.jpg b.jpg c.jpg   # enroll from files (3–5 shots, averaged)
 python -m backend.preview --match S001      # live diagnostic window: aim/light the camera
 python -m backend.calibrate --days 7        # tune FACE_THRESHOLD from real logged scores
 ```
+(`--capture` webcam enrollment is currently broken — see the runbook; use `--images` until ROADMAP Step 33 fixes it.)
 
 Env vars (incl. `USE_GPU`, `FACE_DET_SIZE`), camera setup, performance/GPU, threshold tuning, and troubleshooting: [`docs/face-verification.md`](docs/face-verification.md).
 

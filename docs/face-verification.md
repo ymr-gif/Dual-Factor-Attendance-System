@@ -30,9 +30,13 @@ Averages 3–5 shots into one re-normalized embedding (bigger real-world accurac
 than a single photo). Stored via `db.set_face_embedding`.
 
 ```
-python -m backend.enroll S001 --capture 5                  # from the webcam (prompts per shot)
 python -m backend.enroll S001 --images a.jpg b.jpg c.jpg   # from files
+python -m backend.enroll S001 --capture 5                  # from the webcam (prompts per shot)
 ```
+
+> ⚠ **`--capture` is currently broken** — `enroll.py._from_capture` treats `face.capture_probe()`
+> as a bare embedding, but since Steps 6/7 it returns a `Probe(frame, bbox, embedding)` tuple. Use
+> `--images` for now; the fix (use `probe.embedding`) is ROADMAP **Step 33**.
 
 Shots with no usable face (smaller than `MIN_FACE_PX`, or none detected) are skipped with a
 warning; it aborts if zero usable shots remain and warns if fewer than 3.
@@ -149,7 +153,7 @@ Verified live on **2026-07-10** with the attached USB webcam:
 | Check | Result |
 |-------|--------|
 | Webcam | `/dev/video0`, opens at 640×480 |
-| `capture_probe()` | 512-d embedding, self-cosine 1.0 |
+| `capture_probe()` | `Probe(frame, bbox, embedding)` — embedding is normed 512-d, self-cosine 1.0 |
 | Schema migration | `vector` ext + `face_embedding vector(512)`, `face_score`, `face_match` applied on restart |
 | Enroll S001 (3 live shots) | stored, read back as numpy `(512,)` via `register_vector` |
 | Genuine match | score **0.86**, `face_match=true`, no warning |
