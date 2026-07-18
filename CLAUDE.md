@@ -1,0 +1,51 @@
+# nfc-scan — project context
+
+RES2 attendance system. See README.md for architecture, hardware wiring, and build status checklist — keep both in sync when the build progresses.
+
+## Build order (from original spec)
+
+1. Arduino: send UID over serial — done
+2. Python: read serial — done (`backend/serial_reader.py`)
+3. FastAPI: POST /tap → log Postgres — done (`backend/main.py`, `backend/db.py`)
+4. Notify stub: print — done (`backend/notify.py`)
+5. Test loop, fake student — done (student `S001`, uid `C3BE343A`)
+6. Face match (1:1) — done, verified live 2026-07-10 (`backend/face.py`, `backend/enroll.py`, `backend/calibrate.py`; InsightFace `buffalo_l`, fail-open). Runbook: `docs/face-verification.md`.
+7. Liveness (MiniFASNet) — built, wired into `/tap` (`backend/liveness.py`, ensemble V2@2.7 + V1SE@4.0, fail-open). ⚠ **not calibrated live** — `LIVENESS_THRESHOLD` unset (uses model argmax); collect real live + printed-photo/phone taps then `python -m backend.calibrate --metric liveness`.
+8. Real SMTP — built (`backend/notify.py`: console line always + guardian email when `SMTP_*`/`NOTIFY_EMAIL_ENABLED` set). ⚠ **not sent against a live provider yet**; needs real SMTP creds.
+9. Buddy-punch mitigation (2FA enforced) — built (`backend/decision.py`: per-tap `status` = accepted/flagged/rejected/unverified/unregistered). `ENFORCE_2FA` **off by default** (fail-open preserved); rejected taps still stored for audit. ⚠ flip `ENFORCE_2FA=true` in the backend unit only after live validation.
+
+**Rule: don't start step 6 (face) until steps 1-5 are verified working.** They are, as of this doc. Step 6 is now built and verified live with the USB webcam (S001 enrolled; genuine 0.86 / impostor 0.018). Steps 7–9 are code-complete (no live test); each carries a ⚠ live-verification step above.
+
+## Dev environment specifics
+
+- **Face match (Step 6)** — full runbook in `docs/face-verification.md`. InsightFace `buffalo_l` (ArcFace, 512-d) on CPU via `onnxruntime`; model auto-downloads once to `~/.insightface`. Probe comes from a **USB webcam on the backend laptop**, confirmed at **`/dev/video0`** (640×480); `CAMERA_INDEX` default 0 — if the cam ever enumerates as `video1`, set `CAMERA_INDEX=1`. Service/shell user must be in the `video` group. Backend grabs best-of-N frames on `/tap`. Embeddings live in `students.face_embedding vector(512)` (**no image stored on disk** — enrollment frames are encoded then discarded; pgvector extension enabled in `schema.sql`, self-migrates via idempotent `ALTER ... ADD COLUMN IF NOT EXISTS` on restart). `psycopg2` connections `register_vector()` (best-effort) so embeddings round-trip as numpy arrays. Enroll: `python -m backend.enroll <student_id> --images ... | --capture N` (3–5 shots, averaged). Calibrate threshold from logs: `python -m backend.calibrate`. **Fail-open**: no camera / no face / no reference → attendance still logs, `face_score`/`face_match` NULL, notify warns. Env knobs: `FACE_MATCH_ENABLED`, `FACE_THRESHOLD` (0.5 conservative), `CAMERA_INDEX`, `CAMERA_WARMUP_FRAMES`, `CAMERA_PROBE_FRAMES`, `MIN_FACE_PX`. Set `FACE_MATCH_ENABLED=false` to run headless without a webcam. **CV deps** (`insightface onnxruntime opencv-python-headless`) are installed in the pyenv 3.11.8 env the service uses; they pull a large dep tree and were slow over this machine's network.
+  - **Performance**: pipeline is CPU-tuned so tap cost is crowd-independent — detection runs every frame (cheap), recognition (~360ms, the bottleneck) runs **once** on the largest face only; `buffalo_l` loaded with `allowed_modules=['detection','recognition']` (landmark/gender-age dropped), all cores. `FACE_DET_SIZE` (default **320**) sets detector input size — 320 ≈ 72ms/14fps detect for a close kiosk face; raise to 448/640 for far/small faces. Measured ~0.7s/tap, ~10–14fps preview on this 4-core box.
+  - **GPU switch**: `USE_GPU` (default false) drives **both** face and liveness. On CPU here; auto-falls back to CPU with a warning if set true without CUDA (safe to preset). This machine has **no GPU** (`nvidia-smi` absent, CPU-only `onnxruntime`). **On migration to the RTX 1050 box**: install nvidia driver + CUDA/cuDNN, `pip install onnxruntime-gpu`, add `Environment=USE_GPU=true` to the backend unit, restart — no code change; ~5–10× on recognition.
+  - **Camera preview**: `python -m backend.preview [--match S001]` opens a live diagnostic window (face box + size vs `MIN_FACE_PX`, LIVE/SPOOF score, match cosine) to aim/light the kiosk cam. Holds the webcam while open — close (q) before tapping. Needs GUI OpenCV + a display (Wayland desktop present; launch with `QT_QPA_PLATFORM=xcb DISPLAY=:0`).
+- **Liveness (Step 7)** — `backend/liveness.py`, MiniFASNet ensemble (V2@2.7 + V1SE@4.0) via `onnxruntime`, softmax summed (official Silent-Face approach). Weights (ONNX, Apache-2.0) live in `backend/models/anti_spoof/`, fetched once by `python -m backend.fetch_liveness_models` (already present here). Reuses the **same** `/tap` capture as face match — one webcam open, `assess(frame, bbox)` returns `(p_live, is_live)`. **Fail-open**: any error → `(None, None)`, tap still logs. Env: `LIVENESS_ENABLED` (default true), `LIVENESS_MODEL_DIR`, `LIVENESS_THRESHOLD` (**unset → model argmax verdict**; set a `p_live` cutoff after calibration). Honors `USE_GPU` via `face.gpu_runtime()`. ⚠ Threshold not yet calibrated with real spoofs — `python -m backend.calibrate --metric liveness` once live/printed-photo taps are logged.
+- **Guardian email (Step 8)** — `backend/notify.py` always prints the operator console line; emails the student's `guardian_email` when `NOTIFY_EMAIL_ENABLED=true` **and** `SMTP_HOST` set. Env: `SMTP_HOST`, `SMTP_PORT` (465 → implicit SSL, else STARTTLS; default 587), `SMTP_USER`/`SMTP_PASSWORD` (omit for open relay / debug server), `SMTP_FROM` (default `SMTP_USER`), `SMTP_STARTTLS` (default true), `SMTP_TIMEOUT` (10s). **Fail-open**: SMTP errors are caught + printed, never break a tap. `smtplib`/`ssl`/`email` are stdlib — no new deps. ⚠ Not tested against a real provider; local check via `python -m aiosmtpd -n -l localhost:8025` + `SMTP_HOST=localhost SMTP_PORT=8025 SMTP_STARTTLS=false`.
+- **2FA enforcement (Step 9)** — `backend/decision.py` `decide(student, face_match, liveness_pass)` → per-tap `status` on `attendance_logs` (`accepted`/`flagged`/`rejected`/`unverified`/`unregistered`). `ENFORCE_2FA` (default **false**): off → an explicit factor fail is `flagged` but still logged present (current behavior); on → `rejected` (not counted, still stored for audit). Rejects only on an *explicit* False, so missing camera/reference stays fail-open. ⚠ Set `Environment=ENFORCE_2FA=true` on the backend unit only after live validation.
+- **Postgres**: dedicated Docker container `nfc-scan-postgres`, port **5433** (not 5432 — that's occupied by other projects' Postgres on this machine). `db=attendance user=attendance password=attendance`. Has a named volume (`nfc-scan-pgdata`) and `--restart unless-stopped` — safe to survive container recreation/host reboot. Recreate with:
+  ```
+  docker run -d --name nfc-scan-postgres --restart unless-stopped \
+    -p 5433:5432 -v nfc-scan-pgdata:/var/lib/postgresql/data \
+    -e POSTGRES_DB=attendance -e POSTGRES_USER=attendance -e POSTGRES_PASSWORD=attendance \
+    pgvector/pgvector:pg16
+  ```
+  Any postgres:16-compatible image works; `pgvector/pgvector:pg16` was used because it was already cached locally and plain `postgres:16` pulls were stalling on this network. **Never recreate the container without `-v nfc-scan-pgdata:...`** or attendance history is lost — if it must be recreated without the volume for some reason, `pg_dump --data-only -t students -t attendance_logs` first.
+- **Port 8000** is taken by an unrelated project's API on this machine — the FastAPI backend here runs on **8001** instead.
+- **Backend + serial reader run as user-level systemd services**, not ad-hoc processes: `~/.config/systemd/user/nfc-scan-backend.service` and `nfc-scan-reader.service`, both `Restart=always`. Manage with `systemctl --user {status,restart,stop} nfc-scan-backend nfc-scan-reader`, logs via `journalctl --user -u nfc-scan-backend -u nfc-scan-reader`. After editing `backend/*.py`, restart the relevant unit — there's no reload/watch mode configured.
+  - **Linger is off** (`loginctl show-user scylla` → `Linger=no`), so these units currently only start when this user logs in, not at raw boot. To make them truly boot-independent needs `sudo loginctl enable-linger scylla` — that's a manual step, not yet done.
+  - `backend/serial_reader.py` now reconnects on `SerialException` (Arduino unplug/replug) instead of crashing, and buffers failed `/tap` POSTs to `backend/failed_taps.jsonl`, retrying them on the next tap. `backend/main.py`'s startup hook retries `db.init_db()` for ~30s instead of crashing if Postgres isn't up yet.
+- **Arduino**: board is an Uno at `/dev/ttyACM0`, FQBN `arduino:avr:uno`. Only one process can hold the serial port — if the Arduino IDE's Serial Monitor is open, or the `nfc-scan-reader` systemd service is running, other readers will fail with `Device or resource busy`. `systemctl --user stop nfc-scan-reader` before using the Arduino IDE's own Serial Monitor.
+- **arduino-cli** isn't on PATH; it ships bundled inside the Arduino IDE flatpak install:
+  ```
+  /var/lib/flatpak/app/cc.arduino.IDE2/x86_64/stable/*/files/arduino-ide/resources/app/lib/backend/resources/arduino-cli
+  --config-file /home/scylla/.arduinoIDE/arduino-cli.yaml
+  ```
+- **UID format**: current firmware emits uppercase hex, no separators (`C3BE343A`). If the sketch is ever reflashed with a different format, re-normalize existing `students.uid` values to match, or lookups will silently fail (this bit us once — the fake student row had to be updated after a reflash changed the format from spaced to unspaced hex).
+
+## Other Postgres/Docker instances on this machine (do not touch)
+
+- `docker-postgres-1` — pgvector/pg16, db `nimrouter`, unrelated project. Not published to any host port.
+- native `postgresql-17` service (apt-installed, `systemctl`/`pg_lsclusters`) — inactive, unrelated to this project's dev Postgres container.

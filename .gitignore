@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Local runtime state
+backend/failed_taps.jsonl
+*.log
+
+# Model weights — fetched, not committed (sha256-pinned):
+#   python -m backend.fetch_liveness_models
+backend/models/
+
+# Local Claude Code machine permissions (project CLAUDE.md is committed)
+.claude/settings.local.json
+
+# Stray WhatsApp-web cache (unrelated to this project)
+.wwebjs_cache/
+
+# Env / secrets — commit .env.example, never .env
+.env
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
