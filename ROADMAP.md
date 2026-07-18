@@ -473,3 +473,91 @@ wizard enrolls from the browser webcam (dup-check runs); admin and viewer usable
 ## Open defaults (proceeding unless changed)
 - `ASSOC_WINDOW_SEC=4`; 1:N threshold ~0.6 with top1−top2 margin ~0.1; MJPEG viewer v1; roles via a
   small `operators` table (not external SSO).
+
+---
+
+# Deploy track (Steps 40–44) — distribution & one-touch install
+
+**The repo's real job**: get this onto the RTX 1050 guardpost box **easily** and have it **run as an
+appliance** (auto-start on boot into the UI) with **non-technical** hands doing the least possible.
+
+## Locked decisions
+- **Primary target: Linux appliance.** Most reliable for GPU + webcam + serial + kiosk auto-start;
+  reuses the existing systemd units. **Windows Inno Setup `.exe`** is a documented *alternative* if
+  the box must run Windows (accepts more fragility + a manual NVIDIA-driver step).
+- **Appliance model**: a technician provisions the box **once** (one installer or a pre-flashed
+  image); **staff just power it on** and it boots into the running guardpost. A literal single-exe
+  for end-users is *not* the goal — the appliance is.
+- **No terminal for staff**: first-run + daily operation happen entirely in the browser UI.
+
+## Reconciliation
+- **UI Step 10 (one-command setup) seeds this track** — its docker-compose/Makefile/`fetch-models`
+  are the dev-time ancestor of the appliance installer. Grow the installer *from* Step 10; keep the
+  systemd units (backend, reader, + new perception) as the shared runtime.
+- Culminates **after the Flow track** (needs the full app), but scaffold the installer skeleton, CI,
+  and kiosk config early so every feature is installed the same way it'll ship.
+
+## Progress summary (deploy)
+- [ ] Step 40 — Appliance provisioning (one script, per box)
+- [ ] Step 41 — Wrap as a downloadable "button" (GitHub Release artifact)
+- [ ] Step 42 — In-UI first-run wizard (no terminal)
+- [ ] Step 43 — Updates, backup & recovery
+- [ ] Step 44 — Release engineering (CI → installer artifacts)
+
+---
+
+## Step 40 — Appliance provisioning (one script, per box)
+**Goal**: fresh box → one command → reboot → boots into the running guardpost.
+**Depends on**: a runnable app (grows with the build); reuses systemd units.
+
+Tasks (Linux primary):
+- [ ] `deploy/install.sh`: verify/install **NVIDIA driver + CUDA/cuDNN** (or check + link docs);
+      install **Postgres + pgvector** (native), create DB + schema; create the Python env +
+      `onnxruntime-gpu` + deps; **fetch models**; build + install the SPA.
+- [ ] Install + enable systemd units (backend, perception, reader); `loginctl enable-linger`;
+      configure **kiosk auto-start** (auto-login + `chromium --kiosk` to the viewer/admin URL).
+- [ ] Write `.env` with sane defaults + `USE_GPU=true`; prompt only for essentials.
+- [ ] `deploy/preflight` check: GPU present? camera at `/dev/video0`? serial at `/dev/ttyACM0`?
+
+**New/changed**: `deploy/install.sh`, `deploy/preflight`, `deploy/systemd/*.service`,
+`deploy/kiosk/*`, `README.md`.
+**Acceptance**: on a clean Linux box, run the installer → reboot → the guardpost UI is on screen and
+a simulated `/tap` logs. (Live GPU/cam verification deferred to the actual box.)
+
+## Step 41 — Wrap as a downloadable "button"
+**Goal**: one file from GitHub Releases, double-click / run, guided to done.
+**Depends on**: Step 40.
+Tasks:
+- [ ] Linux: self-extracting `.run` (or `.deb` / AppImage-style launcher) wrapping `install.sh` with
+      a friendly TUI/GUI + the preflight checks.
+- [ ] **Windows alternative** (only if box is Windows): Inno Setup `.exe` — embedded-Python backend +
+      bundled SPA + portable Postgres + model download + Task Scheduler auto-start + documented driver step.
+**Acceptance**: download a single Release asset, run it, reach a working install without editing files.
+
+## Step 42 — In-UI first-run wizard (no terminal)
+**Goal**: non-technical setup entirely in the browser.
+**Depends on**: Step 35 (UI), Step 40.
+Tasks:
+- [ ] First-run flow: set admin password/token → **test camera / reader / GPU** (health panel, reuses
+      `doctor`, Backbone Step 22) → enroll first student (register wizard, Step 35).
+**Acceptance**: a non-technical user completes setup in the browser with no shell.
+
+## Step 43 — Updates, backup & recovery
+**Goal**: keep an appliance current and safe without a technician on-site.
+**Depends on**: Step 40.
+Tasks:
+- [ ] One-click / scheduled **update** (pull release → migrate schema → restart), preserving data.
+- [ ] **Backup/restore** (reuse Backbone Step 22 `pg_dump`); **factory-reset / re-provision**.
+**Acceptance**: updating to a new release preserves roster + attendance; restore recovers a backup.
+
+## Step 44 — Release engineering (CI)
+**Goal**: tagging a release auto-produces the installer artifacts.
+**Depends on**: Steps 40–41.
+Tasks:
+- [ ] GitHub Actions: build SPA, bundle backend, run tests, produce installer artifact(s), attach to
+      a **GitHub Release**; semantic versioning; changelog.
+**Acceptance**: pushing a tag yields downloadable installer artifacts on the Releases page.
+
+## Deploy-track deferred (needs the actual box)
+- Live install on the RTX 1050 (driver/CUDA/onnxruntime-gpu), kiosk auto-start, camera + serial on
+  the real hardware. The installer is built + testable in a VM/container up to the GPU/device steps.
