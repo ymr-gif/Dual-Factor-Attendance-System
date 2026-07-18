@@ -17,6 +17,15 @@ it's decided or still open.
 - **Trust boundary**: the Arduino is relay-only (no decisions on-device); all identity/verification
   logic is on the backend. LAN is semi-trusted (see §6).
 - **Scale**: hundreds of enrolled students, not tens of thousands (affects 1:N index choices).
+- **Distribution & runtime**: the repo is the *install channel* for the GPU box. Target is a
+  **dedicated appliance** that **auto-starts into the UI on boot**; a technician provisions it
+  **once**, then non-technical staff just power it on. Primary OS = **Linux** (kiosk + GPU + camera +
+  serial reliability, reuses systemd units); **Windows Inno Setup `.exe`** is a documented fallback
+  if the box must run Windows. A literal single end-user exe is *not* a goal — the appliance is.
+  See ROADMAP **Deploy track (40–44)**.
+- **Why not "everything in one exe"**: Postgres and the NVIDIA driver/CUDA runtime are host-level
+  and can't ship inside an app bundle; on Windows, Docker + webcam + serial + GPU together is
+  fragile → the guardpost box installs **natively**, not via Docker (Docker stays a dev-DB convenience).
 
 ## 2. Non-goals (explicit — don't build these unless re-scoped)
 - Not a general access-control / door-lock system (attendance logging only; Arduino drives no relay lock).
@@ -110,8 +119,10 @@ camera height for short/tall/wheelchair.
 Security: embedding theft · stream auth/TLS · token rotation · audit tamper.
 
 ## 10. Open decisions (owner: stakeholder + build)
-1. Reader strategy: higher baud on one reader **vs** multiple readers + `door_id`? (blocks real burst throughput)
-2. Attendance unit: per-tap log vs per-student-per-day roll-up?
-3. Accuracy target (FAR/FRR operating point) for this population?
-4. Consent/legal jurisdiction + is the school use "commercial" for the model license?
-5. Camera-dead degraded mode: log as `unverified` (recommended) vs block taps entirely?
+1. **Guardpost box OS**: **Linux appliance recommended** (reliability); Windows `.exe` only if the
+   institution/box mandates it. This is the one external constraint that flips the Deploy track.
+2. Reader strategy: higher baud on one reader **vs** multiple readers + `door_id`? (blocks real burst throughput)
+3. Attendance unit: per-tap log vs per-student-per-day roll-up?
+4. Accuracy target (FAR/FRR operating point) for this population?
+5. Consent/legal jurisdiction + is the school use "commercial" for the model license?
+6. Camera-dead degraded mode: log as `unverified` (recommended) vs block taps entirely?
