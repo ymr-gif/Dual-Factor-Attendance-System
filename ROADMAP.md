@@ -1,8 +1,11 @@
-# nfc-scan — build roadmap (Steps 10–16)
+# nfc-scan — build roadmap (Steps 10–54, five tracks)
 
-Handoff / build list for the user-friendliness work. **Do the phases in order** — each
-depends on the ones above it. Steps 1–9 (NFC → log → face → liveness → notify → 2FA) are
-done; see README "Status" and CLAUDE.md "Build order". This doc picks up at Step 10.
+Handoff / build list. **Do the phases in order within a track** — each depends on the ones above
+it. Steps 1–9 (NFC → log → face → liveness → notify → 2FA) are done; see README "Status" and
+CLAUDE.md "Build order". This doc picks up at Step 10.
+
+Tracks: **UI (10–16)** · **Backbone (20–23)** · **Flow (30–35)** · **Deploy (40–44)** ·
+**Tuning (50–54)**. Cross-cutting constraints/failure modes live in `docs/design-notes.md`.
 
 ## How to use this doc
 - One phase at a time, top to bottom. Don't start a phase until its **Depends on** is met.
@@ -38,6 +41,8 @@ done; see README "Status" and CLAUDE.md "Build order". This doc picks up at Step
 - [ ] Step 16 — Hardening & polish  → *roles moved to Step 35*
 
 ---
+
+# UI track (Steps 10–16) — one-command setup, API, SPA, dashboard
 
 ## Step 10 — One-command setup (foundation)
 **Goal**: `git clone` → one command → running stack. Makes every later phase reproducible.
