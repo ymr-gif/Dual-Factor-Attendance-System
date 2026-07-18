@@ -7,6 +7,62 @@ CLAUDE.md "Build order". This doc picks up at Step 10.
 Tracks: **UI (10–16)** · **Backbone (20–23)** · **Flow (30–35)** · **Deploy (40–44)** ·
 **Tuning (50–54)**. Cross-cutting constraints/failure modes live in `docs/design-notes.md`.
 
+The tracks are grouped by theme; the **Build sequence** below is the actual order to build in
+(it interleaves the tracks by dependency + value). Follow the sequence, not the track numbers.
+
+---
+
+## Build sequence (cross-track priority order)
+
+Dependency-respecting, value-early. **▶ = start here.** `[CPU]` buildable + simulation-testable
+now; `[GPU/HW]` logic buildable now but final verification needs the RTX 1050 / live devices.
+
+**Phase A — Foundation** *(unblocks everything; do strictly in order)*
+1. ▶ **Step 10** — one-command setup `[CPU]` — also seeds the installer skeleton (Deploy) + gives Tuning a DB.
+2. **Step 11** — API + events bus + async `/tap` + `OPERATOR_TOKEN` `[CPU]` — prereq for perception, dashboard, everything.
+3. **Step 12** — SPA scaffold `[CPU]` — prereq for every UI surface.
+4. *(optional here)* **Step 44** — release CI early, to protect the build as it grows.
+
+**Phase B — Perception core** *(the keystone architecture change)*
+5. **Schema pass** — land the additive columns together (idempotent ALTERs): `status` (done), `embed_model`, `enrolled_at` (Step 33), `face_consent` (Step 20), `review_queue` (Step 34).
+6. **Step 30** — perception service (single camera owner, tracking, publish streams) `[GPU/HW]`.
+7. **Step 31** — matcher (async correlation, Hungarian, strict rules; also realizes Backbone 23 cooldown/tailgating) `[CPU]` sim-testable.
+8. **Step 33 (part)** — fix `enroll --capture` + extract shared enroll core `[CPU]` — quick; unblocks the register wizard.
+
+**Phase C — Data model & responsibility** *(can overlap late B)*
+9. **Step 20** — privacy/consent/audit `[CPU]` — **consent gate must exist before enrolling real children** (legal).
+10. **Step 33 (rest)** — cardless 1:N (tailgater ID), dup-enroll detection, re-enroll reminders `[CPU]`.
+11. **Step 21** — attendance sessions + guardian digest `[CPU]`.
+
+**Phase D — Runtime tuning** *(needs perception + a settings store)*
+12. **Step 50** — runtime settings layer `[CPU]` (write-gate on `OPERATOR_TOKEN` until roles land in 35).
+13. **Step 51** — model hot-reload `[GPU/HW]`.
+14. **Step 52** — device + resolution controls `[GPU/HW]`.
+15. **Step 22** — reliability: `make doctor`, metrics, backup, local cache `[CPU]` — **metrics feed 53/54**.
+16. **Step 53** — optimizer (button + presets + adaptive) `[GPU/HW]`.
+
+**Phase E — UI surfaces** *(needs SPA + the backend features above)*
+17. **Step 13** — operator dashboard (read views) `[CPU]`.
+18. **Step 34** — manual review queue `[CPU]`.
+19. **Step 35** — multi-view UI: roles, boxes-only viewer, register wizard `[CPU]` (live cam deferred).
+20. **Step 54** — settings/optimizer UI panel `[CPU]`.
+21. **Step 23 (rest)** — anti-fraud extras not already in the matcher `[CPU]`.
+
+**Phase F — Ship** *(needs the full app)*
+22. **Step 40** — appliance provisioning `[GPU/HW]`.
+23. **Step 41** — downloadable "button" `[GPU/HW]`.
+24. **Step 42** — in-UI first-run wizard `[CPU]` (needs doctor 22 + register 35).
+25. **Step 43** — updates / backup / recovery `[CPU]`.
+26. **Step 44** — release CI (if not done in Phase A).
+27. **Step 16** — final hardening, CORS lockdown, README screenshots `[CPU]`.
+
+**Superseded — do NOT build as written**: UI **Step 14** (browser enroll) → folded into the register
+wizard (Step 35); UI **Step 15** (kiosk) → the boxes-only viewer (Step 35). Their concepts live in 35.
+
+**The wall**: everything through Phase E is buildable + simulation-verifiable on the current CPU box.
+`[GPU/HW]` items build their *logic* now; their *acceptance* (real throughput, hot-swap timing,
+device install) waits for the RTX 1050. Phase F is mostly on-box.
+
 ## How to use this doc
 - One phase at a time, top to bottom. Don't start a phase until its **Depends on** is met.
 - A phase is done only when its **Acceptance** check passes. Then tick its box in the summary.
