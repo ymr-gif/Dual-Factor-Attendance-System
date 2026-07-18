@@ -189,3 +189,110 @@ reachable, auth enforced, README shows real screenshots.
 - Liveness threshold calibration with real spoof samples (`calibrate --metric liveness`).
 - Real guardian SMTP send against a live provider.
 - Turning on `ENFORCE_2FA=true` after live validation.
+
+---
+
+# Backbone track (Steps 20–23)
+
+Parallel to the UI track (10–16). These are domain/quality steps a serious reviewer expects of a
+**children's biometric attendance system** — responsibility, meaning, reliability, anti-fraud.
+Independent of the UI phases except where noted; can be scheduled around them.
+
+## Progress summary (backbone)
+- [ ] Step 20 — Privacy & compliance
+- [ ] Step 21 — Attendance sessions + guardian digest
+- [ ] Step 22 — Reliability & operability
+- [ ] Step 23 — Anti-fraud extensions
+
+---
+
+## Step 20 — Privacy & compliance
+**Goal**: Handle minors' biometric data responsibly; make it a documented feature.
+**Depends on**: soft — audit log pairs with `OPERATOR_TOKEN` (Step 11); consent gate hooks into
+enrollment (Step 14). Schema + purge job can land anytime.
+
+Tasks:
+- [ ] **Consent gating**: `students.face_consent BOOLEAN` (+ consent timestamp). Enrollment and
+      face matching refuse / skip when consent is false; tap still logs NFC-only. `.env` default policy.
+- [ ] **Retention/purge**: env `ATTENDANCE_RETENTION_DAYS`, `SCORE_RETENTION_DAYS`; a purge task
+      (cron or `make purge`) that deletes old logs / nulls old raw scores. Never touches roster.
+- [ ] **Right-to-erasure**: `DELETE /api/students/{id}` also drops the embedding + logs (or
+      anonymizes), writing an erasure audit entry.
+- [ ] **Operator audit log**: `audit_log` table (actor, action, target, ts); write on every
+      enroll/delete/roster edit. Read endpoint for the dashboard.
+- [ ] **Embedding encryption at rest** (optional/2nd pass): pgcrypto or app-level; document the
+      key-management tradeoff. Note: embeddings are non-invertible to images but are still PII.
+- [ ] **Privacy doc**: `docs/privacy.md` — what's stored (embedding, not images), why, retention,
+      erasure, consent. Link from README.
+
+**New/changed**: `backend/schema.sql`, `backend/db.py`, `backend/main.py`, `backend/enroll.py`,
+`docs/privacy.md`, `.env.example`, `README.md`.
+**Acceptance**: enrolling without consent is refused; purge removes rows older than the window and
+keeps the roster; deleting a student erases embedding + logs and records an audit entry.
+
+---
+
+## Step 21 — Attendance sessions + guardian digest
+**Goal**: Turn isolated tap rows into attendance *meaning* (present, check-in/out, absences).
+**Depends on**: Step 8 (SMTP, done) for the digest. Reporting endpoints pair well with Step 13.
+
+Tasks:
+- [ ] **Sessions**: derive check-in vs check-out by pairing a student's taps within a day
+      (first tap = in, next = out; configurable). Add a view/query for "present now" + duration.
+      Decide: store a `direction`/session table, or compute on read. Prefer a `sessions` view first.
+- [ ] **Present-today / absence**: `GET /api/attendance/summary?date=` — expected (roster or a
+      group) vs. who tapped → present / absent / late lists.
+- [ ] **Late flag**: env/schedule cutoff time; mark taps after it.
+- [ ] **Guardian digest**: batched daily/weekly summary email (opt-in per student), replacing or
+      complementing the per-tap notify. Reuse `backend/notify.py` SMTP path; add a `make digest`
+      / scheduled task.
+- [ ] **Export**: `GET /api/attendance.csv` with filters.
+
+**New/changed**: `backend/db.py`, `backend/main.py`, a `backend/digest.py`, `schema.sql` (if a
+sessions table), `.env.example`.
+**Acceptance**: two taps by one student in a day resolve to an in/out session with a duration; the
+summary lists absent students for a date; a digest email renders the day's attendance via the SMTP
+stub (real send deferred).
+
+---
+
+## Step 22 — Reliability & operability
+**Goal**: Trustworthy 24/7 kiosk; fast diagnosis when something breaks.
+**Depends on**: none (extends existing systemd + failed-tap queue).
+
+Tasks:
+- [ ] **`make doctor`** (`backend/doctor.py`): one-shot check of camera, DB, models present,
+      serial port, SMTP config → per-item pass/fail + hints. No live tap needed.
+- [ ] **Tamper/health alerts**: on camera-open failure, serial disconnect, or DB-unreachable,
+      notify the operator (reuse notify path / a webhook). Debounced.
+- [ ] **Metrics**: `GET /metrics` (Prometheus text) — tap counts by status, tap latency, camera
+      fps, error counters.
+- [ ] **Local roster cache**: cache uid→student so taps still identify + verify during a brief
+      Postgres outage; reconcile on reconnect (extends `failed_taps.jsonl`).
+- [ ] **DB backup**: `make backup` = `pg_dump` wrapper to a timestamped file; document restore.
+
+**New/changed**: `backend/doctor.py`, `backend/main.py` (metrics), `backend/serial_reader.py`
+(alerts/cache), `Makefile`, `README.md`.
+**Acceptance**: `make doctor` reports each subsystem; killing the DB triggers an alert and taps
+still identify from cache; `/metrics` scrapes; `make backup` writes a restorable dump.
+
+---
+
+## Step 23 — Anti-fraud extensions
+**Goal**: Harden the 2FA mission beyond the single-frame checks.
+**Depends on**: Steps 6–7 (done). Cooldown is independent; tailgating reuses the capture.
+
+Tasks:
+- [ ] **Tap cooldown**: reject/dedupe a repeat of the same UID within env `TAP_COOLDOWN_SEC`
+      (kills accidental double-logs + rapid clone probing). Log as a distinct status.
+- [ ] **Tailgating warning**: >1 usable face in the tap frame → flag on the log + notify.
+- [ ] **Repeated-unknown-card alert**: N unregistered taps in a window → operator alert (probe
+      detection).
+- [ ] **Active-liveness escalation**: only when passive liveness *flags*, prompt a blink/turn
+      (active check) rather than slowing every tap. Design as an optional second capture.
+
+**New/changed**: `backend/decision.py`, `backend/main.py`, `backend/face.py` (multi-face count),
+`backend/liveness.py` (active mode), `.env.example`.
+**Acceptance**: a second tap of the same card within the window is deduped; a two-face frame flags
+tailgating; repeated unknown cards fire one debounced alert. (Active-liveness live test deferred to
+hardware.)
