@@ -1,0 +1,19 @@
+nfc-scan
+Copyright 2026 nfc-scan contributors
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+This product includes third-party components:
+
+- MiniFASNet / Silent-Face-Anti-Spoofing (passive liveness, Step 7)
+  Copyright minivision-ai. Licensed under Apache License 2.0.
+  https://github.com/minivision-ai/Silent-Face-Anti-Spoofing
+  ONNX weights mirrored from https://github.com/yakhyo/face-anti-spoofing
+  (fetched at setup by backend/fetch_liveness_models.py; not redistributed here).
+
+- InsightFace (face detection + recognition, Step 6)
+  https://github.com/deepinsight/insightface
+  Code under MIT License. NOTE: the pretrained "buffalo_l" model pack is
+  released by InsightFace for NON-COMMERCIAL research purposes only. Obtain
+  appropriate rights before any commercial deployment. Models auto-download
+  to ~/.insightface and are not redistributed by this project.
