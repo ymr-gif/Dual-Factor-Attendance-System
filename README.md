@@ -154,6 +154,12 @@ arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno arduino/nfc_scan
 - [x] Real SMTP guardian notify — `backend/notify.py` emails the guardian when configured; console line always prints. Off until `SMTP_*` set. ⚠ not sent against a live provider yet
 - [x] Buddy-punch mitigation (2FA enforced) — `backend/decision.py` collapses face+liveness into a per-tap `status`; `ENFORCE_2FA` rejects a failed 2nd factor. **Off by default** (fail-open preserved). ⚠ flip on only after live validation
 
+## Roadmap
+
+Next up is the user-facing layer (operator dashboard, browser enrollment, kiosk feedback screen,
+one-command setup). The ordered build plan is in [`ROADMAP.md`](ROADMAP.md) — Steps 10–16, each
+with dependencies and acceptance checks.
+
 ## Notes
 
 UID alone is cloneable (magic cards). Not used as sole security — paired with face detection as 2nd factor.
