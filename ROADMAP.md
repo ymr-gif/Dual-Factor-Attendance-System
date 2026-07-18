@@ -22,14 +22,20 @@ done; see README "Status" and CLAUDE.md "Build order". This doc picks up at Step
   Kiosk route is unauthenticated (LAN kiosk); WS takes the token as a query param for `/`.
 - **Packaging**: `docker-compose` (backend + Postgres) + a `Makefile` wrapping common commands.
 
+> **Note**: the **Flow track (Steps 30–35)** below evolves this system into a continuous
+> multi-student guardpost and **supersedes parts of this UI track** — Step 14 (browser enroll)
+> → register wizard (Step 35), Step 15 (kiosk) → boxes-only viewer (Step 35), Step 16 roles
+> → roles (Step 35). Steps 11 and 12 are shared prerequisites. Read Track 30–35 before starting
+> 13–16 so those concepts are built once, there.
+
 ## Progress summary
 - [ ] Step 10 — One-command setup (foundation)
-- [ ] Step 11 — Backend API expansion + live tap stream
-- [ ] Step 12 — Frontend scaffold (SPA toolchain)
+- [ ] Step 11 — Backend API expansion + live tap stream  *(prereq for Flow track)*
+- [ ] Step 12 — Frontend scaffold (SPA toolchain)  *(prereq for Flow track)*
 - [ ] Step 13 — Operator dashboard (read views)
-- [ ] Step 14 — Roster + browser enrollment (write views)
-- [ ] Step 15 — Kiosk feedback screen
-- [ ] Step 16 — Hardening & polish (auth, docs, screenshots)
+- [ ] Step 14 — Roster + browser enrollment  → *see Step 35 (register wizard)*
+- [ ] Step 15 — Kiosk feedback screen  → *superseded by Step 35 (boxes-only viewer)*
+- [ ] Step 16 — Hardening & polish  → *roles moved to Step 35*
 
 ---
 
@@ -296,3 +302,169 @@ Tasks:
 **Acceptance**: a second tap of the same card within the window is deduped; a two-face frame flags
 tailgating; repeated unknown cards fire one debounced alert. (Active-liveness live test deferred to
 hardware.)
+
+---
+
+# Flow track (Steps 30–35) — continuous multi-student guardpost
+
+The core-model evolution: a guardpost handling **3–5 students/second**. Bursts of card taps, a
+**continuous camera** watching many faces moving in/out of frame, faces correlated to taps, a
+public boxes-only "mirror" viewer beside the gate, an in-app registration wizard, and a manual
+review queue. Shifts the system from **per-tap 1:1 verification** to a **continuous perception
+pipeline + async tap↔face correlation**. **Designed for the RTX 1050 GPU box** — the current
+CPU box is a ~1/s functional demo only.
+
+## Locked decisions (from design review)
+- **Strict card-required**: no tap = not present. Face only *verifies* the tapped student.
+- **Cardless 1:N = tailgater-ID tool, not a presence path**: a tracked face matching no buffered
+  tap is searched against the full gallery only to *name* the intruder for review — never present.
+- **GPU-first** (`USE_GPU=true`, RTX 1050); CPU stays a dev demo.
+- **Register Student**: in-app, admin-only full-screen wizard (no separate app).
+- **Public viewer**: boxes + status only, **no names / PII**.
+
+## Prerequisites (from other tracks — do first)
+- **UI Step 11** (events bus + async infra) and **UI Step 12** (SPA scaffold) underpin this track.
+- This track **supersedes/absorbs**: UI Step 15 (kiosk) → the boxes-only **viewer** (Step 35);
+  UI Step 14 (browser enroll) → the **register wizard** (Step 35); UI Step 16 roles → **roles**
+  (Step 35); Backbone Step 23 tailgating/cooldown → realized inside the **matcher** (Step 31).
+  Build those concepts here, not twice.
+
+## Progress summary (flow)
+- [ ] Step 30 — Perception service (single camera owner)
+- [ ] Step 31 — Tap buffer + tap↔face correlation (matcher)
+- [ ] Step 32 — Throughput / perf hardening (GPU)
+- [ ] Step 33 — Identity & matching features
+- [ ] Step 34 — Manual review queue
+- [ ] Step 35 — Multi-view UI + register-student
+
+## Conflicts this track resolves (current code that must change)
+- `face.capture_probe()` / `preview.py` each open the webcam per call and hold it exclusively →
+  replaced by **one camera-owner process**; everything else subscribes.
+- `/tap` returns the match inline → becomes an **async ack**; correlation resolves later.
+  `serial_reader.py` must tolerate an ack-only response.
+- `FACE_THRESHOLD=0.5` (1:1) is unsafe for whole-DB 1:N → higher threshold **+ top1−top2 margin**.
+- **Bug fixed in passing** (Step 33): `enroll.py` `_from_capture` treats `face.capture_probe()` as
+  an embedding, but it returns a `Probe(frame,bbox,embedding)` tuple → `--capture` enroll is broken.
+
+---
+
+## Step 30 — Perception service (single camera owner)
+**Goal**: One long-running process owns the camera and runs detect → track → recognize
+continuously, so cost is per-*track* not per-*frame*. Foundation for the whole track.
+**Depends on**: UI Step 11 (events bus); GPU design.
+
+Tasks:
+- [ ] `backend/perception.py`: camera-owner loop; publishes (a) annotated frames (viewer) and
+      (b) recognized-face events `{track_id, bbox, embedding, live_score, ts}` (matcher).
+- [ ] **Face tracking** (IoU/centroid or ByteTrack-lite): stable track IDs across frames; run
+      recognition **once per new track**, not per frame (throughput + "in/out of frame").
+- [ ] Refactor `backend/face.py`: split camera ownership out of `capture_probe`; keep `detect`,
+      `embed`, `cosine`, `gpu_runtime`, `largest_usable` as reusable primitives.
+- [ ] **Fail-open**: if perception is down, `/tap` falls back to card-only *flagged/unverified* logging.
+
+**New/changed**: `backend/perception.py`, `backend/face.py`, `backend/events.py`, `.env.example`.
+**Acceptance**: run against a **video file / image sequence** (not the live cam) — track IDs stay
+stable, recognition fires once per track, annotated frames + face events publish on the bus.
+
+---
+
+## Step 31 — Tap buffer + tap↔face correlation (matcher)
+**Goal**: Correlate a burst of taps with observed faces under strict card-required rules.
+**Depends on**: Step 30.
+
+Tasks:
+- [ ] `/tap` → **async enqueue + ack**. Buffer `{uid, student_id, embedding, ts}` for
+      `ASSOC_WINDOW_SEC` (default 4 s).
+- [ ] `backend/matcher.py`: **Hungarian assignment** of buffered-tap embeddings ↔ recognized-face
+      embeddings (cosine), within the window. Rules:
+  - tap + matching face ≥ threshold → **present (verified)**.
+  - tap + no face in window → **flagged: no-face** → review.
+  - tap + face below threshold → **flagged: mismatch** → review.
+  - face matching no tap → **tailgating**: cardless whole-DB search to name it → alert + review.
+  - liveness fail on a matched face → **flagged: spoof**.
+- [ ] Extend `backend/decision.py` statuses (`tailgating`, `no_face`, …); write logs via `db.py`.
+
+**New/changed**: `backend/matcher.py`, `backend/main.py`, `backend/decision.py`, `backend/db.py`,
+`backend/serial_reader.py`, `.env.example`.
+**Acceptance**: feed synthetic tap bursts + synthetic face-event streams (recorded embeddings) →
+correct outcomes across edge cases (more taps than faces, more faces than taps, below-threshold,
+no-face timeout, tailgater).
+
+---
+
+## Step 32 — Throughput / perf hardening (GPU)
+**Goal**: 3–5 students/s on the RTX 1050.
+**Depends on**: Steps 30–31 + **GPU hardware (live perf deferred)**.
+
+Tasks:
+- [ ] `onnxruntime-gpu` path; once-per-track recognition; frame-skip + `FACE_DET_SIZE` tuning;
+      optional batched recognition; profile to target.
+
+**Acceptance (deferred — hardware)**: sustained 3–5 students/s with acceptable accuracy on the 1050.
+
+---
+
+## Step 33 — Identity & matching features
+**Goal**: cardless 1:N (tailgater ID + manual lookup), dup-enrollment detection, re-enroll reminders.
+**Depends on**: schema + Step 30.
+
+Tasks:
+- [ ] Schema: `students.embed_model TEXT`, `students.enrolled_at TIMESTAMPTZ`; **pgvector ANN index**.
+- [ ] **Cardless 1:N** search API (matcher tailgater ID; also manual lookup).
+- [ ] **Duplicate-enrollment detection**: on enroll, 1:N vs gallery → warn if the face already exists.
+- [ ] **Re-enrollment reminders**: flag embeddings older than `REENROLL_AFTER_DAYS` or an older
+      `embed_model`.
+- [ ] **Fix `enroll.py --capture`** (use `probe.embedding`); extract a shared enroll core reused by
+      the wizard (Step 35).
+
+**New/changed**: `backend/schema.sql`, `backend/db.py`, `backend/enroll.py`, `backend/main.py`,
+`.env.example`.
+**Acceptance**: dup-check warns on a re-enroll of an existing face; re-enroll report lists stale
+embeddings; `--capture` enroll works again — all against a seeded gallery, no live cam.
+
+---
+
+## Step 34 — Manual review queue
+**Goal**: Flagged students get pulled and resolved by staff; resolutions feed calibration.
+**Depends on**: Step 31 + dashboard (UI Step 13).
+
+Tasks:
+- [ ] Flagged taps (no-face / mismatch / spoof / tailgating / low-confidence / dup) → review queue
+      (`review_queue` table or status filter).
+- [ ] Operator **confirm / override / request re-tap**; resolution logged (ties to Step 20 audit).
+- [ ] Endpoints + dashboard view.
+
+**New/changed**: `backend/schema.sql`, `backend/db.py`, `backend/main.py`, dashboard components.
+**Acceptance**: a simulated flagged tap appears in the queue; confirm/override updates the log and
+writes an audit entry.
+
+---
+
+## Step 35 — Multi-view UI + register-student (reconciles UI Steps 13–16)
+**Goal**: Admin + public-viewer windows running simultaneously, plus in-app enrollment.
+**Depends on**: UI Step 12 (SPA), Steps 30–34.
+
+Tasks:
+- [ ] **Roles**: promote single `OPERATOR_TOKEN` → an `operators` table with `admin` / `viewer` roles.
+- [ ] **Admin view**: full dashboard (live feed, review queue, roster, stats).
+- [ ] **Viewer view** (public, beside the gate): subscribes to the annotated-frame stream; **boxes +
+      status only, no names** (green ✓ / amber hold-still / red see-the-guard). **MJPEG** stream v1.
+- [ ] **Register Student**: admin-only full-screen wizard — details → webcam capture 3–5 shots →
+      **dup-check (Step 33)** → save; reuses the fixed enroll core. Keep "no image stored on disk".
+- [ ] Both views run simultaneously (separate windows/routes).
+
+**New/changed**: `backend/main.py` (roles, MJPEG stream), `frontend/src/pages/{Viewer,Register}.tsx`,
+auth components.
+**Acceptance**: viewer renders boxes from a simulated frame/event stream with no names; register
+wizard enrolls from the browser webcam (dup-check runs); admin and viewer usable at once.
+
+---
+
+## Flow-track deferred items (need GPU box / live cam / kiosk)
+- Real 3–5 students/s throughput profiling on the RTX 1050 (`onnxruntime-gpu`).
+- Live multi-face guardpost accuracy + 1:N threshold / top1−top2 margin calibration.
+- (Carried) liveness threshold calibration, real SMTP send, `ENFORCE_2FA=true`.
+
+## Open defaults (proceeding unless changed)
+- `ASSOC_WINDOW_SEC=4`; 1:N threshold ~0.6 with top1−top2 margin ~0.1; MJPEG viewer v1; roles via a
+  small `operators` table (not external SSO).
