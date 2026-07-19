@@ -1,0 +1,38 @@
+# Mirror .gitignore + build-only excludes. Keeps the build context small.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+.venv/
+venv/
+env/
+
+backend/failed_taps.jsonl
+*.log
+
+# Weights are fetched in the Dockerfile, not copied from context.
+backend/models/
+
+.claude/
+.wwebjs_cache/
+
+# Never bake secrets into the image; compose passes .env at runtime.
+.env
+
+# Frontend build artifacts (Step 12+).
+frontend/node_modules/
+frontend/dist/
+
+# Repo/meta not needed in the image.
+.git/
+.gitignore
+graphify-out/
+docs/
+*.md
+.DS_Store
+*.swp
+.idea/
+.vscode/

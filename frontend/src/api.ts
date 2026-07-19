@@ -20,6 +20,33 @@ async function req<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function reqJson<T>(path: string, method: string, body: unknown): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['X-Operator-Token'] = token
+  const res = await fetch(path, { method, headers, body: JSON.stringify(body) })
+  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status}`)
+  return res.json() as Promise<T>
+}
+
+async function del<T>(path: string): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['X-Operator-Token'] = token
+  const res = await fetch(path, { method: 'DELETE', headers })
+  if (!res.ok) throw new Error(`DELETE ${path} -> ${res.status}`)
+  return res.json() as Promise<T>
+}
+
+async function postFormData<T>(path: string, data: FormData): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['X-Operator-Token'] = token
+  const res = await fetch(path, { method: 'POST', headers, body: data })
+  if (!res.ok) throw new Error(`POST ${path} -> ${res.status}`)
+  return res.json() as Promise<T>
+}
+
 // --- Types ---
 
 export interface TapLog {
@@ -115,6 +142,35 @@ export interface ReviewItem {
   resolution: string | null
 }
 
+export interface ReviewQueueItem {
+  id: number
+  log_id: number
+  student_id: string | null
+  student_name: string | null
+  status: string
+  reason: string | null
+  created_at: string
+  uid: string | null
+  log_ts: string | null
+  method: string | null
+  face_score: number | null
+  face_match: boolean | null
+  liveness_score: number | null
+  liveness_pass: boolean | null
+}
+
+export interface EnrollResult {
+  student_id: string
+  frames: { file: string; status: string; reason: string | null }[]
+  used: number
+  duplicate: { student_id: string; name: string; similarity: number } | null
+}
+
+export interface SettingsResponse {
+  settings: Record<string, string>
+  tunable_keys: string[]
+}
+
 // --- Endpoints ---
 
 export const getHealth = () => req<Health>('/health')
@@ -127,3 +183,31 @@ export const getAttendance = (params: Record<string, string | number> = {}) => {
   ).toString()
   return req<{ logs: TapLog[] }>(`/api/attendance${q ? `?${q}` : ''}`)
 }
+
+export const createStudent = (b: { student_id: string; uid: string; name?: string; guardian_email?: string }) =>
+  reqJson<Student>('/api/students', 'POST', b)
+
+export const updateStudent = (id: string, b: { uid?: string; name?: string; guardian_email?: string }) =>
+  reqJson<Student>(`/api/students/${encodeURIComponent(id)}`, 'PATCH', b)
+
+export const deleteStudent = (id: string) =>
+  del<{ erased: string; logs: number; students: number }>(`/api/students/${encodeURIComponent(id)}`)
+
+export const setConsent = (id: string, granted: boolean) =>
+  reqJson<{ student_id: string; face_consent: boolean }>(`/api/students/${encodeURIComponent(id)}/consent`, 'POST', { granted })
+
+export const enrollStudent = (id: string, data: FormData) =>
+  postFormData<EnrollResult>(`/api/students/${encodeURIComponent(id)}/enroll`, data)
+
+export const getReviewQueue = (limit = 100) =>
+  req<{ queue: ReviewQueueItem[] }>(`/api/review?limit=${limit}`)
+
+export const resolveReview = (id: number, resolution: string) =>
+  reqJson<{ id: number; log_id: number; student_id: string | null; status: string; resolved_at: string; resolved_by: string; resolution: string }>(
+    `/api/review/${id}/resolve`, 'POST', { resolution },
+  )
+
+export const getSettings = () => req<SettingsResponse>('/api/settings')
+
+export const setSetting = (key: string, value: string) =>
+  reqJson<{ key: string; value: string }>('/api/settings', 'PUT', { key, value })

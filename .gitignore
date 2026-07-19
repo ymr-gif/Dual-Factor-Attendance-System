@@ -25,6 +25,10 @@ backend/models/
 # Stray WhatsApp-web cache (unrelated to this project)
 .wwebjs_cache/
 
+# Frontend (Step 12) — commit source, not deps or build output
+frontend/node_modules/
+frontend/dist/
+
 # Env / secrets — commit .env.example, never .env
 .env
 

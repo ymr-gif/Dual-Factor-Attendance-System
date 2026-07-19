@@ -1,0 +1,202 @@
+{
+  "backend/__init__.py": {
+    "mtime": 1783042595.2341568,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "backend/calibrate.py": {
+    "mtime": 1783700548.15366,
+    "ast_hash": "692fdbdd594e46d35ef9e718c74f8b22",
+    "semantic_hash": "692fdbdd594e46d35ef9e718c74f8b22"
+  },
+  "backend/db.py": {
+    "mtime": 1784447980.6606743,
+    "ast_hash": "90d715778c527f72d9f0ceba3f02b666",
+    "semantic_hash": ""
+  },
+  "backend/decision.py": {
+    "mtime": 1784431722.4663289,
+    "ast_hash": "be4389ff4d11cf5873ebfb320026dd61",
+    "semantic_hash": ""
+  },
+  "backend/enroll.py": {
+    "mtime": 1784448021.0168324,
+    "ast_hash": "0021744c3cb3a5dbd98ad2399fc0b746",
+    "semantic_hash": ""
+  },
+  "backend/face.py": {
+    "mtime": 1784447951.1765697,
+    "ast_hash": "122fc97dd718936a5cf47c2433696935",
+    "semantic_hash": ""
+  },
+  "backend/fetch_liveness_models.py": {
+    "mtime": 1783700566.3534606,
+    "ast_hash": "53dd7741bde264779c9117138387699b",
+    "semantic_hash": "53dd7741bde264779c9117138387699b"
+  },
+  "backend/liveness.py": {
+    "mtime": 1783703994.2246494,
+    "ast_hash": "b1e260a5fb4313878ecec8f812af95c7",
+    "semantic_hash": "b1e260a5fb4313878ecec8f812af95c7"
+  },
+  "backend/main.py": {
+    "mtime": 1784448066.221028,
+    "ast_hash": "891ada3f877a63999ad46590f2ed0e0a",
+    "semantic_hash": ""
+  },
+  "backend/notify.py": {
+    "mtime": 1784385894.7047298,
+    "ast_hash": "42420460831d171844fce1a641736045",
+    "semantic_hash": "42420460831d171844fce1a641736045"
+  },
+  "backend/preview.py": {
+    "mtime": 1783703600.8622746,
+    "ast_hash": "455ff5a8f1f8cd17b8723cfed6140dc0",
+    "semantic_hash": "455ff5a8f1f8cd17b8723cfed6140dc0"
+  },
+  "backend/schema.sql": {
+    "mtime": 1784447936.9085226,
+    "ast_hash": "5a2c3336963373fde1d6eb0d83c304a9",
+    "semantic_hash": ""
+  },
+  "backend/serial_reader.py": {
+    "mtime": 1783097830.9079316,
+    "ast_hash": "efd9d48454ea5b5e6c7cac50fa4fc036",
+    "semantic_hash": "efd9d48454ea5b5e6c7cac50fa4fc036"
+  },
+  "CLAUDE.md": {
+    "mtime": 1784448199.9257083,
+    "ast_hash": "2054b0c746bc82fc9e24afb7de11fcef",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1784448181.1376045,
+    "ast_hash": "f37476bcd11ab4d088658990cb725c64",
+    "semantic_hash": ""
+  },
+  "ROADMAP.md": {
+    "mtime": 1784448187.1936376,
+    "ast_hash": "269991739eacbea31f63b67efc589ac0",
+    "semantic_hash": ""
+  },
+  "docs/design-notes.md": {
+    "mtime": 1784432145.6631649,
+    "ast_hash": "c8cf5375cf9d3df8f1aec83ea24cabce",
+    "semantic_hash": ""
+  },
+  "docs/face-verification.md": {
+    "mtime": 1784393914.159872,
+    "ast_hash": "fb48003fb35f215b6a856086a631f35c",
+    "semantic_hash": "fb48003fb35f215b6a856086a631f35c"
+  },
+  "requirements.txt": {
+    "mtime": 1784432128.8750846,
+    "ast_hash": "71f1dffa370d49a1dbf49c1e61bb31fb",
+    "semantic_hash": ""
+  },
+  "docker-compose.yml": {
+    "mtime": 1784429629.0155957,
+    "ast_hash": "149c642bb15cbd15d5fb94f7c28a781a",
+    "semantic_hash": ""
+  },
+  "backend/events.py": {
+    "mtime": 1784429841.791786,
+    "ast_hash": "4c248aa8ff6b6bde5693ce41032e3a12",
+    "semantic_hash": ""
+  },
+  "frontend/package.json": {
+    "mtime": 1784430234.4469712,
+    "ast_hash": "7c65bb4703b1eab76e3fbf6d95f97372",
+    "semantic_hash": ""
+  },
+  "frontend/src/App.tsx": {
+    "mtime": 1784430304.808632,
+    "ast_hash": "8e17d1372efe1c7c76cfe93eb61e277f",
+    "semantic_hash": ""
+  },
+  "frontend/src/api.ts": {
+    "mtime": 1784430290.0002887,
+    "ast_hash": "1626bef4a8e696fb02ac26d6446d4d35",
+    "semantic_hash": ""
+  },
+  "frontend/src/main.tsx": {
+    "mtime": 1784430271.8198628,
+    "ast_hash": "42c0b1d9c2751a5e4e55876cee46fc57",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Dashboard.tsx": {
+    "mtime": 1784430316.5889027,
+    "ast_hash": "add02fa22017b61e4aee5dcf36c74418",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Kiosk.tsx": {
+    "mtime": 1784430327.9291613,
+    "ast_hash": "d469ab32a9b2a69274502f8c4cd1ed72",
+    "semantic_hash": ""
+  },
+  "frontend/src/useTapStream.ts": {
+    "mtime": 1784430298.0204751,
+    "ast_hash": "f68c279b273bd6973f648ab6b370616e",
+    "semantic_hash": ""
+  },
+  "frontend/src/vite-env.d.ts": {
+    "mtime": 1784430265.4477124,
+    "ast_hash": "0352474ba2918efe13895edbc3780d94",
+    "semantic_hash": ""
+  },
+  "frontend/tsconfig.json": {
+    "mtime": 1784430247.9952972,
+    "ast_hash": "33e4de18fd5bc11a7c26f0cbc0c66479",
+    "semantic_hash": ""
+  },
+  "frontend/tsconfig.node.json": {
+    "mtime": 1784430381.3303561,
+    "ast_hash": "df562a73dce2f53f022bc93ee20099c2",
+    "semantic_hash": ""
+  },
+  "frontend/vite.config.d.ts": {
+    "mtime": 1784430391.5905817,
+    "ast_hash": "9fcf75521f4c43fd8b75300e0f63b867",
+    "semantic_hash": ""
+  },
+  "frontend/vite.config.js": {
+    "mtime": 1784430391.5505807,
+    "ast_hash": "6a31a4c481d4dbbe6f9af74ef493537f",
+    "semantic_hash": ""
+  },
+  "frontend/vite.config.ts": {
+    "mtime": 1784430240.1071076,
+    "ast_hash": "d65c17e942cb875ac29bc20db6c893bf",
+    "semantic_hash": ""
+  },
+  "frontend/index.html": {
+    "mtime": 1784430259.9595823,
+    "ast_hash": "863814133cf7d460b7d36a0ef107a104",
+    "semantic_hash": ""
+  },
+  "backend/perception.py": {
+    "mtime": 1784431743.7342951,
+    "ast_hash": "3586aa05ae5b763c15312ca7b7d40657",
+    "semantic_hash": ""
+  },
+  "backend/matcher.py": {
+    "mtime": 1784431941.178414,
+    "ast_hash": "62bb0ca92f95929924a2277d30c0852a",
+    "semantic_hash": ""
+  },
+  "backend/privacy.py": {
+    "mtime": 1784447998.412742,
+    "ast_hash": "7aaa1d143889a0ad2278dd7be4abe9d9",
+    "semantic_hash": ""
+  },
+  "docs/privacy.md": {
+    "mtime": 1784448109.6012332,
+    "ast_hash": "e478a1f830e350a39eed686337b7d622",
+    "semantic_hash": ""
+  },
+  "docs/verification.md": {
+    "mtime": 1784448162.9855065,
+    "ast_hash": "2193bc11945372e2d4025b8ad87c8cec",
+    "semantic_hash": ""
+  }
+}

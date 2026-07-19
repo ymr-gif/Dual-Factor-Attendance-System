@@ -1,0 +1,53 @@
+# nfc-scan stack (Step 10). `make up` brings up Postgres + backend.
+# Postgres data lives in the named volume `nfc-scan-pgdata` — never remove it or
+# attendance history is lost (see CLAUDE.md).
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: nfc-scan-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: attendance
+      POSTGRES_USER: attendance
+      POSTGRES_PASSWORD: attendance
+    ports:
+      - "5433:5432"   # host 5433 (5432 is taken on the dev box)
+    volumes:
+      - nfc-scan-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attendance -d attendance"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: nfc-scan-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false   # code defaults cover a missing .env; compose sets DB_DSN below
+    environment:
+      # Inside the compose network the DB is reachable as `db:5432`, not
+      # localhost:5433 — override whatever .env set for DB_DSN.
+      DB_DSN: dbname=attendance user=attendance password=attendance host=db port=5432
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # Webcam passthrough for live face match. Commented so no-cam CI / hosts still
+    # boot; uncomment on the kiosk box (adjust index if it enumerates as video1).
+    # devices:
+    #   - "/dev/video0:/dev/video0"
+
+volumes:
+  nfc-scan-pgdata:

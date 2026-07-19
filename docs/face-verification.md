@@ -34,9 +34,9 @@ python -m backend.enroll S001 --images a.jpg b.jpg c.jpg   # from files
 python -m backend.enroll S001 --capture 5                  # from the webcam (prompts per shot)
 ```
 
-> ⚠ **`--capture` is currently broken** — `enroll.py._from_capture` treats `face.capture_probe()`
-> as a bare embedding, but since Steps 6/7 it returns a `Probe(frame, bbox, embedding)` tuple. Use
-> `--images` for now; the fix (use `probe.embedding`) is ROADMAP **Step 33**.
+> ✅ **`--capture` was fixed in Step 33** — `enroll.py._from_capture` now uses `probe.embedding`
+> (it was treating the `Probe(frame, bbox, embedding)` tuple as a bare embedding). Both `--images`
+> and `--capture` work.
 
 Shots with no usable face (smaller than `MIN_FACE_PX`, or none detected) are skipped with a
 warning; it aborts if zero usable shots remain and warns if fewer than 3.

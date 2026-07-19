@@ -25,3 +25,29 @@ code { background: #1c1f27; padding: 1px 5px; border-radius: 4px; }
     gap: 16px;
   }
 }
+
+.nav {
+  display: flex; gap: 4px; align-items: center;
+  background: #1c1f27; padding: 0 24px; height: 44px;
+}
+.nav a {
+  color: #888; text-decoration: none; font-size: 13px;
+  padding: 4px 10px; border-radius: 4px;
+}
+.nav a:hover { color: #e6e8ee; background: #2a2d37; }
+.nav a.active { color: #6ea8fe; background: rgba(110, 168, 254, 0.1); }
+.nav .spacer { flex: 1; }
+
+.page { max-width: 960px; margin: 0 auto; padding: 24px; }
+.card {
+  background: #1c1f27; border-radius: 6px; padding: 16px; margin-bottom: 16px;
+}
+.btn {
+  background: #1f5c2a; color: #e6e8ee; border: none; border-radius: 4px;
+  padding: 6px 14px; font-size: 13px; cursor: pointer;
+}
+.btn:hover { opacity: 0.85; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn-sm { padding: 3px 8px; font-size: 12px; }
+.btn-danger { background: #5c1f22; }
+.btn-ghost { background: transparent; border: 1px solid #333; }
