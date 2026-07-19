@@ -289,6 +289,16 @@ export interface PerceptionState {
 
 export const getPerceptionState = () => req<PerceptionState>('/api/perception/state')
 
+export interface SetupStatus {
+  db: boolean
+  token_required: boolean
+  perception: { enabled: boolean; camera_fresh: boolean }
+  students: { total: number; enrolled: number }
+  ready: boolean
+}
+
+export const getSetupStatus = () => req<SetupStatus>('/api/setup/status')
+
 export const searchFace = (file: File, k = 5) => {
   const fd = new FormData()
   fd.append('image', file)

@@ -6,7 +6,8 @@ VPY := $(VENV)/bin/python
 COMPOSE := docker compose
 
 .PHONY: help setup up down logs dev enroll calibrate preview fmt lint health \
-        web-install web-dev web-build purge digest doctor
+        web-install web-dev web-build purge digest doctor \
+        appliance preflight backup restore update
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -61,6 +62,21 @@ web-dev:  ## Run the Vite dev server (proxies /api + /ws to :8001)
 
 web-build:  ## Build the SPA to frontend/dist (served by the backend at /app)
 	cd frontend && npm run build
+
+appliance:  ## Provision this box as an auto-start appliance (Step 40)
+	bash deploy/install.sh
+
+preflight:  ## Check GPU / camera / serial / deps (warn-only, Step 40)
+	bash deploy/preflight.sh
+
+backup:  ## Dump roster + attendance to backups/ (Step 43)
+	bash deploy/backup.sh
+
+restore:  ## Restore a backup: make restore FILE=backups/attendance-*.sql (Step 43)
+	bash deploy/restore.sh $(FILE)
+
+update:  ## Pull latest, migrate, rebuild, restart — data preserved (Step 43)
+	bash deploy/update.sh
 
 fmt:  ## Format backend code (black if available)
 	@$(VPY) -m black backend 2>/dev/null || echo "black not installed — 'pip install black'"

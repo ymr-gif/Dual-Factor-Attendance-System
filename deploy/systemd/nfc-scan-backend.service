@@ -1,0 +1,15 @@
+[Unit]
+Description=nfc-scan FastAPI backend (Dual-Factor Attendance)
+After=network.target docker.service
+
+[Service]
+Type=simple
+Environment=PERCEPTION_ENABLED=true
+EnvironmentFile=-__APP_DIR__/.env
+WorkingDirectory=__APP_DIR__
+ExecStart=__PY__ -m uvicorn backend.main:app --host 0.0.0.0 --port 8001
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

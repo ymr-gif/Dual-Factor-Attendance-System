@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=nfc-scan Kiosk
+Comment=Full-screen the guardpost UI on login
+Exec=/bin/bash -lc '"$HOME/dev/python-projects/nfc-scan/deploy/kiosk/start-kiosk.sh"'
+X-GNOME-Autostart-enabled=true
+Terminal=false

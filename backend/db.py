@@ -6,6 +6,8 @@ import psycopg2
 import psycopg2.extras
 from pgvector.psycopg2 import register_vector
 
+# The default DSN is for the LOCAL DEV container only (see README / docker run). It is
+# NOT a production credential — set DB_DSN in .env with a real password before deploying.
 DB_DSN = os.environ.get(
     "DB_DSN", "dbname=attendance user=attendance password=attendance host=localhost port=5433"
 )

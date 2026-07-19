@@ -32,8 +32,19 @@ frontend/dist/
 # Env / secrets — commit .env.example, never .env
 .env
 
+# Deploy — local backups contain face templates (PII); never commit
+backups/
+
+# graphify — keep the graph outputs, drop the local cache + dated backups (noise)
+graphify-out/cache/
+graphify-out/20*/
+graphify-out/.graphify_*
+
 # OS / editor
 .DS_Store
 *.swp
 .idea/
 .vscode/
+
+# TS incremental build cache
+frontend/tsconfig.tsbuildinfo
