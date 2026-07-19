@@ -1,16 +1,16 @@
 # Graph Report - nfc-scan  (2026-07-19)
 
 ## Corpus Check
-- 56 files · ~39,505 words
+- 56 files · ~41,176 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 622 nodes · 879 edges · 57 communities (49 shown, 8 thin omitted)
+- 627 nodes · 890 edges · 56 communities (47 shown, 9 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 8 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f04486c4`
+- Built from commit: `0c436d74`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -59,7 +59,6 @@
 - [[_COMMUNITY_Community 46|Community 46]]
 - [[_COMMUNITY_Community 47|Community 47]]
 - [[_COMMUNITY_Community 48|Community 48]]
-- [[_COMMUNITY_Community 49|Community 49]]
 - [[_COMMUNITY_Community 50|Community 50]]
 - [[_COMMUNITY_Community 51|Community 51]]
 - [[_COMMUNITY_Community 52|Community 52]]
@@ -72,8 +71,8 @@
 1. `get_conn()` - 29 edges
 2. `compilerOptions` - 17 edges
 3. `Handoff — UI-only surfaces over existing endpoints` - 15 edges
-4. `Matcher` - 13 edges
-5. `req()` - 13 edges
+4. `req()` - 14 edges
+5. `Matcher` - 13 edges
 6. `nfc-scan` - 13 edges
 7. `Flow track (Steps 30–35) — continuous multi-student guardpost` - 13 edges
 8. `Face verification (Step 6) — runbook` - 12 edges
@@ -100,7 +99,7 @@
 - **Fail-open principle across modules** — readme_failopen, backend_face, backend_liveness, backend_notify, backend_decision [EXTRACTED 1.00]
 - **Flow track continuous perception + correlation** — roadmap_step30, roadmap_step31, designnotes_single_camera_owner, designnotes_single_backend_worker, designnotes_correlation [EXTRACTED 1.00]
 
-## Communities (57 total, 8 thin omitted)
+## Communities (56 total, 9 thin omitted)
 
 ### Community 0 - "Face Verification (buffalo_l)"
 Cohesion: 0.18
@@ -143,12 +142,12 @@ Cohesion: 0.15
 Nodes (12): Camera preview (setup aid), Configuration (env vars), Enrollment, Face verification (Step 6) — runbook, Hardware, How a tap verifies, Known limitation, Performance & GPU (+4 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.14
-Nodes (10): HIGHLIGHT, STATUS_COLORS, Dashboard(), Kiosk(), Verdict, VS, Health, setToken() (+2 more)
+Cohesion: 0.13
+Nodes (11): HIGHLIGHT, STATUS_COLORS, Dashboard(), Kiosk(), Verdict, VS, Register(), Health (+3 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.17
-Nodes (11): 10. Open decisions (owner: stakeholder + build), 1. Assumptions, 2. Non-goals (explicit — don't build these unless re-scoped), 3. Hard constraints (violating these causes silent bugs), 4. Failure-mode → behavior table (decided unless marked open), 5. Correlation edge-case rules (the matcher, Step 31), 6. Security & privacy (implementation-affecting), 7. Legal & ethical (children's biometrics — gate before real deployment) (+3 more)
+Cohesion: 0.15
+Nodes (12): 10. Open decisions (owner: stakeholder + build), 1. Assumptions, 2. Non-goals (explicit — don't build these unless re-scoped), 3. Hard constraints (violating these causes silent bugs), 4. Failure-mode → behavior table (decided unless marked open), 5. Correlation edge-case rules (the matcher, Step 31), 5a. Adaptive / late-bind resolution (planned refinement — NOT yet built), 6. Security & privacy (implementation-affecting) (+4 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.18
@@ -183,8 +182,8 @@ Cohesion: 0.15
 Nodes (13): Conflicts this track resolves (current code that must change), Flow-track deferred items (need GPU box / live cam / kiosk), Flow track (Steps 30–35) — continuous multi-student guardpost, Locked decisions (from design review), Open defaults (proceeding unless changed), Prerequisites (from other tracks — do first), Progress summary (flow), Step 30 — Perception service (single camera owner) (+5 more)
 
 ### Community 27 - "Community 27"
-Cohesion: 0.16
-Nodes (17): createStudent(), del(), deleteStudent(), enrollStudent(), FaceMatch, getSettings(), getToken(), postFormData() (+9 more)
+Cohesion: 0.11
+Nodes (21): C, is, AttendanceSummary, del(), deleteStudent(), downloadAttendanceCsv(), enrollStudent(), FaceMatch (+13 more)
 
 ### Community 28 - "Community 28"
 Cohesion: 0.25
@@ -207,8 +206,8 @@ Cohesion: 0.17
 Nodes (10): counts_as_present(), decide(), Attendance verification decision / buddy-punch enforcement (Step 9).  NFC identi, Collapse the per-factor verdicts into one attendance status.      student:, True when the tap should count as attendance. Rejected + the matcher review, ENFORCE_2FA enforcement flag, attendance_logs table, Camera-dead degraded mode (unverified + alert) (+2 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.18
-Nodes (7): CamSource, is, FormState, is, EnrollResult, getStudents(), Student
+Cohesion: 0.15
+Nodes (13): CamSource, is, FormState, is, createStudent(), EnrollResult, getPerceptionState(), getStudents() (+5 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.18
@@ -220,7 +219,7 @@ Nodes (7): STATUS_COLORS, Config, getConfig(), getHealth(), getStatsToday(), req
 
 ### Community 36 - "Community 36"
 Cohesion: 0.22
-Nodes (4): C, getReviewQueue(), ReviewQueueItem, App()
+Nodes (4): ACTION_COLORS, AuditEntry, getAudit(), App()
 
 ### Community 37 - "Community 37"
 Cohesion: 0.28
@@ -232,11 +231,7 @@ Nodes (5): _cast(), get(), Any, Runtime settings layer (Step 50). Precedence: DB
 
 ### Community 39 - "Community 39"
 Cohesion: 0.33
-Nodes (7): _post_log(), notify + broadcast for a synchronously-written log (fail-open on both)., Matcher outcome writer (Step 31): log -> notify -> broadcast. Fail-open., _strip_embedding(), tap(), TapRequest, _write_outcome()
-
-### Community 40 - "Community 40"
-Cohesion: 0.29
-Nodes (5): is, AttendanceSummary, downloadAttendanceCsv(), getSummary(), reqBlob()
+Nodes (7): _post_log(), Matcher outcome writer (Step 31): log -> notify -> broadcast. Fail-open., notify + broadcast for a synchronously-written log (fail-open on both)., _strip_embedding(), tap(), TapRequest, _write_outcome()
 
 ### Community 41 - "Community 41"
 Cohesion: 0.33
@@ -249,10 +244,6 @@ Nodes (4): main(), Threshold calibration helper (read-only).  Prints the distrib
 ### Community 43 - "Community 43"
 Cohesion: 0.40
 Nodes (5): embeddings_from_frames(), frames: iterable of BGR ndarrays -> list of usable 512-d embeddings     (frames, api_enroll_student(), api_search_face(), UploadFile
-
-### Community 44 - "Community 44"
-Cohesion: 0.40
-Nodes (3): ACTION_COLORS, AuditEntry, getAudit()
 
 ### Community 45 - "Community 45"
 Cohesion: 0.40
@@ -281,19 +272,19 @@ Nodes (4): How to use this doc, Locked tech decisions, nfc-scan — build roadma
 ## Knowledge Gaps
 - **194 isolated node(s):** `date`, `AbstractEventLoop`, `Any`, `WebSocket`, `name` (+189 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **9 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `nfc-scan build roadmap (Steps 10-54)` connect `Roadmap: UI & Tuning Tracks` to `Roadmap: Flow Track (Guardpost)`?**
-  _High betweenness centrality (0.110) - this node is a cross-community bridge._
+  _High betweenness centrality (0.109) - this node is a cross-community bridge._
 - **Why does `Flow track (Steps 30-35) continuous guardpost` connect `Roadmap: Flow Track (Guardpost)` to `Roadmap: UI & Tuning Tracks`, `Community 20`?**
-  _High betweenness centrality (0.110) - this node is a cross-community bridge._
+  _High betweenness centrality (0.109) - this node is a cross-community bridge._
 - **Why does `Build sequence (cross-track priority order)` connect `Roadmap: UI & Tuning Tracks` to `Community 55`?**
-  _High betweenness centrality (0.093) - this node is a cross-community bridge._
+  _High betweenness centrality (0.092) - this node is a cross-community bridge._
 - **What connects `Threshold calibration helper (read-only).  Prints the distribution of logged sco`, `Create a new student. Raises ValueError on duplicate student_id or uid.`, `Update student fields (only non-None values). Raises ValueError if not found.` to the rest of the system?**
-  _277 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _278 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Tap Endpoint & Notify` be split into smaller, more focused modules?**
   _Cohesion score 0.09523809523809523 - nodes in this community are weakly interconnected._
 - **Should `Roadmap: UI & Tuning Tracks` be split into smaller, more focused modules?**

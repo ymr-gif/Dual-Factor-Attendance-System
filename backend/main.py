@@ -31,6 +31,14 @@ from .notify import notify
 _mjpeg_subscribers: set[asyncio.Queue] = set()
 _mjpeg_loop: asyncio.AbstractEventLoop | None = None
 
+# Live camera-quality snapshot for the register guided flow (Register.tsx polls
+# GET /api/perception/state). Computed every frame from perception's own detections —
+# no extra camera open, no image stored.
+_perception_state: dict = {}
+_REG_BRIGHT_LOW = float(os.environ.get("REGISTER_BRIGHT_LOW", "55"))
+_REG_BRIGHT_HIGH = float(os.environ.get("REGISTER_BRIGHT_HIGH", "215"))
+_REG_CENTER_MAX = float(os.environ.get("REGISTER_CENTER_MAX", "0.45"))
+
 
 def _broadcast_frame(data: bytes) -> None:
     """Runs on the event-loop thread (via call_soon_threadsafe). Fan one JPEG out to
@@ -52,6 +60,36 @@ def _on_frame_event(frame, ev):
     hand off to the async MJPEG endpoint via the event loop."""
     import cv2
     import numpy as np
+
+    # Camera-quality snapshot (register guided flow). Cheap: reuses perception's
+    # detections + the raw frame; brightness from the largest face region.
+    tracks = ev.get("tracks", [])
+    n_faces = len(tracks)
+    face_px = 0
+    brightness = None
+    center_off = None
+    h, w = frame.shape[:2]
+    if n_faces:
+        best = max(
+            tracks,
+            key=lambda t: min(t["bbox"][2] - t["bbox"][0], t["bbox"][3] - t["bbox"][1]),
+        )
+        x1, y1, x2, y2 = best["bbox"]
+        face_px = int(min(x2 - x1, y2 - y1))
+        region = frame[max(0, y1):min(h, y2), max(0, x1):min(w, x2)]
+        if region.size:
+            brightness = round(float(region.mean()), 1)
+        center_off = round(abs((x1 + x2) / 2 - w / 2) / (w / 2), 3) if w else None
+    else:
+        brightness = round(float(frame.mean()), 1)
+    global _perception_state
+    _perception_state = {
+        "ts": ev.get("ts") or time.time(),
+        "n_faces": n_faces,
+        "face_px": face_px,
+        "brightness": brightness,
+        "center_off": center_off,
+    }
 
     # Draw bounding boxes on the frame
     annotated = frame.copy()
@@ -586,6 +624,44 @@ async def stream_mjpeg():
             _mjpeg_subscribers.discard(q)
 
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
+@app.get("/api/perception/state", dependencies=[Depends(require_operator)])
+def perception_state():
+    """Live camera-quality gate for the register guided flow. Derived from
+    perception's own per-frame detections (no extra camera open, no image stored).
+    Returns `ready` + a human `reason` so the frontend can gate the capture button."""
+    if not perception.enabled():
+        return {"enabled": False, "ready": False,
+                "reason": "Perception off — live camera gate unavailable"}
+    st = _perception_state
+    if not st:
+        return {"enabled": True, "ready": False, "reason": "Waiting for camera…"}
+    age = round(time.time() - st["ts"], 2)
+    base = {
+        "enabled": True,
+        "n_faces": st["n_faces"],
+        "face_px": st["face_px"],
+        "brightness": st["brightness"],
+        "min_face_px": face.MIN_FACE_PX,
+        "age": age,
+    }
+    n, b = st["n_faces"], st["brightness"]
+    if age > 2.0:
+        return {**base, "ready": False, "reason": "Camera feed stale"}
+    if n == 0:
+        return {**base, "ready": False, "reason": "No face detected — step in front of the camera"}
+    if n > 1:
+        return {**base, "ready": False, "reason": f"{n} people in frame — only one at a time"}
+    if st["face_px"] < face.MIN_FACE_PX:
+        return {**base, "ready": False, "reason": "Move closer to the camera"}
+    if b is not None and b < _REG_BRIGHT_LOW:
+        return {**base, "ready": False, "reason": "Not enough light on your face"}
+    if b is not None and b > _REG_BRIGHT_HIGH:
+        return {**base, "ready": False, "reason": "Too bright / backlit — reduce the light"}
+    if st["center_off"] is not None and st["center_off"] > _REG_CENTER_MAX:
+        return {**base, "ready": False, "reason": "Center yourself in the frame"}
+    return {**base, "ready": True, "reason": "Ready — looking good"}
 
 
 @app.post("/tap")

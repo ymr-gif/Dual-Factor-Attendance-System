@@ -43,6 +43,13 @@ def enabled() -> bool:
     return LIVENESS_ENABLED
 
 
+def calibrated() -> bool:
+    """True once LIVENESS_THRESHOLD is set. Until then the model's argmax verdict is
+    untrusted (⚠ not calibrated against real spoofs) and must not decide a tap —
+    callers should treat is_live as advisory and still log the score for calibration."""
+    return LIVENESS_THRESHOLD is not None
+
+
 def get_sessions():
     """Lazy, cached list of (onnxruntime session, scale). Raises if a model is missing.
 

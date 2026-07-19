@@ -68,7 +68,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_calibrate",
-      "community": 37,
+      "community": 42,
       "norm_label": "calibrate.py"
     },
     {
@@ -78,7 +78,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_calibrate_report",
-      "community": 37,
+      "community": 42,
       "norm_label": "_report()"
     },
     {
@@ -88,7 +88,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_calibrate_main",
-      "community": 37,
+      "community": 42,
       "norm_label": "main()"
     },
     {
@@ -98,7 +98,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_calibrate_rationale_1",
-      "community": 37,
+      "community": 42,
       "norm_label": "threshold calibration helper (read-only).  prints the distribution of logged sco"
     },
     {
@@ -1282,20 +1282,10 @@
       "norm_label": "enabled()"
     },
     {
-      "label": "calibrated()",
-      "file_type": "code",
-      "source_file": "backend/liveness.py",
-      "source_location": "L46",
-      "_origin": "ast",
-      "id": "backend_liveness_calibrated",
-      "community": 1,
-      "norm_label": "calibrated()"
-    },
-    {
       "label": "get_sessions()",
       "file_type": "code",
       "source_file": "backend/liveness.py",
-      "source_location": "L53",
+      "source_location": "L46",
       "_origin": "ast",
       "id": "backend_liveness_get_sessions",
       "community": 1,
@@ -1305,7 +1295,7 @@
       "label": "_get_new_box()",
       "file_type": "code",
       "source_file": "backend/liveness.py",
-      "source_location": "L78",
+      "source_location": "L71",
       "_origin": "ast",
       "id": "backend_liveness_get_new_box",
       "community": 1,
@@ -1315,7 +1305,7 @@
       "label": "_crop()",
       "file_type": "code",
       "source_file": "backend/liveness.py",
-      "source_location": "L105",
+      "source_location": "L98",
       "_origin": "ast",
       "id": "backend_liveness_crop",
       "community": 1,
@@ -1325,7 +1315,7 @@
       "label": "_softmax()",
       "file_type": "code",
       "source_file": "backend/liveness.py",
-      "source_location": "L115",
+      "source_location": "L108",
       "_origin": "ast",
       "id": "backend_liveness_softmax",
       "community": 1,
@@ -1335,7 +1325,7 @@
       "label": "assess()",
       "file_type": "code",
       "source_file": "backend/liveness.py",
-      "source_location": "L121",
+      "source_location": "L114",
       "_origin": "ast",
       "id": "backend_liveness_assess",
       "community": 1,
@@ -1352,22 +1342,12 @@
       "norm_label": "passive liveness / anti-spoofing (step 7). minifasnet ensemble via onnxruntime."
     },
     {
-      "label": "True once LIVENESS_THRESHOLD is set. Until then the model's argmax verdict is",
+      "label": "Lazy, cached list of (onnxruntime session, scale). Raises if a model is missing.",
       "file_type": "rationale",
       "source_file": "backend/liveness.py",
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_liveness_rationale_47",
-      "community": 1,
-      "norm_label": "true once liveness_threshold is set. until then the model's argmax verdict is"
-    },
-    {
-      "label": "Lazy, cached list of (onnxruntime session, scale). Raises if a model is missing.",
-      "file_type": "rationale",
-      "source_file": "backend/liveness.py",
-      "source_location": "L54",
-      "_origin": "ast",
-      "id": "backend_liveness_rationale_54",
       "community": 1,
       "norm_label": "lazy, cached list of (onnxruntime session, scale). raises if a model is missing."
     },
@@ -1375,9 +1355,9 @@
       "label": "Silent-Face crop box: enlarge bbox by `scale` around its center, clamp to image.",
       "file_type": "rationale",
       "source_file": "backend/liveness.py",
-      "source_location": "L79",
+      "source_location": "L72",
       "_origin": "ast",
-      "id": "backend_liveness_rationale_79",
+      "id": "backend_liveness_rationale_72",
       "community": 1,
       "norm_label": "silent-face crop box: enlarge bbox by `scale` around its center, clamp to image."
     },
@@ -1385,9 +1365,9 @@
       "label": "Scaled crop around the face, resized to 80x80 (BGR).",
       "file_type": "rationale",
       "source_file": "backend/liveness.py",
-      "source_location": "L106",
+      "source_location": "L99",
       "_origin": "ast",
-      "id": "backend_liveness_rationale_106",
+      "id": "backend_liveness_rationale_99",
       "community": 1,
       "norm_label": "scaled crop around the face, resized to 80x80 (bgr)."
     },
@@ -1395,9 +1375,9 @@
       "label": "Score liveness of the face at `bbox` in `frame`.      bbox: InsightFace [x1,y1,x",
       "file_type": "rationale",
       "source_file": "backend/liveness.py",
-      "source_location": "L122",
+      "source_location": "L115",
       "_origin": "ast",
-      "id": "backend_liveness_rationale_122",
+      "id": "backend_liveness_rationale_115",
       "community": 1,
       "norm_label": "score liveness of the face at `bbox` in `frame`.      bbox: insightface [x1,y1,x"
     },
@@ -2055,7 +2035,7 @@
       "label": "._assign()",
       "file_type": "code",
       "source_file": "backend/matcher.py",
-      "source_location": "L190",
+      "source_location": "L187",
       "_origin": "ast",
       "id": "backend_matcher_matcher_assign",
       "community": 7,
@@ -2065,7 +2045,7 @@
       "label": "._base()",
       "file_type": "code",
       "source_file": "backend/matcher.py",
-      "source_location": "L205",
+      "source_location": "L202",
       "_origin": "ast",
       "id": "backend_matcher_matcher_base",
       "community": 7,
@@ -2075,7 +2055,7 @@
       "label": "._present()",
       "file_type": "code",
       "source_file": "backend/matcher.py",
-      "source_location": "L220",
+      "source_location": "L217",
       "_origin": "ast",
       "id": "backend_matcher_matcher_present",
       "community": 7,
@@ -2085,7 +2065,7 @@
       "label": "._spoof()",
       "file_type": "code",
       "source_file": "backend/matcher.py",
-      "source_location": "L228",
+      "source_location": "L225",
       "_origin": "ast",
       "id": "backend_matcher_matcher_spoof",
       "community": 7,
@@ -2095,7 +2075,7 @@
       "label": "._mismatch()",
       "file_type": "code",
       "source_file": "backend/matcher.py",
-      "source_location": "L236",
+      "source_location": "L233",
       "_origin": "ast",
       "id": "backend_matcher_matcher_mismatch",
       "community": 7,
@@ -2105,7 +2085,7 @@
       "label": "._no_face()",
       "file_type": "code",
       "source_file": "backend/matcher.py",
-      "source_location": "L241",
+      "source_location": "L238",
       "_origin": "ast",
       "id": "backend_matcher_matcher_no_face",
       "community": 7,
@@ -2115,7 +2095,7 @@
       "label": "._tailgating()",
       "file_type": "code",
       "source_file": "backend/matcher.py",
-      "source_location": "L246",
+      "source_location": "L243",
       "_origin": "ast",
       "id": "backend_matcher_matcher_tailgating",
       "community": 7,
@@ -2125,7 +2105,7 @@
       "label": "._emit()",
       "file_type": "code",
       "source_file": "backend/matcher.py",
-      "source_location": "L268",
+      "source_location": "L265",
       "_origin": "ast",
       "id": "backend_matcher_matcher_emit",
       "community": 7,
@@ -2175,9 +2155,9 @@
       "label": "Optimal (Hungarian) tap->face assignment. Only time-valid pairs (within",
       "file_type": "rationale",
       "source_file": "backend/matcher.py",
-      "source_location": "L191",
+      "source_location": "L188",
       "_origin": "ast",
-      "id": "backend_matcher_rationale_191",
+      "id": "backend_matcher_rationale_188",
       "community": 7,
       "norm_label": "optimal (hungarian) tap->face assignment. only time-valid pairs (within"
     },
@@ -2538,7 +2518,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_preview",
-      "community": 42,
+      "community": 37,
       "norm_label": "preview.py"
     },
     {
@@ -2548,7 +2528,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_preview_load_reference",
-      "community": 42,
+      "community": 37,
       "norm_label": "_load_reference()"
     },
     {
@@ -2558,7 +2538,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_preview_main",
-      "community": 42,
+      "community": 37,
       "norm_label": "main()"
     },
     {
@@ -2568,7 +2548,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_preview_rationale_1",
-      "community": 42,
+      "community": 37,
       "norm_label": "live camera diagnostic ui (setup aid, not part of the tap flow).  shows what the"
     },
     {
@@ -3208,7 +3188,7 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "src_api_reviewqueueitem",
-      "community": 40,
+      "community": 27,
       "norm_label": "reviewqueueitem"
     },
     {
@@ -3378,7 +3358,7 @@
       "source_location": "L251",
       "_origin": "ast",
       "id": "src_api_getreviewqueue",
-      "community": 40,
+      "community": 27,
       "norm_label": "getreviewqueue()"
     },
     {
@@ -3388,7 +3368,7 @@
       "source_location": "L254",
       "_origin": "ast",
       "id": "src_api_resolvereview",
-      "community": 40,
+      "community": 27,
       "norm_label": "resolvereview()"
     },
     {
@@ -3398,7 +3378,7 @@
       "source_location": "L259",
       "_origin": "ast",
       "id": "src_api_getsettings",
-      "community": 36,
+      "community": 40,
       "norm_label": "getsettings()"
     },
     {
@@ -3408,7 +3388,7 @@
       "source_location": "L261",
       "_origin": "ast",
       "id": "src_api_setsetting",
-      "community": 36,
+      "community": 40,
       "norm_label": "setsetting()"
     },
     {
@@ -3858,7 +3838,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_review",
-      "community": 40,
+      "community": 27,
       "norm_label": "review.tsx"
     },
     {
@@ -3868,7 +3848,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "pages_review_c",
-      "community": 40,
+      "community": 27,
       "norm_label": "c"
     },
     {
@@ -3878,7 +3858,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "pages_review_review",
-      "community": 40,
+      "community": 27,
       "norm_label": "review()"
     },
     {
@@ -3968,7 +3948,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_settings",
-      "community": 36,
+      "community": 40,
       "norm_label": "settings.tsx"
     },
     {
@@ -3978,7 +3958,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "pages_settings_settings",
-      "community": 36,
+      "community": 40,
       "norm_label": "settings()"
     },
     {
@@ -4425,7 +4405,7 @@
       "label": "Dev environment specifics",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L66",
+      "source_location": "L64",
       "_origin": "ast",
       "id": "claude_dev_environment_specifics",
       "community": 17,
@@ -4435,7 +4415,7 @@
       "label": "Other Postgres/Docker instances on this machine (do not touch)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L95",
+      "source_location": "L93",
       "_origin": "ast",
       "id": "claude_other_postgres_docker_instances_on_this_machine_do_not_touch",
       "community": 17,
@@ -6465,7 +6445,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 37,
+      "community": 42,
       "norm_label": "accuracy evaluation methodology (far/frr)",
       "id": "designnotes_accuracy_eval"
     },
@@ -8903,16 +8883,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/liveness.py",
-      "source_location": "L46",
-      "weight": 1.0,
-      "source": "backend_liveness",
-      "target": "backend_liveness_calibrated",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/liveness.py",
       "source_location": "L98",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -8984,17 +8954,6 @@
       "relation": "imports_from",
       "context": "submodule_import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/matcher.py",
-      "source_location": "L29",
-      "weight": 1.0,
-      "source": "backend_matcher",
-      "target": "backend_liveness",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "submodule_import",
-      "confidence": "EXTRACTED",
       "source_file": "backend/perception.py",
       "source_location": "L31",
       "weight": 1.0,
@@ -9054,16 +9013,6 @@
       "target": "backend_liveness"
     },
     {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/liveness.py",
-      "source_location": "L47",
-      "weight": 1.0,
-      "source": "backend_liveness_rationale_47",
-      "target": "backend_liveness_calibrated",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -9085,16 +9034,6 @@
       "target": "backend_liveness_get_sessions"
     },
     {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/liveness.py",
-      "source_location": "L54",
-      "weight": 1.0,
-      "source": "backend_liveness_rationale_54",
-      "target": "backend_liveness_get_sessions",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -9109,11 +9048,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/liveness.py",
-      "source_location": "L79",
+      "source_location": "L72",
       "weight": 1.0,
-      "source": "backend_liveness_rationale_79",
-      "target": "backend_liveness_get_new_box",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "backend_liveness_rationale_72",
+      "target": "backend_liveness_get_new_box"
     },
     {
       "relation": "calls",
@@ -9130,11 +9069,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/liveness.py",
-      "source_location": "L106",
+      "source_location": "L99",
       "weight": 1.0,
-      "source": "backend_liveness_rationale_106",
-      "target": "backend_liveness_crop",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "backend_liveness_rationale_99",
+      "target": "backend_liveness_crop"
     },
     {
       "relation": "calls",
@@ -9151,11 +9090,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/liveness.py",
-      "source_location": "L122",
+      "source_location": "L115",
       "weight": 1.0,
-      "source": "backend_liveness_rationale_122",
-      "target": "backend_liveness_assess",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "backend_liveness_rationale_115",
+      "target": "backend_liveness_assess"
     },
     {
       "relation": "contains",
@@ -9443,9 +9382,9 @@
       "source_file": "backend/main.py",
       "source_location": "L630",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "backend_main",
-      "target": "backend_main_perception_state"
+      "target": "backend_main_perception_state",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -9699,9 +9638,9 @@
       "source_file": "backend/main.py",
       "source_location": "L44",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "backend_main_rationale_44",
-      "target": "backend_main_broadcast_frame"
+      "target": "backend_main_broadcast_frame",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -9709,9 +9648,9 @@
       "source_file": "backend/main.py",
       "source_location": "L59",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "backend_main_rationale_59",
-      "target": "backend_main_on_frame_event"
+      "target": "backend_main_on_frame_event",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -9752,9 +9691,9 @@
       "source_file": "backend/main.py",
       "source_location": "L125",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "backend_main_rationale_125",
-      "target": "backend_main_write_outcome"
+      "target": "backend_main_write_outcome",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -9784,9 +9723,9 @@
       "source_file": "backend/main.py",
       "source_location": "L152",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "backend_main_rationale_152",
-      "target": "backend_main_post_log"
+      "target": "backend_main_post_log",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -9920,9 +9859,9 @@
       "source_file": "backend/main.py",
       "source_location": "L205",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "backend_main_rationale_205",
-      "target": "backend_main_require_operator"
+      "target": "backend_main_require_operator",
+      "confidence_score": 1.0
     },
     {
       "relation": "references",
@@ -9974,9 +9913,9 @@
       "source_file": "backend/main.py",
       "source_location": "L603",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "backend_main_rationale_603",
-      "target": "backend_main_stream_mjpeg"
+      "target": "backend_main_stream_mjpeg",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -9984,9 +9923,9 @@
       "source_file": "backend/main.py",
       "source_location": "L631",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "backend_main_rationale_631",
-      "target": "backend_main_perception_state"
+      "target": "backend_main_perception_state",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -10322,11 +10261,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/matcher.py",
-      "source_location": "L191",
+      "source_location": "L188",
       "weight": 1.0,
-      "source": "backend_matcher_rationale_191",
-      "target": "backend_matcher_matcher_assign",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "backend_matcher_rationale_188",
+      "target": "backend_matcher_matcher_assign"
     },
     {
       "relation": "calls",
@@ -12011,9 +11950,9 @@
       "source_file": "frontend/src/api.ts",
       "source_location": "L290",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "src_api",
-      "target": "src_api_getperceptionstate"
+      "target": "src_api_getperceptionstate",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -12111,9 +12050,9 @@
       "source_file": "frontend/src/api.ts",
       "source_location": "L279",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "src_api",
-      "target": "src_api_perceptionstate"
+      "target": "src_api_perceptionstate",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -12466,9 +12405,9 @@
       "source_file": "frontend/src/api.ts",
       "source_location": "L290",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "src_api_getperceptionstate",
-      "target": "src_api_req"
+      "target": "src_api_req",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -13115,9 +13054,9 @@
       "source_file": "frontend/src/pages/Register.tsx",
       "source_location": "L2",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "pages_register",
-      "target": "src_api_perceptionstate"
+      "target": "src_api_perceptionstate",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -13126,9 +13065,9 @@
       "source_file": "frontend/src/pages/Register.tsx",
       "source_location": "L2",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "pages_register",
-      "target": "src_api_getperceptionstate"
+      "target": "src_api_getperceptionstate",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -13520,9 +13459,9 @@
       "source_file": "frontend/src/pages/Register.tsx",
       "source_location": "L6",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "pages_register",
-      "target": "src_usetapstream"
+      "target": "src_usetapstream",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -13531,9 +13470,9 @@
       "source_file": "frontend/src/pages/Register.tsx",
       "source_location": "L6",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "pages_register",
-      "target": "src_usetapstream_usetapstream"
+      "target": "src_usetapstream_usetapstream",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -14792,9 +14731,9 @@
       "source_file": "docs/design-notes.md",
       "source_location": "L94",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_design_notes_5_correlation_edge_case_rules_the_matcher_step_31",
-      "target": "docs_design_notes_5a_adaptive_late_bind_resolution_planned_refinement_not_yet_built"
+      "target": "docs_design_notes_5a_adaptive_late_bind_resolution_planned_refinement_not_yet_built",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
