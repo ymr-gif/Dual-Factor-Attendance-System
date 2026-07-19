@@ -18,6 +18,13 @@ RES2 attendance system. See README.md for architecture, hardware wiring, and bui
 
 ## Planned work — read before building (Steps 10+)
 
+> **Active handoff — `handoff.md` (repo root):** precise, self-contained spec for **UI-only**
+> surfaces built over endpoints that already exist (public boxes-only Viewer via `/stream.mjpeg`,
+> attendance summary/sessions/CSV, audit/re-enroll/manual-face-lookup panels, ops/health readout,
+> kiosk audio cues). **Rule: zero backend edits** — frontend only, consuming existing routes. If a
+> worker is delegated UI work, point them here first. **All 9 tasks now built** (Tasks 1–9 done;
+> Task 10 polish/README deferred).
+
 **Step 10 (one-command setup) is built** — `docker-compose.yml` (db + backend), `backend/Dockerfile` (python:3.11-slim, fetches liveness weights at build), `Makefile` (`setup`/`up`/`down`/`dev`/`enroll`/…), `.dockerignore`, and `GET /health` (DB-reachability probe) in `backend/main.py`. Under compose the backend reaches Postgres as `host=db port=5432` (compose overrides `DB_DSN`). ⚠ Not yet run end-to-end on a clean checkout / GPU box.
 
 **Step 11 (operator API + live tap stream) is built** — read endpoints `GET /api/attendance` (filters: date/status/student_id/limit, joined to student name, no embeddings), `GET /api/students` (roster + `enrolled` flag, no embeddings), `GET /api/stats/today` (counts by status), `GET /api/config` (active face/liveness/decision thresholds). Live stream: `backend/events.py` (thread-safe asyncio pub/sub; `/tap` is sync/threadpool so `publish()` uses `loop.call_soon_threadsafe`) + `WS /ws/taps`. `/tap` publishes each tap fail-open (broadcast error never breaks the response; `jsonable_encoder` handles the ts datetime). Auth: `OPERATOR_TOKEN` env + `require_operator` dep on all `/api/*` (Bearer or `X-Operator-Token`; unset = open dev mode, WS takes `?token=`). Verified live: all REST endpoints + a WS event on `/tap`.
@@ -30,7 +37,7 @@ RES2 attendance system. See README.md for architecture, hardware wiring, and bui
 
 **Step 14 (roster + browser enrollment) is built** — `frontend/src/pages/Roster.tsx`: student table with inline add/edit/delete, consent checkbox toggle. `frontend/src/pages/Register.tsx`: student dropdown (create-new inline), live webcam capture (`getUserMedia`), 3–5 shot thumbnails, FormData upload → enroll endpoint, per-frame result + duplicate warning. `frontend/src/pages/Settings.tsx`: editable tunable runtime settings via `GET/PUT /api/settings`. `frontend/src/App.tsx`: nav bar added (Dashboard/Roster/Register/Review/Settings/Kiosk), management links hidden when unauthenticated, listens for `auth-changed` events. `frontend/src/index.css`: `.nav`, `.page`, `.card`, `.btn` utilities.
 
-**Step 15 (kiosk verdict screen) is built** — `frontend/src/pages/Kiosk.tsx` rewritten: fullscreen color-coded verdict (green/amber/red backgrounds), large status icon + student name, 5s auto-reset to idle, connection indicator. Audio cues deferred (needs assets).
+**Step 15 (kiosk verdict screen) is built** — `frontend/src/pages/Kiosk.tsx` rewritten: fullscreen color-coded verdict (green/amber/red backgrounds), large status icon + student name, 5s auto-reset to idle, connection indicator. Audio cues via Web Audio API (accept chime + reject buzz), mute toggle, armed after first user gesture.
 
 **Step 34 (manual review queue) is built** — `frontend/src/pages/Review.tsx`: unresolved review table with Confirm/Override/Dismiss per row, confirmation dialog. Backend endpoints `GET /api/review` + `POST /api/review/{id}/resolve` (from management layer).
 

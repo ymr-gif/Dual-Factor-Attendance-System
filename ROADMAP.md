@@ -10,6 +10,11 @@ Tracks: **UI (10–16)** · **Backbone (20–23)** · **Flow (30–35)** · **De
 The tracks are grouped by theme; the **Build sequence** below is the actual order to build in
 (it interleaves the tracks by dependency + value). Follow the sequence, not the track numbers.
 
+> **Active handoff:** a set of **UI-only** surfaces over already-built endpoints (public Viewer,
+> attendance summary/sessions/CSV, audit/re-enroll/face-lookup panels, ops readout, kiosk audio)
+> is specced in **[`handoff.md`](handoff.md)** — pure frontend, **no backend changes**. Pick tasks
+> from there before opening new backend work.
+
 ---
 
 ## Build sequence (cross-track priority order)
@@ -93,7 +98,8 @@ device install) waits for the RTX 1050. Phase F is mostly on-box.
 - [x] Step 12 — Frontend scaffold (SPA toolchain) — Vite+React+TS `frontend/`, dev proxy (`/api`+`/ws`+`/health`→:8001), router (`/`, `/kiosk`), `src/api.ts` + `useTapStream()` hook, backend serves `dist` at `/app` (SPA fallback), multi-stage Dockerfile. Verified: `web-build`→backend `/app`, dev proxy live. *(prereq for Flow track)*
 - [x] Step 13 — Operator dashboard (read views) — auth gate, today panel (counts + status pills), live feed (WS, highlights), history table (date/status filters, pagination), responsive layout. Pure frontend (`frontend/src/components/{TodayPanel,LiveFeed,HistoryTable}.tsx`, `Dashboard.tsx` rewrite, `api.ts` typed `Config`/`AuditEntry`/`ReviewItem`, `index.css` utilities). No backend changes.
 - [x] Step 14 — Roster + browser enrollment — table with add/edit/delete/consent (`Roster.tsx`), webcam capture → enroll (`Register.tsx`). Pure frontend consuming existing backend endpoints.
-- [x] Step 15 — Kiosk verdict screen — fullscreen color-coded tap feedback with auto-reset (`Kiosk.tsx` rewrite). Audio cues deferred (needs assets).
+- [x] Step 15 — Kiosk verdict screen — fullscreen color-coded tap feedback with auto-reset (`Kiosk.tsx` rewrite). Audio cues via Web Audio API (accept chime + reject buzz), mute toggle, armed after first gesture.
+- [x] Handoff tasks 1–9 — 7 new pages (`Viewer`, `Summary`, `Sessions`, `Audit`, `Reenroll`, `Lookup`, `Ops`) + CSV export + Kiosk audio. Pure frontend, zero backend edits. `api.ts` gained `reqBlob`/`reqText` helpers + 6 endpoint wrappers. Task 10 (polish/README) deferred.
 - [ ] Step 16 — Hardening & polish — OPERATOR_TOKEN required in non-dev, CORS, README screenshots, CI. CLAUDE.md and ROADMAP.md sync.
 
 ---
@@ -224,7 +230,7 @@ Tasks:
 - [x] `/kiosk` fullscreen route, unauthenticated, subscribes to `/ws/taps`.
 - [x] On event: big verdict — green ✓ + name on accepted, amber on flagged, red ✗ on
       rejected/spoof; idle prompt ("Tap your card") with connection indicator.
-- [ ] Audio cues (accept chime / reject buzz); auto-reset to idle after 5s (done).
+- [x] Audio cues (accept chime / reject buzz); auto-reset to idle after 5s (done).
 - [ ] Kiosk-hardening notes: fullscreen/kiosk browser, screensaver off, autostart URL
       `…/app/kiosk`. Document (don't automate) in README.
 
@@ -408,7 +414,7 @@ CPU box is a ~1/s functional demo only.
 - [ ] Step 32 — Throughput / perf hardening (GPU)
 - [x] Step 33 — Identity & matching features — cardless 1:N (`db.search_face` + `POST /api/search-face`), dup-enroll detection (`db.find_duplicate`), re-enroll reminders (`GET /api/reenroll-due`), HNSW ANN index, `--capture` fix + shared enroll core.
 - [x] Step 34 — Manual review queue — `GET /api/review` + `POST /api/review/{id}/resolve` (backend in management layer), Review.tsx frontend (table with confirm/override/dismiss per row). Verified live.
-- [ ] Step 35 — Multi-view UI + register-student — register wizard done (`Register.tsx`, webcam capture → enroll). Remaining: roles (operators table), viewer view (boxes-only MJPEG), both simultaneously.
+- [ ] Step 35 — Multi-view UI + register-student — register wizard done (`Register.tsx`, webcam capture → enroll), viewer view done (`Viewer.tsx`, boxes-only MJPEG). Remaining: roles (operators table).
 
 ## Conflicts this track resolves (current code that must change)
 - `face.capture_probe()` / `preview.py` each open the webcam per call and hold it exclusively →
