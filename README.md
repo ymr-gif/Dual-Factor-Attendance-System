@@ -1,6 +1,44 @@
-# nfc-scan
+# Dual-Factor Attendance System (nfc-scan)
 
-Attendance logging system. NFC (RC522) + face detection, 2-factor.
+Guardpost attendance for a school kiosk: an **NFC card (RC522)** identifies the student and a
+**face check** confirms it's really them — two factors against cloned/shared cards. A continuous
+perception pipeline correlates taps with faces in real time (tap-then-face or face-then-tap),
+with passive liveness, a live operator dashboard, kiosk verdict screen, and a boxes-only public
+viewer.
+
+> ⚠️ **Prototype / research build — NOT production-ready.** This is an MVP that demonstrates the
+> full process end-to-end. It handles children's biometrics, which is special-category data: a real
+> deployment requires guardian consent + a DPIA, encryption at rest, access-control hardening, and
+> liveness calibration — **none of which are complete here.** See "Not production-ready" below and
+> [`docs/design-notes.md`](docs/design-notes.md). The bundled InsightFace `buffalo_l` model is
+> **non-commercial research only** ([`NOTICE`](NOTICE)) — obtain rights before any commercial use.
+
+## Quickstart
+
+**One command on a fresh Linux box** (installs Postgres+pgvector, Python deps, models, builds the UI,
+installs auto-start services):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ymr-gif/Dual-Factor-Attendance-System/main/deploy/bootstrap.sh | bash
+# then open http://localhost:8001/app/setup  and finish in the browser (no terminal)
+```
+
+From a checkout: `make appliance` (or `bash deploy/install.sh`). Dev loop: `make dev` + `make web-dev`.
+Full deploy / backup / update docs: [`deploy/README.md`](deploy/README.md).
+
+## Docs map
+
+- **[`ROADMAP.md`](ROADMAP.md)** — the plan (five tracks, dependency-ordered build sequence).
+- **[`docs/build-log.md`](docs/build-log.md)** — what each built step actually contains.
+- **[`docs/design-notes.md`](docs/design-notes.md)** — constraints, failure modes, legal/ethical gates.
+- **[`deploy/README.md`](deploy/README.md)** — appliance install, kiosk, backup/update (Steps 40–43).
+- Runbooks: [`docs/verification.md`](docs/verification.md), [`docs/face-verification.md`](docs/face-verification.md), [`docs/privacy.md`](docs/privacy.md).
+
+## Not production-ready (before any real deployment)
+
+- **Legal:** guardian consent gate exists but is **off by default**; no DPIA; `buffalo_l` is non-commercial.
+- **Security:** `OPERATOR_TOKEN` unset = open API by default; no per-user roles; **no encryption at rest** for face templates; CORS not locked down.
+- **Unverified:** liveness threshold **not calibrated** (spoof detection advisory only); SMTP not tested against a live provider; GPU throughput not validated on the target box.
 
 ## Structure
 

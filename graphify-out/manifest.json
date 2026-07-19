@@ -10,8 +10,8 @@
     "semantic_hash": "692fdbdd594e46d35ef9e718c74f8b22"
   },
   "backend/db.py": {
-    "mtime": 1784461652.916105,
-    "ast_hash": "043e7ed40209029426530c3754d09ee4",
+    "mtime": 1784503011.5512114,
+    "ast_hash": "3060c1962ae6895261028ac6411fa409",
     "semantic_hash": ""
   },
   "backend/decision.py": {
@@ -35,13 +35,13 @@
     "semantic_hash": "53dd7741bde264779c9117138387699b"
   },
   "backend/liveness.py": {
-    "mtime": 1784484177.5244184,
+    "mtime": 1784502322.5099585,
     "ast_hash": "4568356c5461212461d23847fbbd281c",
     "semantic_hash": ""
   },
   "backend/main.py": {
-    "mtime": 1784472552.818043,
-    "ast_hash": "c8c87183f141fee3a5a22b9b6d29f68e",
+    "mtime": 1784502757.0708783,
+    "ast_hash": "03b19834a31a24a5000ca2b9e805c7fd",
     "semantic_hash": ""
   },
   "backend/notify.py": {
@@ -65,22 +65,22 @@
     "semantic_hash": "efd9d48454ea5b5e6c7cac50fa4fc036"
   },
   "CLAUDE.md": {
-    "mtime": 1784484480.0155225,
-    "ast_hash": "c278fc26b6dfc734f682e65e513933b5",
+    "mtime": 1784502322.5099585,
+    "ast_hash": "df68973f620dae105668339f8d7f61a4",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784453428.7983766,
-    "ast_hash": "442bb5292eb368779a75f2d4b5ae586b",
+    "mtime": 1784503040.2796755,
+    "ast_hash": "679b36be496a4c7f4424fee212eedc7c",
     "semantic_hash": ""
   },
   "ROADMAP.md": {
-    "mtime": 1784469639.8175154,
-    "ast_hash": "e6eb333573ae7e6f3f5104c66d8dbb7f",
+    "mtime": 1784502322.5099585,
+    "ast_hash": "7cb394a417eb58372ed1f657e489519a",
     "semantic_hash": ""
   },
   "docs/design-notes.md": {
-    "mtime": 1784472496.2583678,
+    "mtime": 1784502322.5099585,
     "ast_hash": "1a873c18afb94f7b5964c7c14852f0e7",
     "semantic_hash": ""
   },
@@ -110,13 +110,13 @@
     "semantic_hash": ""
   },
   "frontend/src/App.tsx": {
-    "mtime": 1784468488.9149203,
-    "ast_hash": "2379eca40a6586429450f1c877df54e6",
+    "mtime": 1784502804.4837208,
+    "ast_hash": "3380aea6f9d2b85f534ac5b564fd12b8",
     "semantic_hash": ""
   },
   "frontend/src/api.ts": {
-    "mtime": 1784472578.4419034,
-    "ast_hash": "a578bef0e60128c306c80529989db719",
+    "mtime": 1784502763.2829897,
+    "ast_hash": "22c77a8809514cf64a158935a0238b88",
     "semantic_hash": ""
   },
   "frontend/src/main.tsx": {
@@ -180,7 +180,7 @@
     "semantic_hash": ""
   },
   "backend/matcher.py": {
-    "mtime": 1784484201.1602554,
+    "mtime": 1784502322.5099585,
     "ast_hash": "fc9d899f9a31b83fb88f76c2592f6fa1",
     "semantic_hash": ""
   },
@@ -225,7 +225,7 @@
     "semantic_hash": ""
   },
   "frontend/src/components/LiveFeed.tsx": {
-    "mtime": 1784484249.367979,
+    "mtime": 1784502322.5099585,
     "ast_hash": "104fcd7104f7d596a31c0d7aa9e42ad5",
     "semantic_hash": ""
   },
@@ -255,7 +255,7 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/Register.tsx": {
-    "mtime": 1784472671.0774336,
+    "mtime": 1784502322.5099585,
     "ast_hash": "10d98812a1fcd2bbce234d3355ddbfde",
     "semantic_hash": ""
   },
@@ -292,6 +292,61 @@
   "handoff.md": {
     "mtime": 1784469759.5045733,
     "ast_hash": "bc8ae79d312d5dfe9cc2f15e8d0fa181",
+    "semantic_hash": ""
+  },
+  "deploy/backup.sh": {
+    "mtime": 1784502895.753294,
+    "ast_hash": "cc3e3373a640b536c333a206343170e2",
+    "semantic_hash": ""
+  },
+  "deploy/bootstrap.sh": {
+    "mtime": 1784502888.021163,
+    "ast_hash": "e3c96eb1c2d5243de3f5b54cde9eae2d",
+    "semantic_hash": ""
+  },
+  "deploy/factory-reset.sh": {
+    "mtime": 1784502921.129721,
+    "ast_hash": "0bd385213d902b37f4651a2cb7099b29",
+    "semantic_hash": ""
+  },
+  "deploy/install.sh": {
+    "mtime": 1784502863.0807376,
+    "ast_hash": "d6b0500e92a8cecd32eb83329c571052",
+    "semantic_hash": ""
+  },
+  "deploy/kiosk/start-kiosk.sh": {
+    "mtime": 1784502875.212945,
+    "ast_hash": "1d37d7e034c3d8deb25fd1d9fd09cf92",
+    "semantic_hash": ""
+  },
+  "deploy/preflight.sh": {
+    "mtime": 1784502837.9323044,
+    "ast_hash": "9ffbdf8cb55ad69e8efa604884a8e873",
+    "semantic_hash": ""
+  },
+  "deploy/restore.sh": {
+    "mtime": 1784502902.9454153,
+    "ast_hash": "6f8715fa9d009e92c0dda02bc2032baa",
+    "semantic_hash": ""
+  },
+  "deploy/update.sh": {
+    "mtime": 1784502911.9335668,
+    "ast_hash": "5c63be04d6a75c7b6e08109bb237db51",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/SetupWizard.tsx": {
+    "mtime": 1784502790.6874776,
+    "ast_hash": "1e114ff648b1718db5cdda3691144e1b",
+    "semantic_hash": ""
+  },
+  "deploy/README.md": {
+    "mtime": 1784502943.6580968,
+    "ast_hash": "f65660aeb1141692f09e10d7f1a752b0",
+    "semantic_hash": ""
+  },
+  "docs/build-log.md": {
+    "mtime": 1784502322.5099585,
+    "ast_hash": "257da2d47ab802a140862a72348e3cf1",
     "semantic_hash": ""
   }
 }

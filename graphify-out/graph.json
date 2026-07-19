@@ -58,7 +58,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_init",
-      "community": 37,
+      "community": 20,
       "norm_label": "__init__.py"
     },
     {
@@ -115,7 +115,7 @@
       "label": "get_conn()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L23",
+      "source_location": "L25",
       "_origin": "ast",
       "id": "backend_db_get_conn",
       "community": 8,
@@ -125,7 +125,7 @@
       "label": "init_db()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L42",
+      "source_location": "L44",
       "_origin": "ast",
       "id": "backend_db_init_db",
       "community": 8,
@@ -135,7 +135,7 @@
       "label": "insert_student()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L54",
+      "source_location": "L56",
       "_origin": "ast",
       "id": "backend_db_insert_student",
       "community": 8,
@@ -145,7 +145,7 @@
       "label": "update_student()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L73",
+      "source_location": "L75",
       "_origin": "ast",
       "id": "backend_db_update_student",
       "community": 8,
@@ -155,7 +155,7 @@
       "label": "insert_review()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L108",
+      "source_location": "L110",
       "_origin": "ast",
       "id": "backend_db_insert_review",
       "community": 8,
@@ -165,7 +165,7 @@
       "label": "get_review_queue()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L124",
+      "source_location": "L126",
       "_origin": "ast",
       "id": "backend_db_get_review_queue",
       "community": 8,
@@ -175,7 +175,7 @@
       "label": "resolve_review()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L146",
+      "source_location": "L148",
       "_origin": "ast",
       "id": "backend_db_resolve_review",
       "community": 8,
@@ -185,7 +185,7 @@
       "label": "get_setting()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L168",
+      "source_location": "L170",
       "_origin": "ast",
       "id": "backend_db_get_setting",
       "community": 8,
@@ -195,7 +195,7 @@
       "label": "set_setting()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L176",
+      "source_location": "L178",
       "_origin": "ast",
       "id": "backend_db_set_setting",
       "community": 8,
@@ -205,7 +205,7 @@
       "label": "get_all_settings()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L188",
+      "source_location": "L190",
       "_origin": "ast",
       "id": "backend_db_get_all_settings",
       "community": 8,
@@ -215,7 +215,7 @@
       "label": "find_student_by_uid()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L195",
+      "source_location": "L197",
       "_origin": "ast",
       "id": "backend_db_find_student_by_uid",
       "community": 8,
@@ -225,7 +225,7 @@
       "label": "insert_log()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L202",
+      "source_location": "L204",
       "_origin": "ast",
       "id": "backend_db_insert_log",
       "community": 8,
@@ -235,7 +235,7 @@
       "label": "get_student()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L229",
+      "source_location": "L231",
       "_origin": "ast",
       "id": "backend_db_get_student",
       "community": 8,
@@ -245,7 +245,7 @@
       "label": "set_face_embedding()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L236",
+      "source_location": "L238",
       "_origin": "ast",
       "id": "backend_db_set_face_embedding",
       "community": 8,
@@ -255,7 +255,7 @@
       "label": "set_consent()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L256",
+      "source_location": "L258",
       "_origin": "ast",
       "id": "backend_db_set_consent",
       "community": 8,
@@ -265,7 +265,7 @@
       "label": "insert_audit()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L273",
+      "source_location": "L275",
       "_origin": "ast",
       "id": "backend_db_insert_audit",
       "community": 8,
@@ -275,7 +275,7 @@
       "label": "get_audit()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L289",
+      "source_location": "L291",
       "_origin": "ast",
       "id": "backend_db_get_audit",
       "community": 8,
@@ -285,7 +285,7 @@
       "label": "delete_student()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L299",
+      "source_location": "L301",
       "_origin": "ast",
       "id": "backend_db_delete_student",
       "community": 8,
@@ -295,7 +295,7 @@
       "label": "purge_old_logs()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L311",
+      "source_location": "L313",
       "_origin": "ast",
       "id": "backend_db_purge_old_logs",
       "community": 8,
@@ -305,7 +305,7 @@
       "label": "null_old_scores()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L320",
+      "source_location": "L322",
       "_origin": "ast",
       "id": "backend_db_null_old_scores",
       "community": 8,
@@ -315,7 +315,7 @@
       "label": "get_attendance()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L342",
+      "source_location": "L344",
       "_origin": "ast",
       "id": "backend_db_get_attendance",
       "community": 8,
@@ -325,7 +325,7 @@
       "label": "get_students()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L375",
+      "source_location": "L377",
       "_origin": "ast",
       "id": "backend_db_get_students",
       "community": 8,
@@ -335,7 +335,7 @@
       "label": "search_face()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L391",
+      "source_location": "L393",
       "_origin": "ast",
       "id": "backend_db_search_face",
       "community": 8,
@@ -345,7 +345,7 @@
       "label": "find_duplicate()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L411",
+      "source_location": "L413",
       "_origin": "ast",
       "id": "backend_db_find_duplicate",
       "community": 8,
@@ -355,7 +355,7 @@
       "label": "stale_enrollments()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L422",
+      "source_location": "L424",
       "_origin": "ast",
       "id": "backend_db_stale_enrollments",
       "community": 8,
@@ -365,7 +365,7 @@
       "label": "get_stats_today()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L449",
+      "source_location": "L451",
       "_origin": "ast",
       "id": "backend_db_get_stats_today",
       "community": 8,
@@ -375,7 +375,7 @@
       "label": "get_sessions()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L468",
+      "source_location": "L470",
       "_origin": "ast",
       "id": "backend_db_get_sessions",
       "community": 8,
@@ -385,7 +385,7 @@
       "label": "get_summary()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L494",
+      "source_location": "L496",
       "_origin": "ast",
       "id": "backend_db_get_summary",
       "community": 8,
@@ -395,7 +395,7 @@
       "label": "_is_late()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L561",
+      "source_location": "L563",
       "_origin": "ast",
       "id": "backend_db_is_late",
       "community": 8,
@@ -405,7 +405,7 @@
       "label": "get_attendance_csv()",
       "file_type": "code",
       "source_file": "backend/db.py",
-      "source_location": "L585",
+      "source_location": "L587",
       "_origin": "ast",
       "id": "backend_db_get_attendance_csv",
       "community": 8,
@@ -415,9 +415,9 @@
       "label": "Create a new student. Raises ValueError on duplicate student_id or uid.",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L56",
+      "source_location": "L58",
       "_origin": "ast",
-      "id": "backend_db_rationale_56",
+      "id": "backend_db_rationale_58",
       "community": 8,
       "norm_label": "create a new student. raises valueerror on duplicate student_id or uid."
     },
@@ -425,9 +425,9 @@
       "label": "Update student fields (only non-None values). Raises ValueError if not found.",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L75",
+      "source_location": "L77",
       "_origin": "ast",
-      "id": "backend_db_rationale_75",
+      "id": "backend_db_rationale_77",
       "community": 8,
       "norm_label": "update student fields (only non-none values). raises valueerror if not found."
     },
@@ -435,9 +435,9 @@
       "label": "Add a flagged tap to the review queue. Best-effort (upsert by log_id).",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L109",
+      "source_location": "L111",
       "_origin": "ast",
-      "id": "backend_db_rationale_109",
+      "id": "backend_db_rationale_111",
       "community": 8,
       "norm_label": "add a flagged tap to the review queue. best-effort (upsert by log_id)."
     },
@@ -445,9 +445,9 @@
       "label": "Unresolved review items, newest first, joined to log data.",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L125",
+      "source_location": "L127",
       "_origin": "ast",
-      "id": "backend_db_rationale_125",
+      "id": "backend_db_rationale_127",
       "community": 8,
       "norm_label": "unresolved review items, newest first, joined to log data."
     },
@@ -455,9 +455,9 @@
       "label": "Resolve a review item. resolution is 'confirmed', 'override', or 'dismiss'.",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L147",
+      "source_location": "L149",
       "_origin": "ast",
-      "id": "backend_db_rationale_147",
+      "id": "backend_db_rationale_149",
       "community": 8,
       "norm_label": "resolve a review item. resolution is 'confirmed', 'override', or 'dismiss'."
     },
@@ -465,9 +465,9 @@
       "label": "Store a student's averaged reference embedding + provenance (Step 33:     embed_",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L237",
+      "source_location": "L239",
       "_origin": "ast",
-      "id": "backend_db_rationale_237",
+      "id": "backend_db_rationale_239",
       "community": 8,
       "norm_label": "store a student's averaged reference embedding + provenance (step 33:     embed_"
     },
@@ -475,9 +475,9 @@
       "label": "Record biometric-consent for a student. Raises if no such student.",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L257",
+      "source_location": "L259",
       "_origin": "ast",
-      "id": "backend_db_rationale_257",
+      "id": "backend_db_rationale_259",
       "community": 8,
       "norm_label": "record biometric-consent for a student. raises if no such student."
     },
@@ -485,9 +485,9 @@
       "label": "Append an operator audit entry (Step 20). Best-effort \u2014 callers wrap it so an",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L274",
+      "source_location": "L276",
       "_origin": "ast",
-      "id": "backend_db_rationale_274",
+      "id": "backend_db_rationale_276",
       "community": 8,
       "norm_label": "append an operator audit entry (step 20). best-effort \u2014 callers wrap it so an"
     },
@@ -495,9 +495,9 @@
       "label": "Right-to-erasure (Step 20): drop the student's attendance logs and roster row",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L300",
+      "source_location": "L302",
       "_origin": "ast",
-      "id": "backend_db_rationale_300",
+      "id": "backend_db_rationale_302",
       "community": 8,
       "norm_label": "right-to-erasure (step 20): drop the student's attendance logs and roster row"
     },
@@ -505,9 +505,9 @@
       "label": "Delete attendance logs with ts < cutoff (a datetime). Never touches roster.",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L312",
+      "source_location": "L314",
       "_origin": "ast",
-      "id": "backend_db_rationale_312",
+      "id": "backend_db_rationale_314",
       "community": 8,
       "norm_label": "delete attendance logs with ts < cutoff (a datetime). never touches roster."
     },
@@ -515,9 +515,9 @@
       "label": "Null the raw biometric scores on logs older than cutoff, keeping the row +     s",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L321",
+      "source_location": "L323",
       "_origin": "ast",
-      "id": "backend_db_rationale_321",
+      "id": "backend_db_rationale_323",
       "community": 8,
       "norm_label": "null the raw biometric scores on logs older than cutoff, keeping the row +     s"
     },
@@ -525,9 +525,9 @@
       "label": "Attendance logs (newest first) joined to the student name. Never returns     emb",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L343",
+      "source_location": "L345",
       "_origin": "ast",
-      "id": "backend_db_rationale_343",
+      "id": "backend_db_rationale_345",
       "community": 8,
       "norm_label": "attendance logs (newest first) joined to the student name. never returns     emb"
     },
@@ -535,9 +535,9 @@
       "label": "Roster with an `enrolled` flag. Deliberately omits face_embedding (PII).",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L376",
+      "source_location": "L378",
       "_origin": "ast",
-      "id": "backend_db_rationale_376",
+      "id": "backend_db_rationale_378",
       "community": 8,
       "norm_label": "roster with an `enrolled` flag. deliberately omits face_embedding (pii)."
     },
@@ -545,9 +545,9 @@
       "label": "Cardless 1:N nearest-face search (Step 31 tailgater ID). Returns the k nearest",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L392",
+      "source_location": "L394",
       "_origin": "ast",
-      "id": "backend_db_rationale_392",
+      "id": "backend_db_rationale_394",
       "community": 8,
       "norm_label": "cardless 1:n nearest-face search (step 31 tailgater id). returns the k nearest"
     },
@@ -555,9 +555,9 @@
       "label": "Duplicate-enrollment check (Step 33): 1:N vs the gallery. Returns the nearest",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L412",
+      "source_location": "L414",
       "_origin": "ast",
-      "id": "backend_db_rationale_412",
+      "id": "backend_db_rationale_414",
       "community": 8,
       "norm_label": "duplicate-enrollment check (step 33): 1:n vs the gallery. returns the nearest"
     },
@@ -565,9 +565,9 @@
       "label": "Re-enrollment reminders (Step 33): enrolled students whose reference is older",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L423",
+      "source_location": "L425",
       "_origin": "ast",
-      "id": "backend_db_rationale_423",
+      "id": "backend_db_rationale_425",
       "community": 8,
       "norm_label": "re-enrollment reminders (step 33): enrolled students whose reference is older"
     },
@@ -575,9 +575,9 @@
       "label": "Today's tap counts keyed by status (accepted/flagged/rejected/\u2026).",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L450",
+      "source_location": "L452",
       "_origin": "ast",
-      "id": "backend_db_rationale_450",
+      "id": "backend_db_rationale_452",
       "community": 8,
       "norm_label": "today's tap counts keyed by status (accepted/flagged/rejected/...)."
     },
@@ -585,9 +585,9 @@
       "label": "Query the attendance_sessions view. Returns newest first.",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L469",
+      "source_location": "L471",
       "_origin": "ast",
-      "id": "backend_db_rationale_469",
+      "id": "backend_db_rationale_471",
       "community": 8,
       "norm_label": "query the attendance_sessions view. returns newest first."
     },
@@ -595,9 +595,9 @@
       "label": "Today's attendance summary: expected vs present/absent/late.     `expected` = al",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L495",
+      "source_location": "L497",
       "_origin": "ast",
-      "id": "backend_db_rationale_495",
+      "id": "backend_db_rationale_497",
       "community": 8,
       "norm_label": "today's attendance summary: expected vs present/absent/late.     `expected` = al"
     },
@@ -605,9 +605,9 @@
       "label": "Check whether a student's first tap on date_str was after LATE_CUTOFF.",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L562",
+      "source_location": "L564",
       "_origin": "ast",
-      "id": "backend_db_rationale_562",
+      "id": "backend_db_rationale_564",
       "community": 8,
       "norm_label": "check whether a student's first tap on date_str was after late_cutoff."
     },
@@ -615,9 +615,9 @@
       "label": "Same filters as get_attendance but returns raw rows for CSV export     (no embed",
       "file_type": "rationale",
       "source_file": "backend/db.py",
-      "source_location": "L587",
+      "source_location": "L589",
       "_origin": "ast",
-      "id": "backend_db_rationale_587",
+      "id": "backend_db_rationale_589",
       "community": 8,
       "norm_label": "same filters as get_attendance but returns raw rows for csv export     (no embed"
     },
@@ -768,7 +768,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_doctor",
-      "community": 37,
+      "community": 20,
       "norm_label": "doctor.py"
     },
     {
@@ -778,7 +778,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_doctor_check",
-      "community": 37,
+      "community": 20,
       "norm_label": "_check()"
     },
     {
@@ -788,7 +788,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_doctor_run",
-      "community": 37,
+      "community": 20,
       "norm_label": "run()"
     },
     {
@@ -798,7 +798,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_doctor_rationale_1",
-      "community": 37,
+      "community": 20,
       "norm_label": "system health check (step 22).  usage:     python -m backend.doctor  checks ever"
     },
     {
@@ -1582,10 +1582,20 @@
       "norm_label": "health()"
     },
     {
-      "label": "metrics()",
+      "label": "setup_status()",
       "file_type": "code",
       "source_file": "backend/main.py",
       "source_location": "L294",
+      "_origin": "ast",
+      "id": "backend_main_setup_status",
+      "community": 60,
+      "norm_label": "setup_status()"
+    },
+    {
+      "label": "metrics()",
+      "file_type": "code",
+      "source_file": "backend/main.py",
+      "source_location": "L331",
       "_origin": "ast",
       "id": "backend_main_metrics",
       "community": 2,
@@ -1595,7 +1605,7 @@
       "label": "api_attendance()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L319",
+      "source_location": "L356",
       "_origin": "ast",
       "id": "backend_main_api_attendance",
       "community": 2,
@@ -1605,7 +1615,7 @@
       "label": "api_students()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L329",
+      "source_location": "L366",
       "_origin": "ast",
       "id": "backend_main_api_students",
       "community": 2,
@@ -1615,7 +1625,7 @@
       "label": "api_attendance_summary()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L334",
+      "source_location": "L371",
       "_origin": "ast",
       "id": "backend_main_api_attendance_summary",
       "community": 2,
@@ -1625,7 +1635,7 @@
       "label": "api_attendance_sessions()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L339",
+      "source_location": "L376",
       "_origin": "ast",
       "id": "backend_main_api_attendance_sessions",
       "community": 2,
@@ -1635,7 +1645,7 @@
       "label": "api_attendance_csv()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L347",
+      "source_location": "L384",
       "_origin": "ast",
       "id": "backend_main_api_attendance_csv",
       "community": 2,
@@ -1645,7 +1655,7 @@
       "label": "api_stats_today()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L376",
+      "source_location": "L413",
       "_origin": "ast",
       "id": "backend_main_api_stats_today",
       "community": 2,
@@ -1655,7 +1665,7 @@
       "label": "api_config()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L381",
+      "source_location": "L418",
       "_origin": "ast",
       "id": "backend_main_api_config",
       "community": 2,
@@ -1665,7 +1675,7 @@
       "label": "api_get_settings()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L413",
+      "source_location": "L450",
       "_origin": "ast",
       "id": "backend_main_api_get_settings",
       "community": 2,
@@ -1675,7 +1685,7 @@
       "label": "api_set_settings()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L419",
+      "source_location": "L456",
       "_origin": "ast",
       "id": "backend_main_api_set_settings",
       "community": 34,
@@ -1685,7 +1695,7 @@
       "label": "ConsentRequest",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L428",
+      "source_location": "L465",
       "_origin": "ast",
       "id": "backend_main_consentrequest",
       "community": 34,
@@ -1695,7 +1705,7 @@
       "label": "_actor()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L432",
+      "source_location": "L469",
       "_origin": "ast",
       "id": "backend_main_actor",
       "community": 2,
@@ -1705,7 +1715,7 @@
       "label": "api_audit()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L439",
+      "source_location": "L476",
       "_origin": "ast",
       "id": "backend_main_api_audit",
       "community": 2,
@@ -1715,7 +1725,7 @@
       "label": "api_review()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L447",
+      "source_location": "L484",
       "_origin": "ast",
       "id": "backend_main_api_review",
       "community": 2,
@@ -1725,7 +1735,7 @@
       "label": "api_resolve_review()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L452",
+      "source_location": "L489",
       "_origin": "ast",
       "id": "backend_main_api_resolve_review",
       "community": 34,
@@ -1735,7 +1745,7 @@
       "label": "api_search_face()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L464",
+      "source_location": "L501",
       "_origin": "ast",
       "id": "backend_main_api_search_face",
       "community": 43,
@@ -1745,7 +1755,7 @@
       "label": "UploadFile",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L464",
+      "source_location": "L501",
       "_origin": "ast",
       "id": "uploadfile",
       "community": 43,
@@ -1755,7 +1765,7 @@
       "label": "api_reenroll_due()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L481",
+      "source_location": "L518",
       "_origin": "ast",
       "id": "backend_main_api_reenroll_due",
       "community": 2,
@@ -1765,7 +1775,7 @@
       "label": "api_set_consent()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L496",
+      "source_location": "L533",
       "_origin": "ast",
       "id": "backend_main_api_set_consent",
       "community": 34,
@@ -1775,7 +1785,7 @@
       "label": "api_create_student()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L506",
+      "source_location": "L543",
       "_origin": "ast",
       "id": "backend_main_api_create_student",
       "community": 34,
@@ -1785,7 +1795,7 @@
       "label": "api_update_student()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L521",
+      "source_location": "L558",
       "_origin": "ast",
       "id": "backend_main_api_update_student",
       "community": 34,
@@ -1795,7 +1805,7 @@
       "label": "api_enroll_student()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L540",
+      "source_location": "L577",
       "_origin": "ast",
       "id": "backend_main_api_enroll_student",
       "community": 43,
@@ -1805,7 +1815,7 @@
       "label": "api_delete_student()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L574",
+      "source_location": "L611",
       "_origin": "ast",
       "id": "backend_main_api_delete_student",
       "community": 2,
@@ -1815,7 +1825,7 @@
       "label": "ws_taps()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L584",
+      "source_location": "L621",
       "_origin": "ast",
       "id": "backend_main_ws_taps",
       "community": 52,
@@ -1825,7 +1835,7 @@
       "label": "WebSocket",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L584",
+      "source_location": "L621",
       "_origin": "ast",
       "id": "websocket",
       "community": 52,
@@ -1835,7 +1845,7 @@
       "label": "stream_mjpeg()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L602",
+      "source_location": "L639",
       "_origin": "ast",
       "id": "backend_main_stream_mjpeg",
       "community": 47,
@@ -1845,7 +1855,7 @@
       "label": "perception_state()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L630",
+      "source_location": "L667",
       "_origin": "ast",
       "id": "backend_main_perception_state",
       "community": 44,
@@ -1855,7 +1865,7 @@
       "label": "tap()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L668",
+      "source_location": "L705",
       "_origin": "ast",
       "id": "backend_main_tap",
       "community": 39,
@@ -1865,7 +1875,7 @@
       "label": "spa()",
       "file_type": "code",
       "source_file": "backend/main.py",
-      "source_location": "L736",
+      "source_location": "L773",
       "_origin": "ast",
       "id": "backend_main_spa",
       "community": 2,
@@ -1922,12 +1932,22 @@
       "norm_label": "guard /api/* endpoints. accepts `authorization: bearer <t>` or     `x-operator-t"
     },
     {
+      "label": "First-run wizard probe (Step 42). Intentionally open (no operator token) so",
+      "file_type": "rationale",
+      "source_file": "backend/main.py",
+      "source_location": "L295",
+      "_origin": "ast",
+      "id": "backend_main_rationale_295",
+      "community": 60,
+      "norm_label": "first-run wizard probe (step 42). intentionally open (no operator token) so"
+    },
+    {
       "label": "Live camera feed as MJPEG stream. perception.on_frame broadcasts annotated     J",
       "file_type": "rationale",
       "source_file": "backend/main.py",
-      "source_location": "L603",
+      "source_location": "L640",
       "_origin": "ast",
-      "id": "backend_main_rationale_603",
+      "id": "backend_main_rationale_640",
       "community": 47,
       "norm_label": "live camera feed as mjpeg stream. perception.on_frame broadcasts annotated     j"
     },
@@ -1935,9 +1955,9 @@
       "label": "Live camera-quality gate for the register guided flow. Derived from     percepti",
       "file_type": "rationale",
       "source_file": "backend/main.py",
-      "source_location": "L631",
+      "source_location": "L668",
       "_origin": "ast",
-      "id": "backend_main_rationale_631",
+      "id": "backend_main_rationale_668",
       "community": 44,
       "norm_label": "live camera-quality gate for the register guided flow. derived from     percepti"
     },
@@ -2748,7 +2768,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_settings",
-      "community": 38,
+      "community": 20,
       "norm_label": "settings.py"
     },
     {
@@ -2758,7 +2778,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "backend_settings_get",
-      "community": 38,
+      "community": 20,
       "norm_label": "get()"
     },
     {
@@ -2768,7 +2788,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "backend_settings_py_any",
-      "community": 38,
+      "community": 20,
       "norm_label": "any"
     },
     {
@@ -2778,7 +2798,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_settings_set",
-      "community": 38,
+      "community": 20,
       "norm_label": "set()"
     },
     {
@@ -2788,7 +2808,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_settings_all_settings",
-      "community": 38,
+      "community": 20,
       "norm_label": "all_settings()"
     },
     {
@@ -2798,7 +2818,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "backend_settings_cast",
-      "community": 38,
+      "community": 20,
       "norm_label": "_cast()"
     },
     {
@@ -2808,7 +2828,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_settings_rationale_1",
-      "community": 38,
+      "community": 20,
       "norm_label": "runtime settings layer (step 50). precedence: db > env > code default.  only tun"
     },
     {
@@ -2818,8 +2838,288 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_settings_rationale_43",
-      "community": 38,
+      "community": 20,
       "norm_label": "read a setting: db > env > default. returns `cast(value)`."
+    },
+    {
+      "label": "backup.sh",
+      "file_type": "code",
+      "source_file": "deploy/backup.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "deploy_backup",
+      "community": 61,
+      "norm_label": "backup.sh"
+    },
+    {
+      "label": "backup.sh script",
+      "file_type": "code",
+      "source_file": "deploy/backup.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "home_scylla_dev_python_projects_nfc_scan_deploy_backup_sh__entry",
+      "community": 61,
+      "norm_label": "backup.sh script"
+    },
+    {
+      "label": "bootstrap.sh",
+      "file_type": "code",
+      "source_file": "deploy/bootstrap.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "deploy_bootstrap",
+      "community": 62,
+      "norm_label": "bootstrap.sh"
+    },
+    {
+      "label": "bootstrap.sh script",
+      "file_type": "code",
+      "source_file": "deploy/bootstrap.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "home_scylla_dev_python_projects_nfc_scan_deploy_bootstrap_sh__entry",
+      "community": 62,
+      "norm_label": "bootstrap.sh script"
+    },
+    {
+      "label": "factory-reset.sh",
+      "file_type": "code",
+      "source_file": "deploy/factory-reset.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "deploy_factory_reset",
+      "community": 63,
+      "norm_label": "factory-reset.sh"
+    },
+    {
+      "label": "factory-reset.sh script",
+      "file_type": "code",
+      "source_file": "deploy/factory-reset.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "home_scylla_dev_python_projects_nfc_scan_deploy_factory_reset_sh__entry",
+      "community": 63,
+      "norm_label": "factory-reset.sh script"
+    },
+    {
+      "label": "install.sh",
+      "file_type": "code",
+      "source_file": "deploy/install.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "deploy_install",
+      "community": 59,
+      "norm_label": "install.sh"
+    },
+    {
+      "label": "install.sh script",
+      "file_type": "code",
+      "source_file": "deploy/install.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "home_scylla_dev_python_projects_nfc_scan_deploy_install_sh__entry",
+      "community": 59,
+      "norm_label": "install.sh script"
+    },
+    {
+      "label": "say()",
+      "file_type": "code",
+      "source_file": "deploy/install.sh",
+      "source_location": "L20",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "deploy_install_say",
+      "community": 59,
+      "norm_label": "say()"
+    },
+    {
+      "label": "start-kiosk.sh",
+      "file_type": "code",
+      "source_file": "deploy/kiosk/start-kiosk.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "kiosk_start_kiosk",
+      "community": 66,
+      "norm_label": "start-kiosk.sh"
+    },
+    {
+      "label": "start-kiosk.sh script",
+      "file_type": "code",
+      "source_file": "deploy/kiosk/start-kiosk.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "home_scylla_dev_python_projects_nfc_scan_deploy_kiosk_start_kiosk_sh__entry",
+      "community": 66,
+      "norm_label": "start-kiosk.sh script"
+    },
+    {
+      "label": "preflight.sh",
+      "file_type": "code",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "deploy_preflight",
+      "community": 58,
+      "norm_label": "preflight.sh"
+    },
+    {
+      "label": "preflight.sh script",
+      "file_type": "code",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "home_scylla_dev_python_projects_nfc_scan_deploy_preflight_sh__entry",
+      "community": 58,
+      "norm_label": "preflight.sh script"
+    },
+    {
+      "label": "ok()",
+      "file_type": "code",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L6",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "deploy_preflight_ok",
+      "community": 58,
+      "norm_label": "ok()"
+    },
+    {
+      "label": "warn()",
+      "file_type": "code",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L7",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "deploy_preflight_warn",
+      "community": 58,
+      "norm_label": "warn()"
+    },
+    {
+      "label": "bad()",
+      "file_type": "code",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L8",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "deploy_preflight_bad",
+      "community": 58,
+      "norm_label": "bad()"
+    },
+    {
+      "label": "restore.sh",
+      "file_type": "code",
+      "source_file": "deploy/restore.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "deploy_restore",
+      "community": 64,
+      "norm_label": "restore.sh"
+    },
+    {
+      "label": "restore.sh script",
+      "file_type": "code",
+      "source_file": "deploy/restore.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "home_scylla_dev_python_projects_nfc_scan_deploy_restore_sh__entry",
+      "community": 64,
+      "norm_label": "restore.sh script"
+    },
+    {
+      "label": "update.sh",
+      "file_type": "code",
+      "source_file": "deploy/update.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "deploy_update",
+      "community": 65,
+      "norm_label": "update.sh"
+    },
+    {
+      "label": "update.sh script",
+      "file_type": "code",
+      "source_file": "deploy/update.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "home_scylla_dev_python_projects_nfc_scan_deploy_update_sh__entry",
+      "community": 65,
+      "norm_label": "update.sh script"
     },
     {
       "label": "package.json",
@@ -3025,7 +3325,7 @@
       "label": "App()",
       "file_type": "code",
       "source_file": "frontend/src/App.tsx",
-      "source_location": "L18",
+      "source_location": "L19",
       "_origin": "ast",
       "id": "src_app_app",
       "community": 36,
@@ -3038,7 +3338,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_api",
-      "community": 27,
+      "community": 33,
       "norm_label": "api.ts"
     },
     {
@@ -3048,7 +3348,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_api_gettoken",
-      "community": 27,
+      "community": 3,
       "norm_label": "gettoken()"
     },
     {
@@ -3088,7 +3388,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "src_api_del",
-      "community": 27,
+      "community": 33,
       "norm_label": "del()"
     },
     {
@@ -3098,7 +3398,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "src_api_postformdata",
-      "community": 27,
+      "community": 57,
       "norm_label": "postformdata()"
     },
     {
@@ -3118,7 +3418,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "src_api_reqtext",
-      "community": 27,
+      "community": 3,
       "norm_label": "reqtext()"
     },
     {
@@ -3198,7 +3498,7 @@
       "source_location": "L151",
       "_origin": "ast",
       "id": "src_api_reviewitem",
-      "community": 27,
+      "community": 33,
       "norm_label": "reviewitem"
     },
     {
@@ -3218,7 +3518,7 @@
       "source_location": "L180",
       "_origin": "ast",
       "id": "src_api_enrollresult",
-      "community": 33,
+      "community": 3,
       "norm_label": "enrollresult"
     },
     {
@@ -3228,7 +3528,7 @@
       "source_location": "L187",
       "_origin": "ast",
       "id": "src_api_settingsresponse",
-      "community": 27,
+      "community": 33,
       "norm_label": "settingsresponse"
     },
     {
@@ -3258,7 +3558,7 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "src_api_reenrolldue",
-      "community": 27,
+      "community": 36,
       "norm_label": "reenrolldue"
     },
     {
@@ -3268,7 +3568,7 @@
       "source_location": "L216",
       "_origin": "ast",
       "id": "src_api_facematch",
-      "community": 27,
+      "community": 57,
       "norm_label": "facematch"
     },
     {
@@ -3348,7 +3648,7 @@
       "source_location": "L242",
       "_origin": "ast",
       "id": "src_api_deletestudent",
-      "community": 27,
+      "community": 33,
       "norm_label": "deletestudent()"
     },
     {
@@ -3368,7 +3668,7 @@
       "source_location": "L248",
       "_origin": "ast",
       "id": "src_api_enrollstudent",
-      "community": 27,
+      "community": 57,
       "norm_label": "enrollstudent()"
     },
     {
@@ -3388,7 +3688,7 @@
       "source_location": "L254",
       "_origin": "ast",
       "id": "src_api_resolvereview",
-      "community": 40,
+      "community": 33,
       "norm_label": "resolvereview()"
     },
     {
@@ -3398,7 +3698,7 @@
       "source_location": "L259",
       "_origin": "ast",
       "id": "src_api_getsettings",
-      "community": 36,
+      "community": 33,
       "norm_label": "getsettings()"
     },
     {
@@ -3408,7 +3708,7 @@
       "source_location": "L261",
       "_origin": "ast",
       "id": "src_api_setsetting",
-      "community": 36,
+      "community": 33,
       "norm_label": "setsetting()"
     },
     {
@@ -3448,7 +3748,7 @@
       "source_location": "L277",
       "_origin": "ast",
       "id": "src_api_getreenrolldue",
-      "community": 27,
+      "community": 36,
       "norm_label": "getreenrolldue()"
     },
     {
@@ -3458,7 +3758,7 @@
       "source_location": "L279",
       "_origin": "ast",
       "id": "src_api_perceptionstate",
-      "community": 33,
+      "community": 3,
       "norm_label": "perceptionstate"
     },
     {
@@ -3468,24 +3768,44 @@
       "source_location": "L290",
       "_origin": "ast",
       "id": "src_api_getperceptionstate",
-      "community": 33,
+      "community": 3,
       "norm_label": "getperceptionstate()"
+    },
+    {
+      "label": "SetupStatus",
+      "file_type": "code",
+      "source_file": "frontend/src/api.ts",
+      "source_location": "L292",
+      "_origin": "ast",
+      "id": "src_api_setupstatus",
+      "community": 3,
+      "norm_label": "setupstatus"
+    },
+    {
+      "label": "getSetupStatus()",
+      "file_type": "code",
+      "source_file": "frontend/src/api.ts",
+      "source_location": "L300",
+      "_origin": "ast",
+      "id": "src_api_getsetupstatus",
+      "community": 3,
+      "norm_label": "getsetupstatus()"
     },
     {
       "label": "searchFace()",
       "file_type": "code",
       "source_file": "frontend/src/api.ts",
-      "source_location": "L292",
+      "source_location": "L302",
       "_origin": "ast",
       "id": "src_api_searchface",
-      "community": 27,
+      "community": 57,
       "norm_label": "searchface()"
     },
     {
       "label": "downloadAttendanceCsv()",
       "file_type": "code",
       "source_file": "frontend/src/api.ts",
-      "source_location": "L298",
+      "source_location": "L308",
       "_origin": "ast",
       "id": "src_api_downloadattendancecsv",
       "community": 27,
@@ -3758,7 +4078,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_lookup",
-      "community": 27,
+      "community": 57,
       "norm_label": "lookup.tsx"
     },
     {
@@ -3768,7 +4088,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "pages_lookup_lookup",
-      "community": 27,
+      "community": 57,
       "norm_label": "lookup()"
     },
     {
@@ -3798,7 +4118,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_reenroll",
-      "community": 27,
+      "community": 36,
       "norm_label": "reenroll.tsx"
     },
     {
@@ -3808,7 +4128,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "pages_reenroll_reenroll",
-      "community": 27,
+      "community": 36,
       "norm_label": "reenroll()"
     },
     {
@@ -3818,7 +4138,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_register",
-      "community": 33,
+      "community": 3,
       "norm_label": "register.tsx"
     },
     {
@@ -3828,7 +4148,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "pages_register_is",
-      "community": 33,
+      "community": 3,
       "norm_label": "is"
     },
     {
@@ -3838,7 +4158,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "pages_register_camsource",
-      "community": 33,
+      "community": 3,
       "norm_label": "camsource"
     },
     {
@@ -3968,7 +4288,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_settings",
-      "community": 36,
+      "community": 33,
       "norm_label": "settings.tsx"
     },
     {
@@ -3978,8 +4298,38 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "pages_settings_settings",
-      "community": 36,
+      "community": 33,
       "norm_label": "settings()"
+    },
+    {
+      "label": "SetupWizard.tsx",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "pages_setupwizard",
+      "community": 3,
+      "norm_label": "setupwizard.tsx"
+    },
+    {
+      "label": "Check()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "pages_setupwizard_check",
+      "community": 3,
+      "norm_label": "check()"
+    },
+    {
+      "label": "SetupWizard()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "pages_setupwizard_setupwizard",
+      "community": 3,
+      "norm_label": "setupwizard()"
     },
     {
       "label": "Summary.tsx",
@@ -4412,20 +4762,20 @@
       "norm_label": "build order (from original spec)"
     },
     {
-      "label": "Planned work \u2014 read before building (Steps 10+)",
+      "label": "Build status & where things live (Steps 10+)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L19",
       "_origin": "ast",
-      "id": "claude_planned_work_read_before_building_steps_10",
+      "id": "claude_build_status_where_things_live_steps_10",
       "community": 17,
-      "norm_label": "planned work \u2014 read before building (steps 10+)"
+      "norm_label": "build status & where things live (steps 10+)"
     },
     {
       "label": "Dev environment specifics",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L66",
+      "source_location": "L32",
       "_origin": "ast",
       "id": "claude_dev_environment_specifics",
       "community": 17,
@@ -4435,7 +4785,7 @@
       "label": "Other Postgres/Docker instances on this machine (do not touch)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L95",
+      "source_location": "L61",
       "_origin": "ast",
       "id": "claude_other_postgres_docker_instances_on_this_machine_do_not_touch",
       "community": 17,
@@ -4452,20 +4802,50 @@
       "norm_label": "readme.md"
     },
     {
-      "label": "nfc-scan",
+      "label": "Dual-Factor Attendance System (nfc-scan)",
       "file_type": "document",
       "source_file": "README.md",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "readme_nfc_scan",
+      "id": "readme_dual_factor_attendance_system_nfc_scan",
       "community": 9,
-      "norm_label": "nfc-scan"
+      "norm_label": "dual-factor attendance system (nfc-scan)"
+    },
+    {
+      "label": "Quickstart",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "readme_quickstart",
+      "community": 9,
+      "norm_label": "quickstart"
+    },
+    {
+      "label": "Docs map",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L29",
+      "_origin": "ast",
+      "id": "readme_docs_map",
+      "community": 9,
+      "norm_label": "docs map"
+    },
+    {
+      "label": "Not production-ready (before any real deployment)",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "L37",
+      "_origin": "ast",
+      "id": "readme_not_production_ready_before_any_real_deployment",
+      "community": 9,
+      "norm_label": "not production-ready (before any real deployment)"
     },
     {
       "label": "Structure",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L5",
+      "source_location": "L43",
       "_origin": "ast",
       "id": "readme_structure",
       "community": 9,
@@ -4475,7 +4855,7 @@
       "label": "Architecture (locked)",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L10",
+      "source_location": "L48",
       "_origin": "ast",
       "id": "readme_architecture_locked",
       "community": 9,
@@ -4485,7 +4865,7 @@
       "label": "Hardware",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L21",
+      "source_location": "L59",
       "_origin": "ast",
       "id": "readme_hardware",
       "community": 9,
@@ -4495,7 +4875,7 @@
       "label": "Face verification (Step 6)",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L37",
+      "source_location": "L75",
       "_origin": "ast",
       "id": "readme_face_verification_step_6",
       "community": 9,
@@ -4505,7 +4885,7 @@
       "label": "Setup (first run)",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L57",
+      "source_location": "L95",
       "_origin": "ast",
       "id": "readme_setup_first_run",
       "community": 9,
@@ -4515,7 +4895,7 @@
       "label": "Liveness, guardian email & enforcement (Steps 7\u20139)",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L93",
+      "source_location": "L131",
       "_origin": "ast",
       "id": "readme_liveness_guardian_email_enforcement_steps_7_9",
       "community": 9,
@@ -4525,7 +4905,7 @@
       "label": "Running (production \u2014 systemd)",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L122",
+      "source_location": "L160",
       "_origin": "ast",
       "id": "readme_running_production_systemd",
       "community": 9,
@@ -4535,7 +4915,7 @@
       "label": "Running (manual / dev)",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L146",
+      "source_location": "L184",
       "_origin": "ast",
       "id": "readme_running_manual_dev",
       "community": 9,
@@ -4545,7 +4925,7 @@
       "label": "Status",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L161",
+      "source_location": "L199",
       "_origin": "ast",
       "id": "readme_status",
       "community": 9,
@@ -4555,7 +4935,7 @@
       "label": "Roadmap",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L173",
+      "source_location": "L211",
       "_origin": "ast",
       "id": "readme_roadmap",
       "community": 9,
@@ -4565,7 +4945,7 @@
       "label": "Notes",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L199",
+      "source_location": "L237",
       "_origin": "ast",
       "id": "readme_notes",
       "community": 9,
@@ -4575,7 +4955,7 @@
       "label": "License",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L205",
+      "source_location": "L243",
       "_origin": "ast",
       "id": "readme_license",
       "community": 9,
@@ -4605,17 +4985,17 @@
       "label": "Build sequence (cross-track priority order)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L20",
+      "source_location": "L24",
       "_origin": "ast",
       "id": "roadmap_build_sequence_cross_track_priority_order",
-      "community": 3,
+      "community": 4,
       "norm_label": "build sequence (cross-track priority order)"
     },
     {
       "label": "How to use this doc",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L71",
+      "source_location": "L75",
       "_origin": "ast",
       "id": "roadmap_how_to_use_this_doc",
       "community": 55,
@@ -4625,7 +5005,7 @@
       "label": "Locked tech decisions",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L79",
+      "source_location": "L83",
       "_origin": "ast",
       "id": "roadmap_locked_tech_decisions",
       "community": 55,
@@ -4635,7 +5015,7 @@
       "label": "Progress summary",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L95",
+      "source_location": "L99",
       "_origin": "ast",
       "id": "roadmap_progress_summary",
       "community": 55,
@@ -4645,7 +5025,7 @@
       "label": "UI track (Steps 10\u201316) \u2014 one-command setup, API, SPA, dashboard",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L107",
+      "source_location": "L111",
       "_origin": "ast",
       "id": "roadmap_ui_track_steps_10_16_one_command_setup_api_spa_dashboard",
       "community": 6,
@@ -4655,7 +5035,7 @@
       "label": "Step 10 \u2014 One-command setup (foundation)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L109",
+      "source_location": "L113",
       "_origin": "ast",
       "id": "roadmap_step_10_one_command_setup_foundation",
       "community": 6,
@@ -4665,7 +5045,7 @@
       "label": "Step 11 \u2014 Backend API expansion + live tap stream",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L131",
+      "source_location": "L135",
       "_origin": "ast",
       "id": "roadmap_step_11_backend_api_expansion_live_tap_stream",
       "community": 6,
@@ -4675,7 +5055,7 @@
       "label": "Step 12 \u2014 Frontend scaffold (SPA toolchain)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L156",
+      "source_location": "L160",
       "_origin": "ast",
       "id": "roadmap_step_12_frontend_scaffold_spa_toolchain",
       "community": 6,
@@ -4685,7 +5065,7 @@
       "label": "Step 13 \u2014 Operator dashboard (read views)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L178",
+      "source_location": "L182",
       "_origin": "ast",
       "id": "roadmap_step_13_operator_dashboard_read_views",
       "community": 6,
@@ -4695,7 +5075,7 @@
       "label": "Step 14 \u2014 Roster + browser enrollment (write views)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L200",
+      "source_location": "L204",
       "_origin": "ast",
       "id": "roadmap_step_14_roster_browser_enrollment_write_views",
       "community": 6,
@@ -4705,7 +5085,7 @@
       "label": "Step 15 \u2014 Kiosk feedback screen",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L225",
+      "source_location": "L229",
       "_origin": "ast",
       "id": "roadmap_step_15_kiosk_feedback_screen",
       "community": 6,
@@ -4715,7 +5095,7 @@
       "label": "Step 16 \u2014 Hardening & polish",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L244",
+      "source_location": "L248",
       "_origin": "ast",
       "id": "roadmap_step_16_hardening_polish",
       "community": 6,
@@ -4725,7 +5105,7 @@
       "label": "Cross-cutting definition of done (every phase)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L260",
+      "source_location": "L264",
       "_origin": "ast",
       "id": "roadmap_cross_cutting_definition_of_done_every_phase",
       "community": 6,
@@ -4735,7 +5115,7 @@
       "label": "Carried-over deferred items (from Steps 7\u20139, still open)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L267",
+      "source_location": "L271",
       "_origin": "ast",
       "id": "roadmap_carried_over_deferred_items_from_steps_7_9_still_open",
       "community": 6,
@@ -4745,7 +5125,7 @@
       "label": "Backbone track (Steps 20\u201323)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L274",
+      "source_location": "L278",
       "_origin": "ast",
       "id": "roadmap_backbone_track_steps_20_23",
       "community": 54,
@@ -4755,7 +5135,7 @@
       "label": "Progress summary (backbone)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L280",
+      "source_location": "L284",
       "_origin": "ast",
       "id": "roadmap_progress_summary_backbone",
       "community": 54,
@@ -4765,7 +5145,7 @@
       "label": "Step 20 \u2014 Privacy & compliance",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L289",
+      "source_location": "L293",
       "_origin": "ast",
       "id": "roadmap_step_20_privacy_compliance",
       "community": 54,
@@ -4775,7 +5155,7 @@
       "label": "Step 21 \u2014 Attendance sessions + guardian digest",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L315",
+      "source_location": "L319",
       "_origin": "ast",
       "id": "roadmap_step_21_attendance_sessions_guardian_digest",
       "community": 54,
@@ -4785,7 +5165,7 @@
       "label": "Step 22 \u2014 Reliability & operability",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L339",
+      "source_location": "L343",
       "_origin": "ast",
       "id": "roadmap_step_22_reliability_operability",
       "community": 54,
@@ -4795,7 +5175,7 @@
       "label": "Step 23 \u2014 Anti-fraud extensions",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L361",
+      "source_location": "L365",
       "_origin": "ast",
       "id": "roadmap_step_23_anti_fraud_extensions",
       "community": 54,
@@ -4805,7 +5185,7 @@
       "label": "Flow track (Steps 30\u201335) \u2014 continuous multi-student guardpost",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L382",
+      "source_location": "L386",
       "_origin": "ast",
       "id": "roadmap_flow_track_steps_30_35_continuous_multi_student_guardpost",
       "community": 26,
@@ -4815,7 +5195,7 @@
       "label": "Locked decisions (from design review)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L396",
+      "source_location": "L400",
       "_origin": "ast",
       "id": "roadmap_locked_decisions_from_design_review",
       "community": 26,
@@ -4825,7 +5205,7 @@
       "label": "Prerequisites (from other tracks \u2014 do first)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L404",
+      "source_location": "L408",
       "_origin": "ast",
       "id": "roadmap_prerequisites_from_other_tracks_do_first",
       "community": 26,
@@ -4835,7 +5215,7 @@
       "label": "Progress summary (flow)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L411",
+      "source_location": "L415",
       "_origin": "ast",
       "id": "roadmap_progress_summary_flow",
       "community": 26,
@@ -4845,7 +5225,7 @@
       "label": "Conflicts this track resolves (current code that must change)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L419",
+      "source_location": "L423",
       "_origin": "ast",
       "id": "roadmap_conflicts_this_track_resolves_current_code_that_must_change",
       "community": 26,
@@ -4855,7 +5235,7 @@
       "label": "Step 30 \u2014 Perception service (single camera owner)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L432",
+      "source_location": "L436",
       "_origin": "ast",
       "id": "roadmap_step_30_perception_service_single_camera_owner",
       "community": 26,
@@ -4865,7 +5245,7 @@
       "label": "Step 31 \u2014 Tap buffer + tap\u2194face correlation (matcher)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L452",
+      "source_location": "L456",
       "_origin": "ast",
       "id": "roadmap_step_31_tap_buffer_tap_face_correlation_matcher",
       "community": 26,
@@ -4875,7 +5255,7 @@
       "label": "Step 32 \u2014 Throughput / perf hardening (GPU)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L476",
+      "source_location": "L480",
       "_origin": "ast",
       "id": "roadmap_step_32_throughput_perf_hardening_gpu",
       "community": 26,
@@ -4885,7 +5265,7 @@
       "label": "Step 33 \u2014 Identity & matching features",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L488",
+      "source_location": "L492",
       "_origin": "ast",
       "id": "roadmap_step_33_identity_matching_features",
       "community": 26,
@@ -4895,7 +5275,7 @@
       "label": "Step 34 \u2014 Manual review queue",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L508",
+      "source_location": "L512",
       "_origin": "ast",
       "id": "roadmap_step_34_manual_review_queue",
       "community": 26,
@@ -4905,7 +5285,7 @@
       "label": "Step 35 \u2014 Multi-view UI + register-student (reconciles UI Steps 13\u201316)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L524",
+      "source_location": "L528",
       "_origin": "ast",
       "id": "roadmap_step_35_multi_view_ui_register_student_reconciles_ui_steps_13_16",
       "community": 26,
@@ -4915,7 +5295,7 @@
       "label": "Flow-track deferred items (need GPU box / live cam / kiosk)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L544",
+      "source_location": "L548",
       "_origin": "ast",
       "id": "roadmap_flow_track_deferred_items_need_gpu_box_live_cam_kiosk",
       "community": 26,
@@ -4925,7 +5305,7 @@
       "label": "Open defaults (proceeding unless changed)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L549",
+      "source_location": "L553",
       "_origin": "ast",
       "id": "roadmap_open_defaults_proceeding_unless_changed",
       "community": 26,
@@ -4935,7 +5315,7 @@
       "label": "Deploy track (Steps 40\u201344) \u2014 distribution & one-touch install",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L555",
+      "source_location": "L559",
       "_origin": "ast",
       "id": "roadmap_deploy_track_steps_40_44_distribution_one_touch_install",
       "community": 53,
@@ -4945,7 +5325,7 @@
       "label": "Locked decisions",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L560",
+      "source_location": "L564",
       "_origin": "ast",
       "id": "roadmap_locked_decisions",
       "community": 53,
@@ -4955,7 +5335,7 @@
       "label": "Reconciliation",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L569",
+      "source_location": "L573",
       "_origin": "ast",
       "id": "roadmap_reconciliation",
       "community": 53,
@@ -4965,7 +5345,7 @@
       "label": "Progress summary (deploy)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L576",
+      "source_location": "L580",
       "_origin": "ast",
       "id": "roadmap_progress_summary_deploy",
       "community": 53,
@@ -4975,7 +5355,7 @@
       "label": "Step 40 \u2014 Appliance provisioning (one script, per box)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L585",
+      "source_location": "L589",
       "_origin": "ast",
       "id": "roadmap_step_40_appliance_provisioning_one_script_per_box",
       "community": 53,
@@ -4985,7 +5365,7 @@
       "label": "Step 41 \u2014 Wrap as a downloadable \"button\"",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L603",
+      "source_location": "L607",
       "_origin": "ast",
       "id": "roadmap_step_41_wrap_as_a_downloadable_button",
       "community": 53,
@@ -4995,7 +5375,7 @@
       "label": "Step 42 \u2014 In-UI first-run wizard (no terminal)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L613",
+      "source_location": "L617",
       "_origin": "ast",
       "id": "roadmap_step_42_in_ui_first_run_wizard_no_terminal",
       "community": 53,
@@ -5005,7 +5385,7 @@
       "label": "Step 43 \u2014 Updates, backup & recovery",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L621",
+      "source_location": "L625",
       "_origin": "ast",
       "id": "roadmap_step_43_updates_backup_recovery",
       "community": 53,
@@ -5015,7 +5395,7 @@
       "label": "Step 44 \u2014 Release engineering (CI)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L629",
+      "source_location": "L633",
       "_origin": "ast",
       "id": "roadmap_step_44_release_engineering_ci",
       "community": 53,
@@ -5025,7 +5405,7 @@
       "label": "Deploy-track deferred (needs the actual box)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L637",
+      "source_location": "L641",
       "_origin": "ast",
       "id": "roadmap_deploy_track_deferred_needs_the_actual_box",
       "community": 53,
@@ -5035,7 +5415,7 @@
       "label": "Tuning track (Steps 50\u201354) \u2014 runtime device/resolution/optimizer panel",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L643",
+      "source_location": "L647",
       "_origin": "ast",
       "id": "roadmap_tuning_track_steps_50_54_runtime_device_resolution_optimizer_panel",
       "community": 48,
@@ -5045,9 +5425,9 @@
       "label": "Locked decisions",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L650",
+      "source_location": "L654",
       "_origin": "ast",
-      "id": "roadmap_locked_decisions_650",
+      "id": "roadmap_locked_decisions_654",
       "community": 48,
       "norm_label": "locked decisions"
     },
@@ -5055,7 +5435,7 @@
       "label": "Config precedence (new)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L659",
+      "source_location": "L663",
       "_origin": "ast",
       "id": "roadmap_config_precedence_new",
       "community": 48,
@@ -5065,7 +5445,7 @@
       "label": "Progress summary (tuning)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L664",
+      "source_location": "L668",
       "_origin": "ast",
       "id": "roadmap_progress_summary_tuning",
       "community": 48,
@@ -5075,7 +5455,7 @@
       "label": "Step 50 \u2014 Runtime settings layer",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L673",
+      "source_location": "L677",
       "_origin": "ast",
       "id": "roadmap_step_50_runtime_settings_layer",
       "community": 48,
@@ -5085,7 +5465,7 @@
       "label": "Step 51 \u2014 Model hot-reload",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L685",
+      "source_location": "L689",
       "_origin": "ast",
       "id": "roadmap_step_51_model_hot_reload",
       "community": 48,
@@ -5095,7 +5475,7 @@
       "label": "Step 52 \u2014 Device toggle + resolution controls",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L698",
+      "source_location": "L702",
       "_origin": "ast",
       "id": "roadmap_step_52_device_toggle_resolution_controls",
       "community": 48,
@@ -5105,7 +5485,7 @@
       "label": "Step 53 \u2014 Optimizer (button + presets + adaptive)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L711",
+      "source_location": "L715",
       "_origin": "ast",
       "id": "roadmap_step_53_optimizer_button_presets_adaptive",
       "community": 48,
@@ -5115,7 +5495,7 @@
       "label": "Step 54 \u2014 Settings / optimizer UI panel",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L724",
+      "source_location": "L728",
       "_origin": "ast",
       "id": "roadmap_step_54_settings_optimizer_ui_panel",
       "community": 48,
@@ -5125,11 +5505,161 @@
       "label": "Tuning-track deferred (needs real hardware)",
       "file_type": "document",
       "source_file": "ROADMAP.md",
-      "source_location": "L737",
+      "source_location": "L741",
       "_origin": "ast",
       "id": "roadmap_tuning_track_deferred_needs_real_hardware",
       "community": 48,
       "norm_label": "tuning-track deferred (needs real hardware)"
+    },
+    {
+      "label": "README.md",
+      "file_type": "document",
+      "source_file": "deploy/README.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "deploy_readme",
+      "community": 49,
+      "norm_label": "readme.md"
+    },
+    {
+      "label": "Deploy \u2014 appliance provisioning & operations (Steps 40\u201343)",
+      "file_type": "document",
+      "source_file": "deploy/README.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "deploy_readme_deploy_appliance_provisioning_operations_steps_40_43",
+      "community": 49,
+      "norm_label": "deploy \u2014 appliance provisioning & operations (steps 40\u201343)"
+    },
+    {
+      "label": "One-command install (Steps 40\u201341)",
+      "file_type": "document",
+      "source_file": "deploy/README.md",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "deploy_readme_one_command_install_steps_40_41",
+      "community": 49,
+      "norm_label": "one-command install (steps 40\u201341)"
+    },
+    {
+      "label": "Kiosk auto-start (Step 40)",
+      "file_type": "document",
+      "source_file": "deploy/README.md",
+      "source_location": "L34",
+      "_origin": "ast",
+      "id": "deploy_readme_kiosk_auto_start_step_40",
+      "community": 49,
+      "norm_label": "kiosk auto-start (step 40)"
+    },
+    {
+      "label": "Updates, backup & recovery (Step 43)",
+      "file_type": "document",
+      "source_file": "deploy/README.md",
+      "source_location": "L47",
+      "_origin": "ast",
+      "id": "deploy_readme_updates_backup_recovery_step_43",
+      "community": 49,
+      "norm_label": "updates, backup & recovery (step 43)"
+    },
+    {
+      "label": "Services",
+      "file_type": "document",
+      "source_file": "deploy/README.md",
+      "source_location": "L58",
+      "_origin": "ast",
+      "id": "deploy_readme_services",
+      "community": 49,
+      "norm_label": "services"
+    },
+    {
+      "label": "Deferred to the real RTX 1050 box",
+      "file_type": "document",
+      "source_file": "deploy/README.md",
+      "source_location": "L69",
+      "_origin": "ast",
+      "id": "deploy_readme_deferred_to_the_real_rtx_1050_box",
+      "community": 49,
+      "norm_label": "deferred to the real rtx 1050 box"
+    },
+    {
+      "label": "build-log.md",
+      "file_type": "document",
+      "source_file": "docs/build-log.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_build_log",
+      "community": 38,
+      "norm_label": "build-log.md"
+    },
+    {
+      "label": "Build log \u2014 what each built step contains (Steps 10+)",
+      "file_type": "document",
+      "source_file": "docs/build-log.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_build_log_build_log_what_each_built_step_contains_steps_10",
+      "community": 38,
+      "norm_label": "build log \u2014 what each built step contains (steps 10+)"
+    },
+    {
+      "label": "Foundation (Phase A)",
+      "file_type": "document",
+      "source_file": "docs/build-log.md",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "docs_build_log_foundation_phase_a",
+      "community": 38,
+      "norm_label": "foundation (phase a)"
+    },
+    {
+      "label": "Flow track \u2014 perception + matcher (Phase B)",
+      "file_type": "document",
+      "source_file": "docs/build-log.md",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "docs_build_log_flow_track_perception_matcher_phase_b",
+      "community": 38,
+      "norm_label": "flow track \u2014 perception + matcher (phase b)"
+    },
+    {
+      "label": "Data model & responsibility (Phase C)",
+      "file_type": "document",
+      "source_file": "docs/build-log.md",
+      "source_location": "L34",
+      "_origin": "ast",
+      "id": "docs_build_log_data_model_responsibility_phase_c",
+      "community": 38,
+      "norm_label": "data model & responsibility (phase c)"
+    },
+    {
+      "label": "UI surfaces (Phase E)",
+      "file_type": "document",
+      "source_file": "docs/build-log.md",
+      "source_location": "L42",
+      "_origin": "ast",
+      "id": "docs_build_log_ui_surfaces_phase_e",
+      "community": 38,
+      "norm_label": "ui surfaces (phase e)"
+    },
+    {
+      "label": "Camera stream + Register hardening (recent)",
+      "file_type": "document",
+      "source_file": "docs/build-log.md",
+      "source_location": "L52",
+      "_origin": "ast",
+      "id": "docs_build_log_camera_stream_register_hardening_recent",
+      "community": 38,
+      "norm_label": "camera stream + register hardening (recent)"
+    },
+    {
+      "label": "Design-only stubs (not built)",
+      "file_type": "document",
+      "source_file": "docs/build-log.md",
+      "source_location": "L62",
+      "_origin": "ast",
+      "id": "docs_build_log_design_only_stubs_not_built",
+      "community": 38,
+      "norm_label": "design-only stubs (not built)"
     },
     {
       "label": "design-notes.md",
@@ -5919,7 +6449,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "pgvector face_embedding vector(512)",
       "id": "concept_pgvector"
     },
@@ -6036,7 +6566,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "students table",
       "id": "db_students"
     },
@@ -6062,7 +6592,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "nfc-scan build roadmap (steps 10-54)",
       "id": "roadmap_nfcscan"
     },
@@ -6075,7 +6605,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "ui track (steps 10-16)",
       "id": "roadmap_ui_track"
     },
@@ -6088,7 +6618,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "backbone track (steps 20-23)",
       "id": "roadmap_backbone_track"
     },
@@ -6114,7 +6644,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "deploy track (steps 40-44)",
       "id": "roadmap_deploy_track"
     },
@@ -6127,7 +6657,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "tuning track (steps 50-54)",
       "id": "roadmap_tuning_track"
     },
@@ -6140,7 +6670,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "step 10 one-command setup",
       "id": "roadmap_step10"
     },
@@ -6153,7 +6683,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "step 11 api + events bus + live tap stream",
       "id": "roadmap_step11"
     },
@@ -6166,7 +6696,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "step 12 frontend spa scaffold (vite+react+ts)",
       "id": "roadmap_step12"
     },
@@ -6179,7 +6709,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "step 13 operator dashboard",
       "id": "roadmap_step13"
     },
@@ -6192,7 +6722,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "step 20 privacy & compliance",
       "id": "roadmap_step20"
     },
@@ -6205,7 +6735,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "step 21 attendance sessions + guardian digest",
       "id": "roadmap_step21"
     },
@@ -6218,7 +6748,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "step 22 reliability & operability (make doctor, metrics)",
       "id": "roadmap_step22"
     },
@@ -6322,7 +6852,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "step 50 runtime settings layer",
       "id": "roadmap_step50"
     },
@@ -6335,7 +6865,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "step 51 model hot-reload",
       "id": "roadmap_step51"
     },
@@ -6348,7 +6878,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "step 53 optimizer (button + presets + adaptive)",
       "id": "roadmap_step53"
     },
@@ -6387,7 +6917,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "single backend worker constraint",
       "id": "designnotes_single_backend_worker"
     },
@@ -6439,7 +6969,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "config precedence (db > env > code default)",
       "id": "designnotes_config_precedence"
     },
@@ -6452,7 +6982,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "children's biometrics legal/consent gate",
       "id": "designnotes_children_biometrics_legal"
     },
@@ -6478,7 +7008,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 3,
+      "community": 4,
       "norm_label": "embeddings are permanent pii",
       "id": "designnotes_embedding_pii"
     },
@@ -7416,21 +7946,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L56",
+      "source_location": "L58",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_56",
-      "target": "backend_db_insert_student"
+      "source": "backend_db_rationale_58",
+      "target": "backend_db_insert_student",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L75",
+      "source_location": "L77",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_75",
-      "target": "backend_db_update_student"
+      "source": "backend_db_rationale_77",
+      "target": "backend_db_update_student",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -7447,121 +7977,111 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L109",
+      "source_location": "L111",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_109",
-      "target": "backend_db_insert_review"
+      "source": "backend_db_rationale_111",
+      "target": "backend_db_insert_review",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L125",
+      "source_location": "L127",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_125",
-      "target": "backend_db_get_review_queue"
+      "source": "backend_db_rationale_127",
+      "target": "backend_db_get_review_queue",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L147",
+      "source_location": "L149",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_147",
-      "target": "backend_db_resolve_review"
+      "source": "backend_db_rationale_149",
+      "target": "backend_db_resolve_review",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L237",
+      "source_location": "L239",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_237",
-      "target": "backend_db_set_face_embedding"
+      "source": "backend_db_rationale_239",
+      "target": "backend_db_set_face_embedding",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L257",
+      "source_location": "L259",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_257",
-      "target": "backend_db_set_consent"
+      "source": "backend_db_rationale_259",
+      "target": "backend_db_set_consent",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L274",
+      "source_location": "L276",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_274",
-      "target": "backend_db_insert_audit"
+      "source": "backend_db_rationale_276",
+      "target": "backend_db_insert_audit",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L147",
+      "source_location": "L302",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_147",
-      "target": "backend_db_delete_student"
+      "source": "backend_db_rationale_302",
+      "target": "backend_db_delete_student",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L300",
+      "source_location": "L314",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_300",
-      "target": "backend_db_delete_student"
+      "source": "backend_db_rationale_314",
+      "target": "backend_db_purge_old_logs",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L312",
+      "source_location": "L323",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_312",
-      "target": "backend_db_purge_old_logs"
+      "source": "backend_db_rationale_323",
+      "target": "backend_db_null_old_scores",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L321",
+      "source_location": "L345",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_321",
-      "target": "backend_db_null_old_scores"
+      "source": "backend_db_rationale_345",
+      "target": "backend_db_get_attendance",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L343",
+      "source_location": "L378",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_343",
-      "target": "backend_db_get_attendance"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/db.py",
-      "source_location": "L376",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_376",
-      "target": "backend_db_get_students"
+      "source": "backend_db_rationale_378",
+      "target": "backend_db_get_students",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -7578,51 +8098,51 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L392",
+      "source_location": "L394",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_392",
-      "target": "backend_db_search_face"
+      "source": "backend_db_rationale_394",
+      "target": "backend_db_search_face",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L412",
+      "source_location": "L414",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_412",
-      "target": "backend_db_find_duplicate"
+      "source": "backend_db_rationale_414",
+      "target": "backend_db_find_duplicate",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L423",
+      "source_location": "L425",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_423",
-      "target": "backend_db_stale_enrollments"
+      "source": "backend_db_rationale_425",
+      "target": "backend_db_stale_enrollments",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L450",
+      "source_location": "L452",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_450",
-      "target": "backend_db_get_stats_today"
+      "source": "backend_db_rationale_452",
+      "target": "backend_db_get_stats_today",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L469",
+      "source_location": "L471",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_469",
-      "target": "backend_db_get_sessions"
+      "source": "backend_db_rationale_471",
+      "target": "backend_db_get_sessions",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -7639,31 +8159,31 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L495",
+      "source_location": "L497",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_495",
-      "target": "backend_db_get_summary"
+      "source": "backend_db_rationale_497",
+      "target": "backend_db_get_summary",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L562",
+      "source_location": "L564",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_562",
-      "target": "backend_db_is_late"
+      "source": "backend_db_rationale_564",
+      "target": "backend_db_is_late",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/db.py",
-      "source_location": "L587",
+      "source_location": "L589",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_db_rationale_587",
-      "target": "backend_db_get_attendance_csv"
+      "source": "backend_db_rationale_589",
+      "target": "backend_db_get_attendance_csv",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -8905,9 +9425,9 @@
       "source_file": "backend/liveness.py",
       "source_location": "L46",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "backend_liveness",
-      "target": "backend_liveness_calibrated",
-      "confidence_score": 1.0
+      "target": "backend_liveness_calibrated"
     },
     {
       "relation": "contains",
@@ -8987,9 +9507,9 @@
       "source_file": "backend/matcher.py",
       "source_location": "L29",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "backend_matcher",
-      "target": "backend_liveness",
-      "confidence_score": 1.0
+      "target": "backend_liveness"
     },
     {
       "relation": "imports_from",
@@ -9059,9 +9579,9 @@
       "source_file": "backend/liveness.py",
       "source_location": "L47",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "backend_liveness_rationale_47",
-      "target": "backend_liveness_calibrated",
-      "confidence_score": 1.0
+      "target": "backend_liveness_calibrated"
     },
     {
       "relation": "calls",
@@ -9090,9 +9610,9 @@
       "source_file": "backend/liveness.py",
       "source_location": "L54",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "backend_liveness_rationale_54",
-      "target": "backend_liveness_get_sessions",
-      "confidence_score": 1.0
+      "target": "backend_liveness_get_sessions"
     },
     {
       "relation": "calls",
@@ -9111,9 +9631,9 @@
       "source_file": "backend/liveness.py",
       "source_location": "L79",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "backend_liveness_rationale_79",
-      "target": "backend_liveness_get_new_box",
-      "confidence_score": 1.0
+      "target": "backend_liveness_get_new_box"
     },
     {
       "relation": "calls",
@@ -9132,9 +9652,9 @@
       "source_file": "backend/liveness.py",
       "source_location": "L106",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "backend_liveness_rationale_106",
-      "target": "backend_liveness_crop",
-      "confidence_score": 1.0
+      "target": "backend_liveness_crop"
     },
     {
       "relation": "calls",
@@ -9153,9 +9673,9 @@
       "source_file": "backend/liveness.py",
       "source_location": "L122",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "backend_liveness_rationale_122",
-      "target": "backend_liveness_assess",
-      "confidence_score": 1.0
+      "target": "backend_liveness_assess"
     },
     {
       "relation": "contains",
@@ -9486,6 +10006,16 @@
       "confidence_score": 1.0,
       "source": "backend_main",
       "target": "backend_main_settingsupdate"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/main.py",
+      "source_location": "L294",
+      "weight": 1.0,
+      "source": "backend_main",
+      "target": "backend_main_setup_status",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -9925,6 +10455,16 @@
       "target": "backend_main_require_operator"
     },
     {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/main.py",
+      "source_location": "L295",
+      "weight": 1.0,
+      "source": "backend_main_rationale_295",
+      "target": "backend_main_setup_status",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "references",
       "context": "parameter_type",
       "confidence": "EXTRACTED",
@@ -9972,21 +10512,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/main.py",
-      "source_location": "L603",
+      "source_location": "L640",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_main_rationale_603",
-      "target": "backend_main_stream_mjpeg"
+      "source": "backend_main_rationale_640",
+      "target": "backend_main_stream_mjpeg",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/main.py",
-      "source_location": "L631",
+      "source_location": "L668",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_main_rationale_631",
-      "target": "backend_main_perception_state"
+      "source": "backend_main_rationale_668",
+      "target": "backend_main_perception_state",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -10324,9 +10864,9 @@
       "source_file": "backend/matcher.py",
       "source_location": "L191",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "backend_matcher_rationale_191",
-      "target": "backend_matcher_matcher_assign",
-      "confidence_score": 1.0
+      "target": "backend_matcher_matcher_assign"
     },
     {
       "relation": "calls",
@@ -11305,6 +11845,170 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "deploy/backup.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "deploy_backup",
+      "target": "home_scylla_dev_python_projects_nfc_scan_deploy_backup_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/bootstrap.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "deploy_bootstrap",
+      "target": "home_scylla_dev_python_projects_nfc_scan_deploy_bootstrap_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/factory-reset.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "deploy_factory_reset",
+      "target": "home_scylla_dev_python_projects_nfc_scan_deploy_factory_reset_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/install.sh",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "deploy_install",
+      "target": "deploy_install_say",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/install.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "deploy_install",
+      "target": "home_scylla_dev_python_projects_nfc_scan_deploy_install_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/install.sh",
+      "source_location": "L23",
+      "weight": 1.0,
+      "context": "call",
+      "source": "home_scylla_dev_python_projects_nfc_scan_deploy_install_sh__entry",
+      "target": "deploy_install_say",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/kiosk/start-kiosk.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "kiosk_start_kiosk",
+      "target": "home_scylla_dev_python_projects_nfc_scan_deploy_kiosk_start_kiosk_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "deploy_preflight",
+      "target": "deploy_preflight_bad",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "deploy_preflight",
+      "target": "deploy_preflight_ok",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "deploy_preflight",
+      "target": "deploy_preflight_warn",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "deploy_preflight",
+      "target": "home_scylla_dev_python_projects_nfc_scan_deploy_preflight_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L12",
+      "weight": 1.0,
+      "context": "call",
+      "source": "home_scylla_dev_python_projects_nfc_scan_deploy_preflight_sh__entry",
+      "target": "deploy_preflight_bad",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L12",
+      "weight": 1.0,
+      "context": "call",
+      "source": "home_scylla_dev_python_projects_nfc_scan_deploy_preflight_sh__entry",
+      "target": "deploy_preflight_ok",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/preflight.sh",
+      "source_location": "L13",
+      "weight": 1.0,
+      "context": "call",
+      "source": "home_scylla_dev_python_projects_nfc_scan_deploy_preflight_sh__entry",
+      "target": "deploy_preflight_warn",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/restore.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "deploy_restore",
+      "target": "home_scylla_dev_python_projects_nfc_scan_deploy_restore_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/update.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "deploy_update",
+      "target": "home_scylla_dev_python_projects_nfc_scan_deploy_update_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/package.json",
       "source_location": "L11",
       "weight": 1.0,
@@ -11619,6 +12323,17 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/App.tsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "src_app",
+      "target": "pages_setupwizard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/App.tsx",
       "source_location": "L11",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -11848,6 +12563,17 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "pages_setupwizard",
+      "target": "src_api",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/Summary.tsx",
       "source_location": "L2",
       "weight": 1.0,
@@ -12059,6 +12785,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/api.ts",
+      "source_location": "L300",
+      "weight": 1.0,
+      "source": "src_api",
+      "target": "src_api_getsetupstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/api.ts",
       "source_location": "L69",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -12259,6 +12995,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/api.ts",
+      "source_location": "L292",
+      "weight": 1.0,
+      "source": "src_api",
+      "target": "src_api_setupstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/api.ts",
       "source_location": "L58",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -12325,6 +13071,28 @@
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "pages_dashboard",
+      "target": "src_api_gettoken"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "pages_setupwizard",
+      "target": "src_api_gettoken",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "pages_setupwizard_setupwizard",
       "target": "src_api_gettoken"
     },
     {
@@ -12414,6 +13182,17 @@
       "confidence_score": 1.0,
       "source": "pages_dashboard",
       "target": "src_api_settoken"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "pages_setupwizard",
+      "target": "src_api_settoken",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -12513,6 +13292,17 @@
       "confidence_score": 1.0,
       "source": "src_api_getsettings",
       "target": "src_api_req"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/api.ts",
+      "source_location": "L300",
+      "weight": 1.0,
+      "source": "src_api_getsetupstatus",
+      "target": "src_api_req",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -13123,12 +13913,56 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "pages_setupwizard",
+      "target": "src_api_perceptionstate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/Register.tsx",
       "source_location": "L2",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "pages_register",
       "target": "src_api_getperceptionstate"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "pages_setupwizard",
+      "target": "src_api_getperceptionstate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "pages_setupwizard",
+      "target": "src_api_setupstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "pages_setupwizard",
+      "target": "src_api_getsetupstatus",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -13639,6 +14473,26 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "pages_setupwizard",
+      "target": "pages_setupwizard_check",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/SetupWizard.tsx",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "pages_setupwizard",
+      "target": "pages_setupwizard_setupwizard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/Summary.tsx",
       "source_location": "L4",
       "weight": 1.0,
@@ -13970,6 +14824,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "claude_nfc_scan_project_context",
+      "target": "claude_build_status_where_things_live_steps_10",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
       "source_location": "L25",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -13989,32 +14853,72 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L19",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_nfc_scan_project_context",
-      "target": "claude_planned_work_read_before_building_steps_10"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
       "source_file": "README.md",
       "source_location": "L1",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "readme",
-      "target": "readme_nfc_scan"
+      "target": "readme_dual_factor_attendance_system_nfc_scan",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L10",
+      "source_location": "L48",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_architecture_locked"
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_architecture_locked",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L29",
+      "weight": 1.0,
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_docs_map",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L75",
+      "weight": 1.0,
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_face_verification_step_6",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L59",
+      "weight": 1.0,
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_hardware",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L243",
+      "weight": 1.0,
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_license",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L131",
+      "weight": 1.0,
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_liveness_guardian_email_enforcement_steps_7_9",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -14022,39 +14926,39 @@
       "source_file": "README.md",
       "source_location": "L37",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_face_verification_step_6"
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_not_production_ready_before_any_real_deployment",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L21",
+      "source_location": "L237",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_hardware"
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_notes",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L190",
+      "source_location": "L16",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_license"
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_quickstart",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L91",
+      "source_location": "L211",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_liveness_guardian_email_enforcement_steps_7_9"
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_roadmap",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -14062,69 +14966,49 @@
       "source_file": "README.md",
       "source_location": "L184",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_notes"
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_running_manual_dev",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L171",
+      "source_location": "L160",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_roadmap"
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_running_production_systemd",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L144",
+      "source_location": "L95",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_running_manual_dev"
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_setup_first_run",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L120",
+      "source_location": "L199",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_running_production_systemd"
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_status",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L55",
+      "source_location": "L43",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_setup_first_run"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "README.md",
-      "source_location": "L159",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_status"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "README.md",
-      "source_location": "L5",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "readme_nfc_scan",
-      "target": "readme_structure"
+      "source": "readme_dual_factor_attendance_system_nfc_scan",
+      "target": "readme_structure",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -14600,11 +15484,11 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "ROADMAP.md",
-      "source_location": "L650",
+      "source_location": "L654",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "roadmap_tuning_track_steps_50_54_runtime_device_resolution_optimizer_panel",
-      "target": "roadmap_locked_decisions_650"
+      "target": "roadmap_locked_decisions_654",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -14675,6 +15559,136 @@
       "confidence_score": 1.0,
       "source": "roadmap_tuning_track_steps_50_54_runtime_device_resolution_optimizer_panel",
       "target": "roadmap_tuning_track_deferred_needs_real_hardware"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/README.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "deploy_readme",
+      "target": "deploy_readme_deploy_appliance_provisioning_operations_steps_40_43",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/README.md",
+      "source_location": "L69",
+      "weight": 1.0,
+      "source": "deploy_readme_deploy_appliance_provisioning_operations_steps_40_43",
+      "target": "deploy_readme_deferred_to_the_real_rtx_1050_box",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/README.md",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "deploy_readme_deploy_appliance_provisioning_operations_steps_40_43",
+      "target": "deploy_readme_kiosk_auto_start_step_40",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/README.md",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "deploy_readme_deploy_appliance_provisioning_operations_steps_40_43",
+      "target": "deploy_readme_one_command_install_steps_40_41",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/README.md",
+      "source_location": "L58",
+      "weight": 1.0,
+      "source": "deploy_readme_deploy_appliance_provisioning_operations_steps_40_43",
+      "target": "deploy_readme_services",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "deploy/README.md",
+      "source_location": "L47",
+      "weight": 1.0,
+      "source": "deploy_readme_deploy_appliance_provisioning_operations_steps_40_43",
+      "target": "deploy_readme_updates_backup_recovery_step_43",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/build-log.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "docs_build_log",
+      "target": "docs_build_log_build_log_what_each_built_step_contains_steps_10",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/build-log.md",
+      "source_location": "L52",
+      "weight": 1.0,
+      "source": "docs_build_log_build_log_what_each_built_step_contains_steps_10",
+      "target": "docs_build_log_camera_stream_register_hardening_recent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/build-log.md",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "docs_build_log_build_log_what_each_built_step_contains_steps_10",
+      "target": "docs_build_log_data_model_responsibility_phase_c",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/build-log.md",
+      "source_location": "L62",
+      "weight": 1.0,
+      "source": "docs_build_log_build_log_what_each_built_step_contains_steps_10",
+      "target": "docs_build_log_design_only_stubs_not_built",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/build-log.md",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "docs_build_log_build_log_what_each_built_step_contains_steps_10",
+      "target": "docs_build_log_flow_track_perception_matcher_phase_b",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/build-log.md",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "docs_build_log_build_log_what_each_built_step_contains_steps_10",
+      "target": "docs_build_log_foundation_phase_a",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/build-log.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "docs_build_log_build_log_what_each_built_step_contains_steps_10",
+      "target": "docs_build_log_ui_surfaces_phase_e",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -15804,5 +16818,5 @@
       "source_file": "ROADMAP.md"
     }
   ],
-  "built_at_commit": "0c436d74b15167dfd6e4bb2f2664219c590f97ab"
+  "built_at_commit": "e0b21af649a4cf5cb102e4361d004f2cbf0a5fa0"
 }

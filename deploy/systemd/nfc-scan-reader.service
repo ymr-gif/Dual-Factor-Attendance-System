@@ -1,0 +1,16 @@
+[Unit]
+Description=nfc-scan serial reader (RC522 -> /tap)
+After=nfc-scan-backend.service
+Wants=nfc-scan-backend.service
+
+[Service]
+Type=simple
+EnvironmentFile=-__APP_DIR__/.env
+WorkingDirectory=__APP_DIR__
+Environment=TAP_URL=http://localhost:8001/tap
+ExecStart=__PY__ -u -m backend.serial_reader
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

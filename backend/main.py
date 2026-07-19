@@ -290,6 +290,43 @@ def health():
     return {"status": "ok" if db_ok else "degraded", "db": db_ok}
 
 
+@app.get("/api/setup/status")
+def setup_status():
+    """First-run wizard probe (Step 42). Intentionally open (no operator token) so
+    the browser wizard works before a token is set. Reports what the wizard needs to
+    guide a non-technical operator: DB, camera/perception, roster, token state."""
+    try:
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+        db_ok = True
+    except Exception:
+        db_ok = False
+
+    total = enrolled = 0
+    if db_ok:
+        try:
+            roster = db.get_students()
+            total = len(roster)
+            enrolled = sum(1 for s in roster if s.get("enrolled"))
+        except Exception:
+            pass
+
+    cam_fresh = False
+    if perception.enabled() and _perception_state:
+        cam_fresh = (time.time() - _perception_state["ts"]) < 3.0
+
+    return {
+        "db": db_ok,
+        "token_required": bool(OPERATOR_TOKEN),
+        "perception": {"enabled": perception.enabled(), "camera_fresh": cam_fresh},
+        "students": {"total": total, "enrolled": enrolled},
+        # "Ready to run" = DB up and at least one enrolled student.
+        "ready": db_ok and enrolled > 0,
+    }
+
+
 @app.get("/metrics")
 def metrics():
     from prometheus_client import CollectorRegistry, Counter, Gauge, generate_latest, Histogram

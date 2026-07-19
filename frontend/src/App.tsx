@@ -14,6 +14,7 @@ import Audit from './pages/Audit'
 import Reenroll from './pages/Reenroll'
 import Lookup from './pages/Lookup'
 import Ops from './pages/Ops'
+import SetupWizard from './pages/SetupWizard'
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getToken())
@@ -39,6 +40,7 @@ export default function App() {
         {authed && <NavLink to="/ops">Ops</NavLink>}
         {authed && <NavLink to="/settings">Settings</NavLink>}
         <span className="spacer" />
+        <NavLink to="/setup">Setup</NavLink>
         <NavLink to="/viewer">Viewer</NavLink>
         <NavLink to="/kiosk">Kiosk</NavLink>
       </nav>
@@ -55,6 +57,7 @@ export default function App() {
         <Route path="/reenroll" element={<Reenroll />} />
         <Route path="/lookup" element={<Lookup />} />
         <Route path="/ops" element={<Ops />} />
+        <Route path="/setup" element={<SetupWizard />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
     </BrowserRouter>
