@@ -15,8 +15,8 @@ viewer.
 
 ## Quickstart
 
-**One command on a fresh Linux box** (installs Postgres+pgvector, Python deps, models, builds the UI,
-installs auto-start services):
+**One command** — same installer runs on **Debian/Ubuntu (systemd)** and **macOS (launchd)**. It
+installs Postgres+pgvector, Python deps, models, builds the UI, and installs auto-start services:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ymr-gif/Dual-Factor-Attendance-System/main/deploy/bootstrap.sh | bash
@@ -24,7 +24,55 @@ curl -fsSL https://raw.githubusercontent.com/ymr-gif/Dual-Factor-Attendance-Syst
 ```
 
 From a checkout: `make appliance` (or `bash deploy/install.sh`). Dev loop: `make dev` + `make web-dev`.
-Full deploy / backup / update docs: [`deploy/README.md`](deploy/README.md).
+Full deploy / backup / update docs: [`deploy/README.md`](deploy/README.md). macOS specifics below.
+
+## Running on macOS
+
+The **same project** runs on a Mac (Intel or Apple Silicon) — identical backend, DB, UI, face +
+liveness. Only three things differ from Linux, and the installer handles them:
+
+- **Auto-start** uses **launchd** (`~/Library/LaunchAgents/com.nfc-scan.*`), not systemd.
+- **No CUDA on Macs** — inference runs on **CPU** (keep `USE_GPU=false`; it's slower but fine for a demo).
+- **Device paths** — the Arduino is `/dev/cu.usbmodem*` (auto-detected into `.env`), and the camera
+  comes from AVFoundation via `CAMERA_INDEX` (default 0) — there's no `/dev/video0`.
+
+**Prerequisites** (one time):
+
+```bash
+xcode-select --install                      # build tools (needed for insightface)
+brew install python@3.11 node
+# install Docker Desktop from https://www.docker.com/products/docker-desktop and launch it
+```
+
+**Install (one command, same as Linux):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ymr-gif/Dual-Factor-Attendance-System/main/deploy/bootstrap.sh | bash
+# or, from a checkout:  make appliance
+```
+
+This creates a `.venv`, starts the Postgres container, fetches models, builds the SPA, and loads the
+launchd agents (backend + reader) so they start on login. Then open
+**`http://localhost:8001/app/setup`**. macOS will prompt for **Camera** access the first time — allow it.
+
+**Manual run** (no auto-start, e.g. for a quick demo):
+
+```bash
+NFC_NO_AUTOSTART=1 make appliance                 # provision only, no launchd
+source .venv/bin/activate
+uvicorn backend.main:app --host 0.0.0.0 --port 8001
+```
+
+**NFC reader:** `ls /dev/cu.*` to find the Arduino, set `SERIAL_PORT=/dev/cu.usbmodemXXXX` in `.env`,
+then `python -m backend.serial_reader`. **No hardware?** Simulate a tap:
+
+```bash
+curl -X POST localhost:8001/tap -H 'Content-Type: application/json' -d '{"uid":"CCF98E02"}'
+```
+
+**launchd controls:** `launchctl list | grep nfc-scan` ·
+`launchctl unload ~/Library/LaunchAgents/com.nfc-scan.backend.plist` (stop) · logs in
+`backend.launchd.log` / `reader.launchd.log`. Backup/update scripts (`deploy/*.sh`) work unchanged.
 
 ## Docs map
 

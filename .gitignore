@@ -14,6 +14,7 @@ env/
 # Local runtime state
 backend/failed_taps.jsonl
 *.log
+*.launchd.log
 
 # Model weights — fetched, not committed (sha256-pinned):
 #   python -m backend.fetch_liveness_models
