@@ -18,6 +18,9 @@ import numpy as np
 # frame = the winning BGR frame, bbox = [x1,y1,x2,y2] ints, embedding = normed 512-d.
 Probe = namedtuple("Probe", "frame bbox embedding")
 
+# Recognition model pack — stored as embedding provenance (embed_model, Step 33).
+MODEL_NAME = "buffalo_l"
+
 CAMERA_INDEX = int(os.environ.get("CAMERA_INDEX", "0"))
 FACE_THRESHOLD = float(os.environ.get("FACE_THRESHOLD", "0.5"))  # conservative; calibrate from logs
 CAMERA_WARMUP_FRAMES = int(os.environ.get("CAMERA_WARMUP_FRAMES", "5"))
@@ -65,7 +68,7 @@ def get_app():
 
         ctx_id, providers = gpu_runtime()
         app = FaceAnalysis(
-            name="buffalo_l", allowed_modules=["detection", "recognition"], providers=providers
+            name=MODEL_NAME, allowed_modules=["detection", "recognition"], providers=providers
         )
         app.prepare(ctx_id=ctx_id, det_size=(FACE_DET_SIZE, FACE_DET_SIZE))
         _app = app
@@ -117,6 +120,23 @@ def encode_image(img):
     return embed(img, det)
 
 
+def open_capture(source=None):
+    """Open a cv2.VideoCapture on `source` and return it (caller owns/releases).
+
+    `source` may be an int index, a numeric string, a device path, or a video /
+    image-sequence file. Defaults to CAMERA_INDEX. Centralizing camera opening here
+    lets the perception service (Step 30) be the *single camera owner* (design-notes
+    §3) and lets tests / the viewer feed a video file instead of the live cam.
+    """
+    import cv2
+
+    if source is None:
+        source = CAMERA_INDEX
+    elif isinstance(source, str) and source.isdigit():
+        source = int(source)
+    return cv2.VideoCapture(source)
+
+
 def capture_probe():
     """Best-of-N webcam capture. `Probe(frame, bbox, embedding)` for the largest usable
     face seen, or None.
@@ -124,10 +144,12 @@ def capture_probe():
     Detection runs on every frame (cheap); recognition runs once, on the winning face
     only — so tap cost doesn't grow with the number of people in view. Returns the frame
     + bbox too so liveness reuses the exact same capture (no second camera open).
-    """
-    import cv2
 
-    cap = cv2.VideoCapture(CAMERA_INDEX)
+    NOTE: this opens the camera itself, so it must not run while the perception
+    service (Step 30) owns it — single camera owner. When PERCEPTION_ENABLED, /tap
+    stops calling this and correlation moves to the matcher (Step 31).
+    """
+    cap = open_capture()
     try:
         if not cap.isOpened():
             return None

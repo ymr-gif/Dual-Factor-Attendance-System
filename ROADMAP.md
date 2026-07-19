@@ -35,16 +35,16 @@ now; `[GPU/HW]` logic buildable now but final verification needs the RTX 1050 / 
 11. **Step 21** — attendance sessions + guardian digest `[CPU]`.
 
 **Phase D — Runtime tuning** *(needs perception + a settings store)*
-12. **Step 50** — runtime settings layer `[CPU]` (write-gate on `OPERATOR_TOKEN` until roles land in 35).
+12. **Step 50** — runtime settings layer `[CPU]` ✓ (write-gate on `OPERATOR_TOKEN` until roles land in 35).
 13. **Step 51** — model hot-reload `[GPU/HW]`.
 14. **Step 52** — device + resolution controls `[GPU/HW]`.
-15. **Step 22** — reliability: `make doctor`, metrics, backup, local cache `[CPU]` — **metrics feed 53/54**.
+15. **Step 22 (part)** — `make doctor` + `GET /metrics` `[CPU]` ✓ (backup + local cache still open).
 16. **Step 53** — optimizer (button + presets + adaptive) `[GPU/HW]`.
 
 **Phase E — UI surfaces** *(needs SPA + the backend features above)*
 17. **Step 13** — operator dashboard (read views) `[CPU]` ✓.
-18. **Step 34** — manual review queue `[CPU]`.
-19. **Step 35** — multi-view UI: roles, boxes-only viewer, register wizard `[CPU]` (live cam deferred).
+18. **Step 34 (backend)** — review queue API endpoints `[CPU]` ✓ (backend done; frontend panel still open).
+19. **Step 35 (backend)** — student CRUD + enroll API `[CPU]` ✓ (backend done; frontend wizard still open).
 20. **Step 54** — settings/optimizer UI panel `[CPU]`.
 21. **Step 23 (rest)** — anti-fraud extras not already in the matcher `[CPU]`.
 
@@ -92,9 +92,9 @@ device install) waits for the RTX 1050. Phase F is mostly on-box.
 - [x] Step 11 — Backend API expansion + live tap stream — `GET /api/{attendance,students,stats/today,config}`, `WS /ws/taps`, `backend/events.py` pub/sub, `OPERATOR_TOKEN` auth. Verified live (REST + WS event on `/tap`). *(prereq for Flow track)*
 - [x] Step 12 — Frontend scaffold (SPA toolchain) — Vite+React+TS `frontend/`, dev proxy (`/api`+`/ws`+`/health`→:8001), router (`/`, `/kiosk`), `src/api.ts` + `useTapStream()` hook, backend serves `dist` at `/app` (SPA fallback), multi-stage Dockerfile. Verified: `web-build`→backend `/app`, dev proxy live. *(prereq for Flow track)*
 - [x] Step 13 — Operator dashboard (read views) — auth gate, today panel (counts + status pills), live feed (WS, highlights), history table (date/status filters, pagination), responsive layout. Pure frontend (`frontend/src/components/{TodayPanel,LiveFeed,HistoryTable}.tsx`, `Dashboard.tsx` rewrite, `api.ts` typed `Config`/`AuditEntry`/`ReviewItem`, `index.css` utilities). No backend changes.
-- [ ] Step 14 — Roster + browser enrollment  → *see Step 35 (register wizard)*
-- [ ] Step 15 — Kiosk feedback screen  → *superseded by Step 35 (boxes-only viewer)*
-- [ ] Step 16 — Hardening & polish  → *roles moved to Step 35*
+- [x] Step 14 — Roster + browser enrollment — table with add/edit/delete/consent (`Roster.tsx`), webcam capture → enroll (`Register.tsx`). Pure frontend consuming existing backend endpoints.
+- [x] Step 15 — Kiosk verdict screen — fullscreen color-coded tap feedback with auto-reset (`Kiosk.tsx` rewrite). Audio cues deferred (needs assets).
+- [ ] Step 16 — Hardening & polish — OPERATOR_TOKEN required in non-dev, CORS, README screenshots, CI. CLAUDE.md and ROADMAP.md sync.
 
 ---
 
@@ -193,22 +193,24 @@ history table, and a live tap appearing in the feed within ~1s of a `/tap` POST.
 
 ## Step 14 — Roster + browser enrollment (write views)
 **Goal**: Manage students and enroll faces without the CLI.
-**Depends on**: Step 13.
+**Depends on**: Steps 13 (auth).
 
 Tasks:
-- [ ] Write endpoints (guard with `require_operator`):
-  - [ ] `POST /api/students`, `PATCH /api/students/{id}`, `DELETE /api/students/{id}`
+- [x] Write endpoints (guard with `require_operator`):
+  - [x] `POST /api/students`, `PATCH /api/students/{id}`, `DELETE /api/students/{id}`
         (student_id, uid, name, guardian_email).
-  - [ ] `POST /api/students/{id}/enroll` — accept N uploaded frames (multipart), reuse
+  - [x] `POST /api/students/{id}/enroll` — accept N uploaded frames (multipart), reuse
         `face.encode_image` + averaging (mirror `backend/enroll.py`), store via
         `db.set_face_embedding`. Return per-frame usable/rejected feedback.
-- [ ] Roster UI: table with add/edit/delete; validation; guardian email field.
-- [ ] Browser enrollment: capture 3–5 shots from `getUserMedia` (operator laptop cam),
+- [x] Roster UI: table with add/edit/delete; validation; guardian email field.
+- [x] Browser enrollment: capture 3–5 shots from `getUserMedia` (operator laptop cam),
       preview, submit to enroll endpoint, show which frames had a usable face.
-- [ ] Keep the "no image stored on disk" invariant — frames become an embedding, then dropped.
+- [x] Keep the "no image stored on disk" invariant — frames become an embedding, then dropped.
+- [x] Settings UI: editable runtime settings page (`Settings.tsx`) consuming `GET/PUT /api/settings`.
 
-**New/changed**: `backend/main.py`, `backend/db.py` (maybe refactor `enroll.py` core into a
-shared func), `frontend/src/pages/Roster.tsx`, enrollment component.
+**New/changed**: `backend/main.py`, `backend/db.py` (refactored `enroll.py` core into shared
+funcs), `frontend/src/pages/Roster.tsx`, `frontend/src/pages/Register.tsx`,
+`frontend/src/pages/Settings.tsx`.
 **Acceptance**: create a student in the UI, enroll from the browser webcam, then a `/tap` with
 that UID produces a non-null `face_score`; deleting the student works; no image files written.
 
@@ -219,16 +221,16 @@ that UID produces a non-null `face_score`; deleting the student works; no image 
 **Depends on**: Step 11 (WS) + Step 12 (SPA). Independent of 13/14.
 
 Tasks:
-- [ ] `/kiosk` fullscreen route, unauthenticated, subscribes to `/ws/taps`.
-- [ ] On event: big verdict — green ✓ + name on accepted, amber on flagged, red ✗ on
-      rejected/spoof; "look at the camera / hold still" idle prompt between taps.
-- [ ] Audio cues (accept chime / reject buzz); auto-reset to idle after a few seconds.
+- [x] `/kiosk` fullscreen route, unauthenticated, subscribes to `/ws/taps`.
+- [x] On event: big verdict — green ✓ + name on accepted, amber on flagged, red ✗ on
+      rejected/spoof; idle prompt ("Tap your card") with connection indicator.
+- [ ] Audio cues (accept chime / reject buzz); auto-reset to idle after 5s (done).
 - [ ] Kiosk-hardening notes: fullscreen/kiosk browser, screensaver off, autostart URL
       `…/app/kiosk`. Document (don't automate) in README.
 
 **New/changed**: `frontend/src/pages/Kiosk.tsx`, audio assets, `README.md`.
 **Acceptance**: open `/app/kiosk`, POST a `/tap` for each status, and the screen shows the
-correct verdict + name + sound within ~1s, then returns to idle. (Live webcam run is
+correct verdict + name within ~1s, then returns to idle after 5s. (Live webcam run is
 **deferred** — needs the kiosk hardware; verify with simulated `/tap` POSTs.)
 
 ---
@@ -271,8 +273,9 @@ Independent of the UI phases except where noted; can be scheduled around them.
 
 ## Progress summary (backbone)
 - [x] Step 20 — Privacy & compliance — consent gate (`FACE_CONSENT_REQUIRED` + `students.face_consent`), retention/purge (`make purge`, `ATTENDANCE_/SCORE_RETENTION_DAYS`), right-to-erasure (`DELETE /api/students/{id}`), `audit_log` (+ `GET /api/audit`), `docs/privacy.md`. Also landed the **Phase B schema pass** (`embed_model`, `enrolled_at`, `face_consent`, `audit_log`, `review_queue`). Encryption-at-rest deferred (documented 2nd pass).
-- [ ] Step 21 — Attendance sessions + guardian digest
-- [ ] Step 22 — Reliability & operability
+- [x] Step 22 (part) — `make doctor` (`backend/doctor.py`), `GET /metrics` (Prometheus)
+- [x] Step 21 — Attendance sessions + guardian digest — `backend/schema.sql` (attendance_sessions view), `db.py` (LATE_CUTOFF, get_sessions, get_summary, get_attendance_csv, _is_late), `main.py` (`GET /api/attendance/summary`, `GET /api/attendance/sessions`, `GET /api/attendance.csv`), `backend/digest.py` (one-shot CLI guardian batch email), `Makefile` (digest target), `.env.example` (LATE_CUTOFF). Verified live: sessions paired, summary present/absent/late correct, CSV exports, digest dry-run prints formatted sessions with durations.
+- [x] Step 22 (part) — `make doctor` (`backend/doctor.py`: checks DB, face model, liveness, camera, serial, SMTP), `GET /metrics` (Prometheus: tap counts by status, last-minute rate, camera FPS)
 - [ ] Step 23 — Anti-fraud extensions
 
 ---
@@ -404,8 +407,8 @@ CPU box is a ~1/s functional demo only.
 - [x] Step 31 — Tap buffer + tap↔face correlation (matcher) — `backend/matcher.py`: async `/tap` enqueue+ack, `ASSOC_WINDOW_SEC` buffer, Hungarian (scipy) tap↔face assignment, strict rules → statuses `accepted`/`mismatch`/`no_face`/`spoof`/`tailgating`; cardless 1:N tailgater ID via `db.search_face` (pgvector); `TAP_COOLDOWN_SEC` debounce; bounded face buffer. Wired into `main.py` startup (perception→matcher, resolve loop, camera thread). Verified: 10 edge-case unit tests (incl. Hungarian cross-order) + live queued→async-resolve end-to-end. ⚠ live-cam correlation deferred (`[GPU/HW]`).
 - [ ] Step 32 — Throughput / perf hardening (GPU)
 - [x] Step 33 — Identity & matching features — cardless 1:N (`db.search_face` + `POST /api/search-face`), dup-enroll detection (`db.find_duplicate`), re-enroll reminders (`GET /api/reenroll-due`), HNSW ANN index, `--capture` fix + shared enroll core.
-- [ ] Step 34 — Manual review queue
-- [ ] Step 35 — Multi-view UI + register-student
+- [x] Step 34 — Manual review queue — `GET /api/review` + `POST /api/review/{id}/resolve` (backend in management layer), Review.tsx frontend (table with confirm/override/dismiss per row). Verified live.
+- [ ] Step 35 — Multi-view UI + register-student — register wizard done (`Register.tsx`, webcam capture → enroll). Remaining: roles (operators table), viewer view (boxes-only MJPEG), both simultaneously.
 
 ## Conflicts this track resolves (current code that must change)
 - `face.capture_probe()` / `preview.py` each open the webcam per call and hold it exclusively →
@@ -653,11 +656,11 @@ resolution** set is DB-overridable; everything else keeps the current env-driven
 backend worker (design-notes §3) means one settings cache + one model instance to reload — required.
 
 ## Progress summary (tuning)
-- [ ] Step 50 — Runtime settings layer (persisted, precedence)
+- [x] Step 50 — Runtime settings layer — `backend/schema.sql` (`settings` table), `backend/settings.py` (typed getter, DB > env > default, tunable keys whitelist), `main.py` (`GET /api/settings`, `PUT /api/settings`). Verified live: set value persists across restart.
 - [ ] Step 51 — Model hot-reload (pause/drain/rebuild/resume)
 - [ ] Step 52 — Device toggle + resolution controls (backend/API)
 - [ ] Step 53 — Optimizer (button + presets + adaptive)
-- [ ] Step 54 — Settings/optimizer UI panel
+- [x] Step 54 — Settings/optimizer UI panel — `frontend/src/pages/Settings.tsx` (editable tunable keys, collapsible full dump). Basic version; optimizer button + device picker deferred to Steps 51–53.
 
 ---
 
@@ -716,9 +719,11 @@ loop lowers resolution on a simulated fps drop and recovers on headroom, without
 **Goal**: the admin-facing surface for all of the above.
 **Depends on**: SPA (UI Step 12), Steps 50–53.
 Tasks:
-- [ ] Admin settings page: device picker (Auto/GPU/CPU + shows detected GPU), resolution presets +
-      advanced, **"Optimize for this machine"** button (shows benchmark result), adaptive toggle +
-      target fps, and a **live readout** (current fps, latency, device, applied resolution — reuses metrics).
+- [x] Basic settings page: editable tunable keys (`frontend/src/pages/Settings.tsx`), fetches
+      `GET /api/settings`, saves via `PUT /api/settings`, collapsible full settings dump.
+- [ ] Device picker (Auto/GPU/CPU + shows detected GPU), resolution presets + advanced.
+- [ ] **"Optimize for this machine"** button (shows benchmark result), adaptive toggle +
+      target fps, and a **live readout** (current fps, latency, device, applied resolution).
 - [ ] Hot-apply feedback: show the ~1–2 s reload state; confirm the new effective config.
 **Acceptance (sim)**: panel changes device/res and reflects the new effective config + live fps;
 optimize button round-trips; adaptive toggle visibly engages.

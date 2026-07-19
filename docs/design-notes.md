@@ -38,6 +38,9 @@ it's decided or still open.
 - **Single camera owner.** Only one process may open `/dev/video0`. The perception service
   (ROADMAP Step 30) owns it; `capture_probe()`-style per-tap opens and `preview.py` must not run
   against the same camera concurrently. Everything else subscribes to its published streams.
+  *(Realized in Step 30: `backend/perception.py` owns the loop; camera opening is centralized in
+  `face.open_capture()`; when `PERCEPTION_ENABLED=true`, `/tap` no longer opens the camera and
+  logs card-only `unverified` — the camera-dead degraded mode below — until the matcher, Step 31.)*
 - **Single backend worker (or shared state).** The tap buffer + events bus **+ the runtime settings
   cache and the single cached model instance** live in process memory. Running uvicorn with
   `--workers >1` splits taps/face-events across processes (correlation **fails invisibly**) and would
@@ -60,6 +63,9 @@ it's decided or still open.
   track). On CPU the pipeline is correct but slow.
 
 ## 4. Failure-mode → behavior table (decided unless marked open)
+*(Realized in Step 31, `backend/matcher.py`: the tap/face rows below map to matcher
+statuses `no_face` / `mismatch` / `tailgating` / `spoof`; duplicate/held-card debounce
+is `TAP_COOLDOWN_SEC`; recognition-backpressure bound is `MAX_FACE_BUFFER` drop-oldest.)*
 | Failure | Behavior | Notes |
 |---|---|---|
 | No camera at startup | Card-only log, `status=unverified`, notify warns | Existing fail-open. |

@@ -15,6 +15,7 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
   const submit = () => {
     if (!value.trim()) { setError('Token required'); return }
     setToken(value.trim())
+    window.dispatchEvent(new CustomEvent('auth-changed'))
     onAuth()
   }
 
@@ -80,6 +81,7 @@ export default function Dashboard() {
 
   const logout = () => {
     setToken('')
+    window.dispatchEvent(new CustomEvent('auth-changed'))
     setAuthed(false)
     setTaps([])
     setHealth(null)

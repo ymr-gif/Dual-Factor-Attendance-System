@@ -128,6 +128,28 @@ class TapRequest(BaseModel):
     method: str = "nfc"
 
 
+class StudentCreate(BaseModel):
+    student_id: str
+    uid: str
+    name: str | None = None
+    guardian_email: str | None = None
+
+
+class StudentUpdate(BaseModel):
+    uid: str | None = None
+    name: str | None = None
+    guardian_email: str | None = None
+
+
+class ResolveReview(BaseModel):
+    resolution: str  # 'confirmed' | 'override' | 'dismiss'
+
+
+class SettingsUpdate(BaseModel):
+    key: str
+    value: str
+
+
 def require_operator(
     authorization: str | None = Header(default=None),
     x_operator_token: str | None = Header(default=None),
@@ -220,6 +242,31 @@ def health():
     return {"status": "ok" if db_ok else "degraded", "db": db_ok}
 
 
+@app.get("/metrics")
+def metrics():
+    from prometheus_client import CollectorRegistry, Counter, Gauge, generate_latest, Histogram
+
+    reg = CollectorRegistry()
+    c = Counter("nfc_taps_total", "Total taps processed", ["status"], registry=reg)
+    g_taps = Gauge("nfc_taps_last_minute", "Taps in the last 60 s", registry=reg)
+    g_camera = Gauge("nfc_camera_fps", "Camera preview FPS", registry=reg)
+
+    with db.get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COALESCE(status,'unknown'), COUNT(*) FROM attendance_logs GROUP BY status")
+            for status, count in cur.fetchall():
+                c.labels(status=status).inc(count)
+
+            cur.execute(
+                "SELECT COUNT(*) FROM attendance_logs WHERE ts > now() - interval '60 seconds'"
+            )
+            g_taps.set(cur.fetchone()[0])
+
+    from fastapi.responses import PlainTextResponse, Response
+
+    return Response(content=generate_latest(reg), media_type="text/plain; charset=utf-8")
+
+
 @app.get("/api/attendance", dependencies=[Depends(require_operator)])
 def api_attendance(
     date: str | None = None,
@@ -233,6 +280,48 @@ def api_attendance(
 @app.get("/api/students", dependencies=[Depends(require_operator)])
 def api_students():
     return {"students": db.get_students()}
+
+
+@app.get("/api/attendance/summary", dependencies=[Depends(require_operator)])
+def api_attendance_summary(date: str | None = None):
+    return db.get_summary(date)
+
+
+@app.get("/api/attendance/sessions", dependencies=[Depends(require_operator)])
+def api_attendance_sessions(
+    student_id: str | None = None,
+    date: str | None = None,
+):
+    return {"sessions": db.get_sessions(student_id=student_id, date=date)}
+
+
+@app.get("/api/attendance.csv", dependencies=[Depends(require_operator)])
+def api_attendance_csv(
+    date: str | None = None,
+    status: str | None = None,
+    student_id: str | None = None,
+    limit: int = 5000,
+):
+    import csv
+    import io
+
+    from fastapi.responses import StreamingResponse
+
+    rows = db.get_attendance_csv(date=date, status=status, student_id=student_id, limit=limit)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["id", "uid", "student_id", "student_name", "ts", "method", "status",
+                 "face_score", "face_match", "liveness_score", "liveness_pass"])
+    for r in rows:
+        w.writerow([r.get(c) for c in
+                     ["id", "uid", "student_id", "student_name", "ts", "method", "status",
+                      "face_score", "face_match", "liveness_score", "liveness_pass"]])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=attendance.csv"},
+    )
 
 
 @app.get("/api/stats/today", dependencies=[Depends(require_operator)])
@@ -272,6 +361,22 @@ def api_config():
     }
 
 
+@app.get("/api/settings", dependencies=[Depends(require_operator)])
+def api_get_settings():
+    from . import settings as s
+    return {"settings": s.all_settings(), "tunable_keys": sorted(s.TUNABLE_KEYS)}
+
+
+@app.put("/api/settings", dependencies=[Depends(require_operator)])
+def api_set_settings(body: SettingsUpdate):
+    from . import settings as s
+    try:
+        s.set(body.key, body.value)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {"key": body.key, "value": body.value}
+
+
 class ConsentRequest(BaseModel):
     granted: bool
 
@@ -285,6 +390,26 @@ def _actor(x_operator_actor: str | None = Header(default=None)) -> str:
 @app.get("/api/audit", dependencies=[Depends(require_operator)])
 def api_audit(limit: int = Query(default=100, ge=1, le=1000)):
     return {"audit": db.get_audit(limit)}
+
+
+# --- Phase 3: Review queue ---
+
+
+@app.get("/api/review", dependencies=[Depends(require_operator)])
+def api_review(limit: int = Query(default=100, ge=1, le=1000)):
+    return {"queue": db.get_review_queue(limit)}
+
+
+@app.post("/api/review/{review_id}/resolve", dependencies=[Depends(require_operator)])
+def api_resolve_review(review_id: int, body: ResolveReview, actor: str = Depends(_actor)):
+    if body.resolution not in ("confirmed", "override", "dismiss"):
+        raise HTTPException(status_code=422, detail="resolution must be confirmed/override/dismiss")
+    try:
+        r = db.resolve_review(review_id, resolution=body.resolution, resolved_by=actor)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    db.insert_audit(actor, "review_resolve", f"review#{review_id}", detail=body.resolution)
+    return r
 
 
 @app.post("/api/search-face", dependencies=[Depends(require_operator)])
@@ -327,6 +452,74 @@ def api_set_consent(student_id: str, body: ConsentRequest, actor: str = Depends(
         raise HTTPException(status_code=404, detail=str(e))
     db.insert_audit(actor, "consent", student_id, detail="granted" if body.granted else "revoked")
     return {"student_id": student_id, "face_consent": body.granted}
+
+
+@app.post("/api/students", dependencies=[Depends(require_operator)])
+def api_create_student(body: StudentCreate, actor: str = Depends(_actor)):
+    try:
+        s = db.insert_student(
+            student_id=body.student_id.strip().upper(),
+            uid=body.uid.strip().upper(),
+            name=body.name,
+            guardian_email=body.guardian_email,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    db.insert_audit(actor, "create", s["student_id"], detail=f"uid={s['uid']}")
+    return s
+
+
+@app.patch("/api/students/{student_id}", dependencies=[Depends(require_operator)])
+def api_update_student(student_id: str, body: StudentUpdate, actor: str = Depends(_actor)):
+    try:
+        uid = body.uid.strip().upper() if body.uid else None
+    except AttributeError:
+        uid = None
+    try:
+        s = db.update_student(
+            student_id=student_id,
+            uid=uid,
+            name=body.name,
+            guardian_email=body.guardian_email,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    db.insert_audit(actor, "update", student_id)
+    return s
+
+
+@app.post("/api/students/{student_id}/enroll", dependencies=[Depends(require_operator)])
+async def api_enroll_student(student_id: str, images: list[UploadFile] = File(...),
+                             actor: str = Depends(_actor)):
+    import cv2
+    import numpy as np
+
+    from .enroll import embeddings_from_frames, enroll_student
+
+    student = db.get_student(student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail=f"no such student {student_id}")
+
+    frames = []
+    feedback = []
+    for img in images:
+        data = await img.read()
+        frame = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+        if frame is None:
+            feedback.append({"file": img.filename, "status": "rejected", "reason": "cannot decode"})
+            continue
+        frames.append(frame)
+        feedback.append({"file": img.filename, "status": "accepted", "reason": None})
+
+    embs = embeddings_from_frames(frames)
+    if not embs:
+        raise HTTPException(status_code=422, detail="no usable face in any uploaded frame")
+
+    try:
+        result = enroll_student(student_id, embs, actor=actor)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {"student_id": student_id, "frames": feedback, "used": result["used"], "duplicate": result.get("duplicate")}
 
 
 @app.delete("/api/students/{student_id}", dependencies=[Depends(require_operator)])
