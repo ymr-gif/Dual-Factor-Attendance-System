@@ -52,53 +52,54 @@ export default function LiveFeed({
           {connected ? 'connected' : 'reconnecting...'}
         </span>
       </div>
-      {taps.length === 0 ? (
-        <p style={{ opacity: 0.4, margin: 0 }}>Waiting for taps...</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {taps.map((t) => {
-            const status = t.log.status ?? 'unknown'
-            const hl = HIGHLIGHT[status]
-            return (
-              <div
-                key={t.log.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 8px',
-                  borderRadius: 4,
-                  borderLeft: hl ? `3px solid ${hl.border}` : '3px solid transparent',
-                  background: hl?.bg || 'transparent',
-                }}
-              >
-                <span
-                  className="pill"
-                  style={{ background: STATUS_COLORS[status] || '#333', minWidth: 80, textAlign: 'center' }}
+      <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+        {taps.length === 0 ? null : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {taps.map((t) => {
+              const status = t.log.status ?? 'unknown'
+              const hl = HIGHLIGHT[status]
+              return (
+                <div
+                  key={t.log.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 8px',
+                    borderRadius: 4,
+                    borderLeft: hl ? `3px solid ${hl.border}` : '3px solid transparent',
+                    background: hl?.bg || 'transparent',
+                  }}
                 >
-                  {status}
-                </span>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {t.student?.name ?? t.log.uid}
-                </span>
-                {t.log.face_score != null && (
-                  <span style={{ fontSize: 12, opacity: 0.7 }}>
-                    face {t.log.face_score.toFixed(2)} {t.log.face_match ? '\u2713' : '\u2717'}
+                  <span
+                    className="pill"
+                    style={{ background: STATUS_COLORS[status] || '#333', minWidth: 80, textAlign: 'center' }}
+                  >
+                    {status}
                   </span>
-                )}
-                {t.log.liveness_score != null && (
-                  <span style={{ fontSize: 12, opacity: 0.7 }}>
-                    live {t.log.liveness_score.toFixed(2)} {t.log.liveness_pass ? '\u2713' : '\u2717'}
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {t.student?.name ?? t.log.uid}
                   </span>
-                )}
-                <span style={{ fontSize: 12, opacity: 0.5, whiteSpace: 'nowrap' }}>
-                  {timeAgo(t.log.ts)}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
+                  {t.log.face_score != null && (
+                    <span style={{ fontSize: 12, opacity: 0.7 }}>
+                      face {t.log.face_score.toFixed(2)} {t.log.face_match ? '\u2713' : '\u2717'}
+                    </span>
+                  )}
+                  {t.log.liveness_score != null && (
+                    <span style={{ fontSize: 12, opacity: 0.7 }}>
+                      live {t.log.liveness_score.toFixed(2)} {t.log.liveness_pass ? '\u2713' : '\u2717'}
+                    </span>
+                  )}
+                  <span style={{ fontSize: 12, opacity: 0.5, whiteSpace: 'nowrap' }}>
+                    {timeAgo(t.log.ts)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+      {taps.length === 0 && <p style={{ opacity: 0.4, margin: 0 }}>Waiting for taps...</p>}
     </div>
   )
 }
