@@ -22,6 +22,16 @@ FLAGGED = "flagged"  # a factor failed but enforcement off -> logged present, wa
 UNVERIFIED = "unverified"  # student known, no verdict available (fail-open)
 ACCEPTED = "accepted"  # every available factor passed
 
+# Continuous-flow / matcher statuses (Step 31). All are review states — none count
+# as present until an operator clears them (Step 34 review queue).
+NO_FACE = "no_face"  # tap, but no face observed in the association window
+MISMATCH = "mismatch"  # tap + a face in window, but below the match threshold
+SPOOF = "spoof"  # matched face, but liveness said not-live
+TAILGATING = "tailgating"  # a recognized face with no tap to claim it (cardless)
+
+# Statuses that do NOT count as attendance-present.
+_NOT_PRESENT = {REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING}
+
 
 def enforcing() -> bool:
     return ENFORCE_2FA
@@ -48,5 +58,7 @@ def decide(student, face_match, liveness_pass, enforce=None) -> str:
 
 
 def counts_as_present(status: str) -> bool:
-    """True when the tap should count as attendance. Only a hard REJECTED does not."""
-    return status != REJECTED
+    """True when the tap should count as attendance. Rejected + the matcher review
+    states (no_face/mismatch/spoof/tailgating) do not; accepted/flagged/unverified/
+    unregistered keep their prior fail-open behavior."""
+    return status not in _NOT_PRESENT

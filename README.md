@@ -14,7 +14,7 @@ Attendance logging system. NFC (RC522) + face detection, 2-factor.
 - Postgres: `students` (uid → identity, `face_embedding`) + `attendance_logs` (student_id, timestamp, method, liveness_score, face_score, face_match)
 - SMTP: guardian notify (currently a print stub, see `backend/notify.py`)
 - InsightFace `buffalo_l` (ArcFace, 512-d): 1:1 match — NFC identifies, face verifies (built, Step 6). Chosen over `face_recognition`/dlib: no compile, better on off-angle/uneven-light faces.
-- MiniFASNet (Silent-Face-Anti-Spoofing): passive liveness (not yet built)
+- MiniFASNet (Silent-Face-Anti-Spoofing): passive liveness (built, Step 7 — `backend/liveness.py`, fail-open; ⚠ threshold not yet calibrated live)
 
 Rule: no face/liveness work starts until tap → log → notify runs end-to-end. That milestone is done (see Status).
 
@@ -48,19 +48,34 @@ python -m backend.enroll S001 --images a.jpg b.jpg c.jpg   # enroll from files (
 python -m backend.preview --match S001      # live diagnostic window: aim/light the camera
 python -m backend.calibrate --days 7        # tune FACE_THRESHOLD from real logged scores
 ```
-(`--capture` webcam enrollment is currently broken — see the runbook; use `--images` until ROADMAP Step 33 fixes it.)
+(`--capture` webcam enrollment was fixed in Step 33 — it now uses `probe.embedding`. The
+shared enroll core (`embeddings_from_frames`, `enroll_student`) is reused by the in-app
+register wizard, Step 35.)
 
 Env vars (incl. `USE_GPU`, `FACE_DET_SIZE`), camera setup, performance/GPU, threshold tuning, and troubleshooting: [`docs/face-verification.md`](docs/face-verification.md).
 
 ## Setup (first run)
 
+One command brings up the whole stack (Postgres + backend) in Docker:
+
 ```
 git clone <repo-url> nfc-scan && cd nfc-scan
-python3 -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt
+cp .env.example .env      # then edit as needed
+make up                   # docker-compose: db + backend, schema self-migrates
+curl localhost:8001/health   # {"status":"ok","db":true}
+make down                 # stop (keeps the pgdata volume)
+```
 
-python -m backend.fetch_liveness_models     # sha256-pinned MiniFASNet weights (~3.4MB)
-cp .env.example .env                        # then edit as needed
+`make` targets: `setup` (local venv + deps + models + .env), `up`/`down`/`logs`
+(compose), `dev` (uvicorn --reload), `enroll`/`calibrate`/`preview`, `fmt`/`lint`,
+`health`. Run `make` with no target for the list. Webcam passthrough for face match
+is a commented `devices:` block in `docker-compose.yml` — uncomment on the kiosk box.
+
+Or run it locally without Docker:
+
+```
+make setup                                  # venv, deps, fetch models, seed .env
+. .venv/bin/activate
 
 # Postgres (dev container, pgvector) — see "Running (production)" for the full command
 docker run -d --name nfc-scan-postgres --restart unless-stopped \
@@ -68,7 +83,7 @@ docker run -d --name nfc-scan-postgres --restart unless-stopped \
   -e POSTGRES_DB=attendance -e POSTGRES_USER=attendance -e POSTGRES_PASSWORD=attendance \
   pgvector/pgvector:pg16
 
-uvicorn backend.main:app --port 8001        # schema self-migrates on startup
+make dev                                    # uvicorn :8001, schema self-migrates
 ```
 
 The InsightFace `buffalo_l` face model auto-downloads once to `~/.insightface` on first tap.
@@ -159,14 +174,27 @@ arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno arduino/nfc_scan
 
 Next up is the user-facing layer plus a continuous multi-student guardpost. The ordered build plan
 is in [`ROADMAP.md`](ROADMAP.md):
-- **UI track (10–16)** — one-command setup, API + live stream, SPA, operator dashboard.
-- **Backbone track (20–23)** — privacy/compliance, attendance sessions + digest, reliability, anti-fraud.
-- **Flow track (30–35)** — continuous perception + tap↔face correlation for a 3–5 students/sec guardpost, boxes-only public viewer, in-app register wizard, review queue.
+- **UI track (10–16)** — one-command setup ✓ (Step 10), API + live stream ✓ (Step 11:
+  `GET /api/attendance|students|stats/today|config`, `WS /ws/taps`, `OPERATOR_TOKEN` auth),
+  SPA scaffold ✓ (Step 12: Vite+React+TS `frontend/`, served at `/app`), operator dashboard ✓
+  (Step 13: auth gate, today panel, live feed, history table).
+- **Backbone track (20–23)** — privacy/compliance ✓ (Step 20: consent gate, retention/purge,
+  right-to-erasure, audit log — see [`docs/privacy.md`](docs/privacy.md)), attendance sessions +
+  digest, reliability, anti-fraud.
+- **Flow track (30–35)** — continuous perception ✓ (Step 30: `backend/perception.py`,
+  single camera owner, IoU tracking, recognition once per track) + tap↔face correlation ✓
+  (Step 31: `backend/matcher.py`, async tap buffer + Hungarian, statuses
+  accepted/mismatch/no_face/spoof/tailgating) for a 3–5 students/sec guardpost,
+  boxes-only public viewer, in-app register wizard, review queue.
 - **Deploy track (40–44)** — one-touch install onto the GPU box as a boot-on appliance (Linux primary, Windows `.exe` fallback), in-UI first-run wizard, updates/backup, release CI.
 - **Tuning track (50–54)** — admin runtime panel: GPU/CPU device toggle, resolution presets + advanced, and an optimizer (auto-detect button, presets, adaptive), all hot-applied without a restart.
 
 Cross-cutting constraints, failure modes, edge cases, and the legal/consent + accuracy-eval gates
 are in [`docs/design-notes.md`](docs/design-notes.md) — **read it before starting the Flow track.**
+
+A step-by-step **verification runbook** for everything built so far (Steps 10–33) is in
+[`docs/verification.md`](docs/verification.md); data-handling/consent/retention is in
+[`docs/privacy.md`](docs/privacy.md).
 
 ## Notes
 
