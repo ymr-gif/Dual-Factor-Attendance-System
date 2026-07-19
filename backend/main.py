@@ -1,12 +1,126 @@
+import asyncio
+import os
 import time
 
-from fastapi import FastAPI
+from datetime import datetime, timedelta, timezone
+
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import db, decision, face, liveness
+from . import db, decision, events, face, liveness, matcher as matcher_mod, perception, privacy
 from .notify import notify
 
+# --- MJPEG live camera stream (perception.on_frame → browser) ---
+
+_mjpeg_queue: asyncio.Queue | None = None
+_mjpeg_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _on_frame_event(frame, ev):
+    """Perception frame sink (called from camera thread). Draw boxes, encode JPEG,
+    hand off to the async MJPEG endpoint via the event loop."""
+    import cv2
+    import numpy as np
+
+    # Draw bounding boxes on the frame
+    annotated = frame.copy()
+    for track in ev.get("tracks", []):
+        x1, y1, x2, y2 = track["bbox"]
+        color = (0, 180, 0) if track.get("recognized") else (0, 165, 255)  # green / amber BGR
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+        label = f"{'✓' if track.get('recognized') else '?'} #{track['track_id']}"
+        cv2.putText(annotated, label, (x1, y1 - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
+
+    ok, jpeg = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    if not ok:
+        return
+    q = _mjpeg_queue
+    loop = _mjpeg_loop
+    if q is None or loop is None:
+        return
+    try:
+        loop.call_soon_threadsafe(q.put_nowait, jpeg.tobytes())
+    except (asyncio.QueueFull, RuntimeError):
+        pass  # slow client or loop closed — drop frame
+
+
+async def _get_mjpeg_queue() -> asyncio.Queue:
+    global _mjpeg_queue, _mjpeg_loop
+    if _mjpeg_queue is None:
+        _mjpeg_queue = asyncio.Queue(maxsize=2)
+        _mjpeg_loop = asyncio.get_running_loop()
+    return _mjpeg_queue
+
 app = FastAPI()
+
+
+def _strip_embedding(student):
+    if not student:
+        return None
+    return {k: v for k, v in student.items() if k != "face_embedding"}
+
+
+def _write_outcome(o):
+    """Matcher outcome writer (Step 31): log -> notify -> broadcast. Fail-open."""
+    log = db.insert_log(
+        uid=o["uid"],
+        student_id=o.get("student_id"),
+        method=o.get("method", "nfc"),
+        face_score=o.get("face_score"),
+        face_match=o.get("face_match"),
+        liveness_score=o.get("liveness_score"),
+        liveness_pass=o.get("liveness_pass"),
+        status=o["status"],
+    )
+    student = o.get("student")
+    try:
+        notify(student, log)
+    except Exception as e:
+        print(f"matcher notify failed: {e}")
+    try:
+        events.publish(
+            jsonable_encoder(
+                {"type": "tap", "student": _strip_embedding(student), "log": log, "reason": o.get("reason")}
+            )
+        )
+    except Exception as e:
+        print(f"matcher event publish failed: {e}")
+
+
+def _post_log(student, log):
+    """notify + broadcast for a synchronously-written log (fail-open on both)."""
+    try:
+        notify(student, log)
+    except Exception as e:
+        print(f"notify failed: {e}")
+    try:
+        events.publish(
+            jsonable_encoder({"type": "tap", "student": _strip_embedding(student), "log": log})
+        )
+    except Exception as e:
+        print(f"tap event publish failed: {e}")
+
+
+# The single in-process matcher (design-notes §3: one worker, shared buffers).
+matcher = matcher_mod.Matcher(outcome_sink=_write_outcome, face_search=db.search_face)
+
+# Single shared operator token (Step 11). Unset -> /api/* is open (dev default);
+# set it to lock down reads + writes. WS passes it as ?token=. CORS/hardening is
+# Step 16.
+OPERATOR_TOKEN = os.environ.get("OPERATOR_TOKEN", "")
 
 
 class TapRequest(BaseModel):
@@ -14,16 +128,255 @@ class TapRequest(BaseModel):
     method: str = "nfc"
 
 
+def require_operator(
+    authorization: str | None = Header(default=None),
+    x_operator_token: str | None = Header(default=None),
+):
+    """Guard /api/* endpoints. Accepts `Authorization: Bearer <t>` or
+    `X-Operator-Token: <t>`. When OPERATOR_TOKEN is unset, auth is disabled."""
+    if not OPERATOR_TOKEN:
+        return
+    supplied = None
+    if authorization and authorization.lower().startswith("bearer "):
+        supplied = authorization[7:].strip()
+    elif x_operator_token:
+        supplied = x_operator_token.strip()
+    if supplied != OPERATOR_TOKEN:
+        raise HTTPException(status_code=401, detail="invalid or missing operator token")
+
+
 @app.on_event("startup")
 def on_startup():
     for attempt in range(1, 11):
         try:
             db.init_db()
-            return
+            break
         except Exception as e:
             print(f"db init attempt {attempt}/10 failed: {e} — retrying in 3s")
             time.sleep(3)
-    raise RuntimeError("could not reach Postgres after 10 attempts")
+    else:
+        raise RuntimeError("could not reach Postgres after 10 attempts")
+    if not OPERATOR_TOKEN:
+        print("WARNING: OPERATOR_TOKEN unset — /api/* is unauthenticated (dev mode)")
+
+
+@app.on_event("startup")
+async def _capture_loop():
+    # Give events.publish() (called from the sync /tap threadpool) a handle on the
+    # running loop so it can hand tap events to WebSocket subscribers safely.
+    events.set_loop(asyncio.get_running_loop())
+
+
+@app.on_event("startup")
+async def _start_perception():
+    # Continuous-flow wiring (Step 30/31). Only when perception owns the camera.
+    if not perception.enabled():
+        return
+    perception.on_face(matcher.on_face)  # in-process face events -> matcher
+    perception.on_frame(_on_frame_event)  # annotated frames -> MJPEG stream
+
+    async def _resolve_loop():
+        while True:
+            await asyncio.sleep(matcher.resolve_interval)
+            try:
+                await asyncio.to_thread(matcher.resolve)
+            except Exception as e:
+                print(f"matcher resolve loop error: {e}")
+
+    asyncio.create_task(_resolve_loop())
+
+    # Camera-owner thread. Fail-open: perception.run exits immediately if no camera,
+    # so a headless/no-cam backend still boots (taps then log card-only unverified).
+    import threading
+
+    threading.Thread(
+        target=lambda: perception.run(perception._camera_frames()), daemon=True
+    ).start()
+    print("[main] perception + matcher + MJPEG stream started")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    # Browsers auto-request /favicon.ico at the site root; we ship none, so answer
+    # 204 (no content) instead of a noisy 404. The SPA sets its own tab title.
+    from fastapi import Response
+
+    return Response(status_code=204)
+
+
+@app.get("/health")
+def health():
+    # Liveness/readiness probe for docker-compose. Reports DB reachability without
+    # raising, so the endpoint answers even while Postgres is still coming up.
+    try:
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+        db_ok = True
+    except Exception as e:
+        db_ok = False
+        print(f"health: db unreachable: {e}")
+    return {"status": "ok" if db_ok else "degraded", "db": db_ok}
+
+
+@app.get("/api/attendance", dependencies=[Depends(require_operator)])
+def api_attendance(
+    date: str | None = None,
+    status: str | None = None,
+    student_id: str | None = None,
+    limit: int = Query(default=100, ge=1, le=1000),
+):
+    return {"logs": db.get_attendance(date=date, status=status, student_id=student_id, limit=limit)}
+
+
+@app.get("/api/students", dependencies=[Depends(require_operator)])
+def api_students():
+    return {"students": db.get_students()}
+
+
+@app.get("/api/stats/today", dependencies=[Depends(require_operator)])
+def api_stats_today():
+    return db.get_stats_today()
+
+
+@app.get("/api/config", dependencies=[Depends(require_operator)])
+def api_config():
+    # Read-only view of the active thresholds/flags the tap pipeline uses.
+    return {
+        "face": {
+            "enabled": face.enabled(),
+            "threshold": face.FACE_THRESHOLD,
+            "det_size": face.FACE_DET_SIZE,
+            "min_face_px": face.MIN_FACE_PX,
+            "use_gpu": face.USE_GPU,
+        },
+        "liveness": {
+            "enabled": liveness.enabled(),
+            "threshold": liveness.LIVENESS_THRESHOLD,  # None = model argmax
+        },
+        "decision": {
+            "enforce_2fa": decision.enforcing(),
+        },
+        "perception": {
+            "enabled": perception.enabled(),
+            "iou_thresh": perception.TRACK_IOU_THRESH,
+            "max_misses": perception.TRACK_MAX_MISSES,
+            "fps": perception.PERCEPTION_FPS,
+        },
+        "privacy": {
+            "consent_required": privacy.FACE_CONSENT_REQUIRED,
+            "attendance_retention_days": privacy.ATTENDANCE_RETENTION_DAYS,
+            "score_retention_days": privacy.SCORE_RETENTION_DAYS,
+        },
+    }
+
+
+class ConsentRequest(BaseModel):
+    granted: bool
+
+
+def _actor(x_operator_actor: str | None = Header(default=None)) -> str:
+    # Best-effort operator identity for the audit log (shared-token auth has no real
+    # user; an optional X-Operator-Actor header names the person for accountability).
+    return (x_operator_actor or "operator").strip()
+
+
+@app.get("/api/audit", dependencies=[Depends(require_operator)])
+def api_audit(limit: int = Query(default=100, ge=1, le=1000)):
+    return {"audit": db.get_audit(limit)}
+
+
+@app.post("/api/search-face", dependencies=[Depends(require_operator)])
+async def api_search_face(image: UploadFile = File(...), k: int = Query(default=5, ge=1, le=25)):
+    # Cardless 1:N manual lookup (Step 33): operator uploads a face image -> encode ->
+    # nearest enrolled students. No image is stored.
+    import cv2
+    import numpy as np
+
+    data = await image.read()
+    img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+    if img is None:
+        raise HTTPException(status_code=400, detail="cannot decode image")
+    emb = face.encode_image(img)
+    if emb is None:
+        raise HTTPException(status_code=422, detail=f"no usable face (need >= {face.MIN_FACE_PX}px)")
+    return {"matches": db.search_face(emb, k)}
+
+
+@app.get("/api/reenroll-due", dependencies=[Depends(require_operator)])
+def api_reenroll_due():
+    # Re-enrollment reminders (Step 33): stale-by-age or made by an older model.
+    from .enroll import REENROLL_AFTER_DAYS
+
+    cutoff = None
+    if REENROLL_AFTER_DAYS > 0:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=REENROLL_AFTER_DAYS)
+    return {
+        "reenroll_after_days": REENROLL_AFTER_DAYS,
+        "current_model": face.MODEL_NAME,
+        "due": db.stale_enrollments(cutoff=cutoff, current_model=face.MODEL_NAME),
+    }
+
+
+@app.post("/api/students/{student_id}/consent", dependencies=[Depends(require_operator)])
+def api_set_consent(student_id: str, body: ConsentRequest, actor: str = Depends(_actor)):
+    try:
+        db.set_consent(student_id, body.granted)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    db.insert_audit(actor, "consent", student_id, detail="granted" if body.granted else "revoked")
+    return {"student_id": student_id, "face_consent": body.granted}
+
+
+@app.delete("/api/students/{student_id}", dependencies=[Depends(require_operator)])
+def api_delete_student(student_id: str, actor: str = Depends(_actor)):
+    # Right-to-erasure (Step 20): drop embedding + logs, record an audit entry.
+    counts = db.delete_student(student_id)
+    if counts["students"] == 0 and counts["logs"] == 0:
+        raise HTTPException(status_code=404, detail=f"no such student {student_id}")
+    db.insert_audit(actor, "erase", student_id, detail=f"logs={counts['logs']} students={counts['students']}")
+    return {"erased": student_id, **counts}
+
+
+@app.websocket("/ws/taps")
+async def ws_taps(websocket: WebSocket):
+    # Auth via query param (?token=) — matches OPERATOR_TOKEN when it is set.
+    if OPERATOR_TOKEN and websocket.query_params.get("token") != OPERATOR_TOKEN:
+        await websocket.close(code=1008)  # policy violation
+        return
+    await websocket.accept()
+    q = await events.subscribe()
+    try:
+        while True:
+            event = await q.get()
+            await websocket.send_json(event)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        events.unsubscribe(q)
+
+
+@app.get("/stream.mjpeg")
+async def stream_mjpeg():
+    """Live camera feed as MJPEG stream. perception.on_frame pushes annotated
+    JPEG frames; this endpoint yields them as multipart/x-mixed-replace."""
+    q = await _get_mjpeg_queue()
+
+    async def generate():
+        try:
+            while True:
+                frame_bytes = await q.get()
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n"
+                    + frame_bytes
+                    + b"\r\n"
+                )
+        except asyncio.CancelledError:
+            pass
+
+    return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 
 @app.post("/tap")
@@ -31,13 +384,34 @@ def tap(req: TapRequest):
     uid = req.uid.strip().upper()
     student = db.find_student_by_uid(uid)
     student_id = student["student_id"] if student else None
+    student_out = _strip_embedding(student)
+
+    # Continuous flow (Step 31): perception owns the camera, so /tap enqueues the tap
+    # and acks immediately; the matcher writes the verdict when the association window
+    # closes. Unknown card / un-enrolled student are resolved synchronously (no face
+    # to wait for).
+    if perception.enabled():
+        if student is None:
+            log = db.insert_log(uid=uid, student_id=None, method=req.method, status=decision.UNREGISTERED)
+            _post_log(student, log)
+            return {"status": "logged", "student": None, "log": log}
+        ref = student.get("face_embedding")
+        # No reference, or consent not granted (Step 20) -> fail-open, card-only NFC log.
+        if ref is None or not privacy.consent_ok(student):
+            log = db.insert_log(uid=uid, student_id=student_id, method=req.method, status=decision.UNVERIFIED)
+            _post_log(student, log)
+            return {"status": "logged", "student": student_out, "log": log}
+        tap_id = matcher.add_tap(uid, student_id, ref, student=student)
+        return {"status": "queued" if tap_id else "debounced", "uid": uid, "student": student_out}
 
     # One webcam capture, reused for face match (1:1) and liveness. Fail-open: any
     # failure leaves the scores None and attendance is still logged; notify surfaces
     # the flags.
     face_score = face_match = None
     liveness_score = liveness_pass = None
-    if student is not None and (face.enabled() or liveness.enabled()):
+    # Consent gate (Step 20): skip face/liveness when the student hasn't consented and
+    # the policy is on; the tap still logs NFC-only (unverified).
+    if student is not None and privacy.consent_ok(student) and (face.enabled() or liveness.enabled()):
         probe = face.capture_probe()  # Probe(frame, bbox, embedding) or None
         if probe is not None:
             if face.enabled() and student.get("face_embedding") is not None:
@@ -60,7 +434,30 @@ def tap(req: TapRequest):
         liveness_pass=liveness_pass,
         status=status,
     )
-    notify(student, log)
-    # Don't ship the 512-d embedding back over HTTP on every tap.
-    student_out = {k: v for k, v in student.items() if k != "face_embedding"} if student else None
+    _post_log(student, log)
     return {"student": student_out, "log": log}
+
+
+# --- SPA serving (Step 12). Mount the built frontend at /app *only if it exists*,
+# so the backend still boots before the frontend is built. Client-side routes
+# (e.g. /app/kiosk) fall back to index.html. ---
+_DIST = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+_DIST_REAL = os.path.realpath(_DIST)
+if os.path.isdir(_DIST):
+    app.mount("/app/assets", StaticFiles(directory=os.path.join(_DIST, "assets")), name="assets")
+
+    @app.get("/app")
+    @app.get("/app/{path:path}")
+    def spa(path: str = ""):
+        if path:
+            # Resolve against the dist root and refuse anything that escapes it
+            # (path traversal via ../). On a miss, fall through to index.html.
+            candidate = os.path.realpath(os.path.join(_DIST_REAL, path))
+            if (
+                (candidate == _DIST_REAL or candidate.startswith(_DIST_REAL + os.sep))
+                and os.path.isfile(candidate)
+            ):
+                return FileResponse(candidate)  # favicon, etc.
+        return FileResponse(os.path.join(_DIST_REAL, "index.html"))  # SPA fallback
+else:
+    print(f"SPA not mounted: {_DIST} missing (run `make web-build`)")

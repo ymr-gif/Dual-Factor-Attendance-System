@@ -42,7 +42,7 @@ now; `[GPU/HW]` logic buildable now but final verification needs the RTX 1050 / 
 16. **Step 53** — optimizer (button + presets + adaptive) `[GPU/HW]`.
 
 **Phase E — UI surfaces** *(needs SPA + the backend features above)*
-17. **Step 13** — operator dashboard (read views) `[CPU]`.
+17. **Step 13** — operator dashboard (read views) `[CPU]` ✓.
 18. **Step 34** — manual review queue `[CPU]`.
 19. **Step 35** — multi-view UI: roles, boxes-only viewer, register wizard `[CPU]` (live cam deferred).
 20. **Step 54** — settings/optimizer UI panel `[CPU]`.
@@ -88,10 +88,10 @@ device install) waits for the RTX 1050. Phase F is mostly on-box.
 > 13–16 so those concepts are built once, there.
 
 ## Progress summary
-- [ ] Step 10 — One-command setup (foundation)
-- [ ] Step 11 — Backend API expansion + live tap stream  *(prereq for Flow track)*
-- [ ] Step 12 — Frontend scaffold (SPA toolchain)  *(prereq for Flow track)*
-- [ ] Step 13 — Operator dashboard (read views)
+- [x] Step 10 — One-command setup (foundation) — `docker-compose.yml`, `backend/Dockerfile`, `Makefile`, `.dockerignore`, `GET /health`. ⚠ built on CPU box; `make up` not yet run end-to-end on a clean checkout.
+- [x] Step 11 — Backend API expansion + live tap stream — `GET /api/{attendance,students,stats/today,config}`, `WS /ws/taps`, `backend/events.py` pub/sub, `OPERATOR_TOKEN` auth. Verified live (REST + WS event on `/tap`). *(prereq for Flow track)*
+- [x] Step 12 — Frontend scaffold (SPA toolchain) — Vite+React+TS `frontend/`, dev proxy (`/api`+`/ws`+`/health`→:8001), router (`/`, `/kiosk`), `src/api.ts` + `useTapStream()` hook, backend serves `dist` at `/app` (SPA fallback), multi-stage Dockerfile. Verified: `web-build`→backend `/app`, dev proxy live. *(prereq for Flow track)*
+- [x] Step 13 — Operator dashboard (read views) — auth gate, today panel (counts + status pills), live feed (WS, highlights), history table (date/status filters, pagination), responsive layout. Pure frontend (`frontend/src/components/{TodayPanel,LiveFeed,HistoryTable}.tsx`, `Dashboard.tsx` rewrite, `api.ts` typed `Config`/`AuditEntry`/`ReviewItem`, `index.css` utilities). No backend changes.
 - [ ] Step 14 — Roster + browser enrollment  → *see Step 35 (register wizard)*
 - [ ] Step 15 — Kiosk feedback screen  → *superseded by Step 35 (boxes-only viewer)*
 - [ ] Step 16 — Hardening & polish  → *roles moved to Step 35*
@@ -174,14 +174,18 @@ at `/app`.
 **Depends on**: Step 12.
 
 Tasks:
-- [ ] Login gate: token entry stored in `localStorage`, sent as auth header / WS query param.
-- [ ] **Live feed**: newest taps stream in (name, time, status pill, face/liveness scores),
+- [x] Login gate: token entry stored in `localStorage`, sent as auth header / WS query param.
+- [x] **Live feed**: newest taps stream in (name, time, status pill, face/liveness scores),
       rejected/flagged rows highlighted.
-- [ ] **Today panel**: counts from `/api/stats/today` (present / flagged / rejected / unverified).
-- [ ] **History table**: `/api/attendance` with date + status filters, pagination.
-- [ ] Empty/error/loading states; responsive; readable on a projector.
+- [x] **Today panel**: counts from `/api/stats/today` (present / flagged / rejected / unverified).
+- [x] **History table**: `/api/attendance` with date + status filters, pagination.
+- [x] Empty/error/loading states; responsive; readable on a projector.
 
-**New/changed**: `frontend/src/pages/Dashboard.tsx` + components.
+**New/changed**: `frontend/src/components/{TodayPanel,LiveFeed,HistoryTable}.tsx` (new),
+`frontend/src/pages/Dashboard.tsx` (rewrite), `frontend/src/api.ts` (typed Config, extended
+Student, AuditEntry, ReviewItem placeholders), `frontend/src/App.tsx` (nav removed, auth
+lives in Dashboard), `frontend/src/index.css` (status colors, responsive, dash-grid).
+**No backend changes.**
 **Acceptance**: with the backend running, the dashboard shows today's counts, a filterable
 history table, and a live tap appearing in the feed within ~1s of a `/tap` POST.
 
@@ -266,7 +270,7 @@ Parallel to the UI track (10–16). These are domain/quality steps a serious rev
 Independent of the UI phases except where noted; can be scheduled around them.
 
 ## Progress summary (backbone)
-- [ ] Step 20 — Privacy & compliance
+- [x] Step 20 — Privacy & compliance — consent gate (`FACE_CONSENT_REQUIRED` + `students.face_consent`), retention/purge (`make purge`, `ATTENDANCE_/SCORE_RETENTION_DAYS`), right-to-erasure (`DELETE /api/students/{id}`), `audit_log` (+ `GET /api/audit`), `docs/privacy.md`. Also landed the **Phase B schema pass** (`embed_model`, `enrolled_at`, `face_consent`, `audit_log`, `review_queue`). Encryption-at-rest deferred (documented 2nd pass).
 - [ ] Step 21 — Attendance sessions + guardian digest
 - [ ] Step 22 — Reliability & operability
 - [ ] Step 23 — Anti-fraud extensions
@@ -396,21 +400,23 @@ CPU box is a ~1/s functional demo only.
   Build those concepts here, not twice.
 
 ## Progress summary (flow)
-- [ ] Step 30 — Perception service (single camera owner)
-- [ ] Step 31 — Tap buffer + tap↔face correlation (matcher)
+- [x] Step 30 — Perception service (single camera owner) — `backend/perception.py`: camera-owner loop, greedy-IoU `FaceTracker` (stable IDs, recognition once per new track), in-process `on_frame`(boxes)/`on_face`(embedding, PII) sinks; `face.open_capture()` extracted; `/tap` card-only `unverified` when perception owns the cam. Default OFF. Verified with a synthetic image sequence (deterministic). ⚠ live-cam / video-file + GPU acceptance deferred (`[GPU/HW]`).
+- [x] Step 31 — Tap buffer + tap↔face correlation (matcher) — `backend/matcher.py`: async `/tap` enqueue+ack, `ASSOC_WINDOW_SEC` buffer, Hungarian (scipy) tap↔face assignment, strict rules → statuses `accepted`/`mismatch`/`no_face`/`spoof`/`tailgating`; cardless 1:N tailgater ID via `db.search_face` (pgvector); `TAP_COOLDOWN_SEC` debounce; bounded face buffer. Wired into `main.py` startup (perception→matcher, resolve loop, camera thread). Verified: 10 edge-case unit tests (incl. Hungarian cross-order) + live queued→async-resolve end-to-end. ⚠ live-cam correlation deferred (`[GPU/HW]`).
 - [ ] Step 32 — Throughput / perf hardening (GPU)
-- [ ] Step 33 — Identity & matching features
+- [x] Step 33 — Identity & matching features — cardless 1:N (`db.search_face` + `POST /api/search-face`), dup-enroll detection (`db.find_duplicate`), re-enroll reminders (`GET /api/reenroll-due`), HNSW ANN index, `--capture` fix + shared enroll core.
 - [ ] Step 34 — Manual review queue
 - [ ] Step 35 — Multi-view UI + register-student
 
 ## Conflicts this track resolves (current code that must change)
 - `face.capture_probe()` / `preview.py` each open the webcam per call and hold it exclusively →
   replaced by **one camera-owner process**; everything else subscribes.
-- `/tap` returns the match inline → becomes an **async ack**; correlation resolves later.
-  `serial_reader.py` must tolerate an ack-only response.
-- `FACE_THRESHOLD=0.5` (1:1) is unsafe for whole-DB 1:N → higher threshold **+ top1−top2 margin**.
-- **Bug fixed in passing** (Step 33): `enroll.py` `_from_capture` treats `face.capture_probe()` as
-  an embedding, but it returns a `Probe(frame,bbox,embedding)` tuple → `--capture` enroll is broken.
+- ✅ **Resolved (Step 31)**: when `PERCEPTION_ENABLED`, `/tap` returns an **async ack**
+  (`{"status":"queued"}`) and correlation resolves later; `serial_reader.py` tolerates the ack-only
+  response (2xx). The 1:1 inline path stays as the fallback when perception is off.
+- `FACE_THRESHOLD=0.5` (1:1) is unsafe for whole-DB 1:N → higher threshold **+ top1−top2 margin**
+  (still open — Step 33 rest; the matcher currently names a tailgater at `TAILGATE_NAME_THRESHOLD`).
+- ✅ **Fixed (Step 33)**: `enroll.py` `_from_capture` now uses `probe.embedding` (was treating the
+  `Probe(frame,bbox,embedding)` tuple as an embedding) → `--capture` enroll works.
 
 ---
 
@@ -475,13 +481,13 @@ Tasks:
 **Depends on**: schema + Step 30.
 
 Tasks:
-- [ ] Schema: `students.embed_model TEXT`, `students.enrolled_at TIMESTAMPTZ`; **pgvector ANN index**.
-- [ ] **Cardless 1:N** search API (matcher tailgater ID; also manual lookup).
-- [ ] **Duplicate-enrollment detection**: on enroll, 1:N vs gallery → warn if the face already exists.
-- [ ] **Re-enrollment reminders**: flag embeddings older than `REENROLL_AFTER_DAYS` or an older
-      `embed_model`.
-- [ ] **Fix `enroll.py --capture`** (use `probe.embedding`); extract a shared enroll core reused by
-      the wizard (Step 35).
+- [x] Schema: `students.embed_model TEXT`, `students.enrolled_at TIMESTAMPTZ` (Step 20 pass); **pgvector HNSW ANN index** (`students_face_embedding_hnsw`).
+- [x] **Cardless 1:N** search API — `db.search_face` (matcher tailgater ID) + `POST /api/search-face` (image upload → nearest students, manual lookup).
+- [x] **Duplicate-enrollment detection**: `db.find_duplicate` on enroll (1:N vs gallery, `DUP_ENROLL_THRESHOLD`) → warns (doesn't block); logged in audit.
+- [x] **Re-enrollment reminders**: `db.stale_enrollments` + `GET /api/reenroll-due` — flags references older than `REENROLL_AFTER_DAYS` or a non-current `embed_model`.
+- [x] **Fix `enroll.py --capture`** (use `probe.embedding`); extract a shared enroll core reused by
+      the wizard (Step 35). — done (Phase B item 8): `embeddings_from_frames` / `average_reference` /
+      `enroll_student` extracted, CLI delegates to them.
 
 **New/changed**: `backend/schema.sql`, `backend/db.py`, `backend/enroll.py`, `backend/main.py`,
 `.env.example`.
