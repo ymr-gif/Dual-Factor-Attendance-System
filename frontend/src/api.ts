@@ -47,6 +47,24 @@ async function postFormData<T>(path: string, data: FormData): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export async function reqBlob(path: string): Promise<Blob> {
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['X-Operator-Token'] = token
+  const res = await fetch(path, { headers })
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`)
+  return res.blob()
+}
+
+export async function reqText(path: string): Promise<string> {
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['X-Operator-Token'] = token
+  const res = await fetch(path, { headers })
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`)
+  return res.text()
+}
+
 // --- Types ---
 
 export interface TapLog {
@@ -171,6 +189,37 @@ export interface SettingsResponse {
   tunable_keys: string[]
 }
 
+export interface AttendanceSummary {
+  date: string
+  expected: number
+  present: { student_id: string; name: string | null; late: boolean }[]
+  absent: { student_id: string; name: string | null }[]
+  late_count: number
+  late_cutoff: string | null
+}
+
+export interface AttendanceSession {
+  student_id: string
+  student_name: string | null
+  session_date: string
+  check_in: string
+  check_out: string | null
+  duration_minutes: number | null
+}
+
+export interface ReenrollDue {
+  reenroll_after_days: number
+  current_model: string
+  due: { student_id: string; name: string | null; embed_model: string | null; enrolled_at: string | null }[]
+}
+
+export interface FaceMatch {
+  student_id: string
+  name: string | null
+  uid: string
+  similarity: number
+}
+
 // --- Endpoints ---
 
 export const getHealth = () => req<Health>('/health')
@@ -211,3 +260,33 @@ export const getSettings = () => req<SettingsResponse>('/api/settings')
 
 export const setSetting = (key: string, value: string) =>
   reqJson<{ key: string; value: string }>('/api/settings', 'PUT', { key, value })
+
+export const getSummary = (date?: string) =>
+  req<AttendanceSummary>(`/api/attendance/summary${date ? `?date=${date}` : ''}`)
+
+export const getSessions = (params: { student_id?: string; date?: string } = {}) => {
+  const q = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, v!]),
+  ).toString()
+  return req<{ sessions: AttendanceSession[] }>(`/api/attendance/sessions${q ? `?${q}` : ''}`)
+}
+
+export const getAudit = (limit = 100) =>
+  req<{ audit: AuditEntry[] }>(`/api/audit?limit=${limit}`)
+
+export const getReenrollDue = () => req<ReenrollDue>('/api/reenroll-due')
+
+export const searchFace = (file: File, k = 5) => {
+  const fd = new FormData()
+  fd.append('image', file)
+  return postFormData<{ matches: FaceMatch[] }>(`/api/search-face?k=${k}`, fd)
+}
+
+export async function downloadAttendanceCsv(params: Record<string, string | number> = {}) {
+  const q = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString()
+  const blob = await reqBlob(`/api/attendance.csv${q ? `?${q}` : ''}`)
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = 'attendance.csv'; a.click()
+  URL.revokeObjectURL(url)
+}
