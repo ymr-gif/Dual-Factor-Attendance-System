@@ -276,6 +276,19 @@ export const getAudit = (limit = 100) =>
 
 export const getReenrollDue = () => req<ReenrollDue>('/api/reenroll-due')
 
+export interface PerceptionState {
+  enabled: boolean
+  ready: boolean
+  reason: string
+  n_faces?: number
+  face_px?: number
+  brightness?: number | null
+  min_face_px?: number
+  age?: number
+}
+
+export const getPerceptionState = () => req<PerceptionState>('/api/perception/state')
+
 export const searchFace = (file: File, k = 5) => {
   const fd = new FormData()
   fd.append('image', file)

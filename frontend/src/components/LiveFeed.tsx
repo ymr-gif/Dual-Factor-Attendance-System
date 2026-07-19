@@ -80,6 +80,11 @@ export default function LiveFeed({
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {t.student?.name ?? t.log.uid}
                   </span>
+                  {t.log.method && (
+                    <span className="pill" style={{ background: '#2a2d37', fontSize: 11, opacity: 0.85 }}>
+                      {t.log.method}
+                    </span>
+                  )}
                   {t.log.face_score != null && (
                     <span style={{ fontSize: 12, opacity: 0.7 }}>
                       face {t.log.face_score.toFixed(2)} {t.log.face_match ? '\u2713' : '\u2717'}

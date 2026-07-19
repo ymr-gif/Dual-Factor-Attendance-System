@@ -91,6 +91,43 @@ is `TAP_COOLDOWN_SEC`; recognition-backpressure bound is `MAX_FACE_BUFFER` drop-
   taps → `no-face`, leftover faces → `tailgating`.
 - **Order independence**: tap-before-face and face-before-tap both resolve within the window.
 
+### 5a. Adaptive / late-bind resolution (planned refinement — NOT yet built)
+**Status: stub/design only.** Current matcher resolves *every* tap on a fixed timer — it always
+waits the full `ASSOC_WINDOW_SEC` before writing a verdict, even when the answer is already obvious.
+Adaptive/late-bind = **resolve as soon as the outcome is certain, keep full patience only when it
+isn't.**
+
+Goal: capture the strengths, cut the cons to the floor.
+
+- **Strength 1 — low latency for the common case.** Face-then-tap (student already in frame when
+  they tap) is the norm at a kiosk. If a strong, unambiguous face is already buffered when the tap
+  lands, emit `accepted` immediately instead of waiting out the window. Green light feels instant.
+- **Strength 2 — no loss of patience when needed.** Tap-first / no-face-yet keeps the existing
+  behavior: hold the tap, keep watching, bind if a qualifying face arrives, else `no_face` at window
+  close. Adaptive never resolves *earlier* than "certain" — it only skips *needless* waiting.
+- **Con to minimize — early-bind picks the wrong face in a crowd.** Committing one tap early forfeits
+  the global optimality of the batched Hungarian assignment (a later tap+face pair might have been a
+  better global fit). This is the whole risk; drive it to ~zero with **guards, not hope**:
+  1. **Unambiguous-only early-bind.** Early-commit *only* when the best face clears
+     `MATCH_THRESHOLD` **and** beats the second-best candidate by a margin `EARLY_BIND_MARGIN`
+     (top1−top2 on cosine). Any ambiguity → fall back to the timed batch resolve. (Reuses the
+     §5 overlap-bleed margin idea.)
+  2. **Singleton context.** Only early-bind when there is exactly one qualifying face **and** no
+     other pending tap whose window overlaps this face — i.e. no competition to steal optimality from.
+  3. **Cooldown/debounce unchanged.** `TAP_COOLDOWN_SEC` still guards held/duplicate cards, so a fast
+     early path can't double-emit.
+  4. **Faces stay claimable until bound.** An early-bound face is `consumed` atomically (same flag the
+     batch path uses), so it can't also become a tailgater.
+- **Net effect.** Best case: instant verdict. Ambiguous/crowded case: identical to today's optimal
+  batch. There is no regime where adaptive is *worse* than the current fixed-timer matcher — it is a
+  strict latency win gated behind a certainty test. Tunables (proposed): `EARLY_BIND_MARGIN`
+  (default conservative, e.g. 0.10 cosine), reuse `MATCH_THRESHOLD`; a global `ADAPTIVE_BIND` off-switch
+  (default off until validated live) so it can ship dark and be A/B'd against the timed path.
+- **Build note.** Lives entirely in `matcher.py` (`add_tap` gains a "try early-bind" check;
+  `resolve` unchanged as the fallback). No perception/main/API change. Verify with the existing
+  decoupled unit-test harness (inject clock + faces): assert early-bind fires only past the margin,
+  and that a crowded burst yields the *same* assignment as the timed path.
+
 ## 6. Security & privacy (implementation-affecting)
 - **Embeddings are permanent PII.** A face template can't be reset like a password; a DB leak is
   forever. → encryption at rest (Backbone Step 20) is higher-priority here than typical apps.

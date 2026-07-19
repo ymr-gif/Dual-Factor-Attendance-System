@@ -15,6 +15,10 @@ The tracks are grouped by theme; the **Build sequence** below is the actual orde
 > is specced in **[`handoff.md`](handoff.md)** — pure frontend, **no backend changes**. Pick tasks
 > from there before opening new backend work.
 
+> **What's already built:** see **[`docs/build-log.md`](docs/build-log.md)** for the detailed
+> per-step record (files, env knobs, verification). Read the relevant entry before modifying a
+> built area. This ROADMAP is the *plan*; the build-log is the *state*.
+
 ---
 
 ## Build sequence (cross-track priority order)

@@ -26,7 +26,7 @@ import os
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-from . import decision, face
+from . import decision, face, liveness
 
 
 def _env_f(name: str, default: float) -> float:
@@ -156,7 +156,10 @@ class Matcher:
                 sim = face.cosine(t.embedding, f.embedding)
                 if sim < self.threshold:
                     outcomes.append(self._mismatch(t))
-                elif f.is_live is False:
+                elif f.is_live is False and liveness.calibrated():
+                    # Only a *calibrated* liveness verdict may reject a genuine card+face
+                    # match as spoof. Uncalibrated (LIVENESS_THRESHOLD unset) -> advisory:
+                    # accept the match, still log the score for later calibration.
                     outcomes.append(self._spoof(t, f, sim))
                 else:
                     outcomes.append(self._present(t, f, sim))
@@ -215,7 +218,7 @@ class Matcher:
         }
 
     def _present(self, t, f, sim):
-        o = self._base(t.uid, t.student_id, t.student, decision.ACCEPTED)
+        o = self._base(t.uid, t.student_id, t.student, decision.ACCEPTED, method="nfc+face")
         o.update(
             face_score=sim, face_match=True, liveness_score=f.live_score,
             liveness_pass=f.is_live, track_id=f.track_id, reason="verified",
@@ -223,7 +226,7 @@ class Matcher:
         return o
 
     def _spoof(self, t, f, sim):
-        o = self._base(t.uid, t.student_id, t.student, decision.SPOOF)
+        o = self._base(t.uid, t.student_id, t.student, decision.SPOOF, method="nfc+face")
         o.update(
             face_score=sim, face_match=True, liveness_score=f.live_score,
             liveness_pass=f.is_live, track_id=f.track_id, reason="liveness fail on matched face",
@@ -231,7 +234,7 @@ class Matcher:
         return o
 
     def _mismatch(self, t):
-        o = self._base(t.uid, t.student_id, t.student, decision.MISMATCH)
+        o = self._base(t.uid, t.student_id, t.student, decision.MISMATCH, method="nfc+face")
         o.update(face_match=False, reason="face in window below match threshold")
         return o
 

@@ -35,9 +35,9 @@
     "semantic_hash": "53dd7741bde264779c9117138387699b"
   },
   "backend/liveness.py": {
-    "mtime": 1784484177.5244184,
-    "ast_hash": "4568356c5461212461d23847fbbd281c",
-    "semantic_hash": ""
+    "mtime": 1783703994.2246494,
+    "ast_hash": "b1e260a5fb4313878ecec8f812af95c7",
+    "semantic_hash": "b1e260a5fb4313878ecec8f812af95c7"
   },
   "backend/main.py": {
     "mtime": 1784472552.818043,
@@ -65,8 +65,8 @@
     "semantic_hash": "efd9d48454ea5b5e6c7cac50fa4fc036"
   },
   "CLAUDE.md": {
-    "mtime": 1784484480.0155225,
-    "ast_hash": "c278fc26b6dfc734f682e65e513933b5",
+    "mtime": 1784472867.5645866,
+    "ast_hash": "7107d08a529e69d7d4cbe182c7b47aa0",
     "semantic_hash": ""
   },
   "README.md": {
@@ -180,8 +180,8 @@
     "semantic_hash": ""
   },
   "backend/matcher.py": {
-    "mtime": 1784484201.1602554,
-    "ast_hash": "fc9d899f9a31b83fb88f76c2592f6fa1",
+    "mtime": 1784431941.178414,
+    "ast_hash": "62bb0ca92f95929924a2277d30c0852a",
     "semantic_hash": ""
   },
   "backend/privacy.py": {
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/LiveFeed.tsx": {
-    "mtime": 1784484249.367979,
-    "ast_hash": "104fcd7104f7d596a31c0d7aa9e42ad5",
+    "mtime": 1784472610.5217347,
+    "ast_hash": "9f3bc9ff4a5c71cc2b75f5be2d94420f",
     "semantic_hash": ""
   },
   "frontend/src/components/TodayPanel.tsx": {
