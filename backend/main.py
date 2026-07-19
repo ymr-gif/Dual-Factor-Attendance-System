@@ -25,8 +25,26 @@ from .notify import notify
 
 # --- MJPEG live camera stream (perception.on_frame → browser) ---
 
-_mjpeg_queue: asyncio.Queue | None = None
+# Per-client fan-out: each connected /stream.mjpeg viewer gets its own bounded queue.
+# The frame sink broadcasts to all of them, so viewers no longer steal frames from
+# each other (Dashboard + Viewer + Register can watch simultaneously).
+_mjpeg_subscribers: set[asyncio.Queue] = set()
 _mjpeg_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _broadcast_frame(data: bytes) -> None:
+    """Runs on the event-loop thread (via call_soon_threadsafe). Fan one JPEG out to
+    every connected client; for a slow client, drop its oldest frame rather than block."""
+    for q in _mjpeg_subscribers:
+        if q.full():
+            try:
+                q.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+        try:
+            q.put_nowait(data)
+        except asyncio.QueueFull:
+            pass
 
 
 def _on_frame_event(frame, ev):
@@ -47,22 +65,14 @@ def _on_frame_event(frame, ev):
     ok, jpeg = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
     if not ok:
         return
-    q = _mjpeg_queue
     loop = _mjpeg_loop
-    if q is None or loop is None:
-        return
+    if loop is None or not _mjpeg_subscribers:
+        return  # no viewers connected — skip the fan-out entirely
     try:
-        loop.call_soon_threadsafe(q.put_nowait, jpeg.tobytes())
-    except (asyncio.QueueFull, RuntimeError):
-        pass  # slow client or loop closed — drop frame
+        loop.call_soon_threadsafe(_broadcast_frame, jpeg.tobytes())
+    except RuntimeError:
+        pass  # loop closed
 
-
-async def _get_mjpeg_queue() -> asyncio.Queue:
-    global _mjpeg_queue, _mjpeg_loop
-    if _mjpeg_queue is None:
-        _mjpeg_queue = asyncio.Queue(maxsize=2)
-        _mjpeg_loop = asyncio.get_running_loop()
-    return _mjpeg_queue
 
 app = FastAPI()
 
@@ -552,9 +562,13 @@ async def ws_taps(websocket: WebSocket):
 
 @app.get("/stream.mjpeg")
 async def stream_mjpeg():
-    """Live camera feed as MJPEG stream. perception.on_frame pushes annotated
-    JPEG frames; this endpoint yields them as multipart/x-mixed-replace."""
-    q = await _get_mjpeg_queue()
+    """Live camera feed as MJPEG stream. perception.on_frame broadcasts annotated
+    JPEG frames to every connected client; this endpoint yields one client's frames
+    as multipart/x-mixed-replace."""
+    global _mjpeg_loop
+    _mjpeg_loop = asyncio.get_running_loop()
+    q: asyncio.Queue = asyncio.Queue(maxsize=2)
+    _mjpeg_subscribers.add(q)
 
     async def generate():
         try:
@@ -568,6 +582,8 @@ async def stream_mjpeg():
                 )
         except asyncio.CancelledError:
             pass
+        finally:
+            _mjpeg_subscribers.discard(q)
 
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
 

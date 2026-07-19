@@ -6,6 +6,8 @@ const is: React.CSSProperties = {
   padding: '4px 8px', fontSize: 13, minWidth: 120,
 }
 
+type CamSource = 'user' | 'stream' | 'none'
+
 export default function Register() {
   const [students, setStudents] = useState<Student[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -15,23 +17,42 @@ export default function Register() {
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState<EnrollResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [camSource, setCamSource] = useState<CamSource>('none')
+  const [camNote, setCamNote] = useState<string | null>(null)
   const vr = useRef<HTMLVideoElement>(null)
+  const ir = useRef<HTMLImageElement>(null)
   const cr = useRef<HTMLCanvasElement>(null)
   const sr = useRef<MediaStream | null>(null)
 
   useEffect(() => {
     getStudents().then(d => setStudents(d.students)).catch(e => setError(String(e)))
+    // Prefer the local webcam. If it's busy — the backend perception service is the
+    // single camera owner and holds /dev/video0 — fall back to the server MJPEG stream.
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
-      .then(s => { sr.current = s; if (vr.current) vr.current.srcObject = s })
-      .catch(e => setError(`Camera: ${e.message}`))
+      .then(s => { sr.current = s; setCamSource('user'); if (vr.current) vr.current.srcObject = s })
+      .catch(() => {
+        setCamSource('stream')
+        setCamNote('Local camera unavailable (backend perception owns it) — capturing from the server stream. Frames include detection boxes.')
+      })
     return () => { sr.current?.getTracks().forEach(t => t.stop()) }
   }, [])
 
+  // Re-attach the stream if the <video> mounts after getUserMedia resolved
+  // (the capture card only renders once a student is selected).
+  useEffect(() => {
+    if (camSource === 'user' && vr.current && sr.current) vr.current.srcObject = sr.current
+  }, [camSource, selectedId])
+
   const capture = () => {
-    const v = vr.current; const c = cr.current
-    if (!v || !c) return
-    c.width = v.videoWidth; c.height = v.videoHeight
-    c.getContext('2d')!.drawImage(v, 0, 0)
+    const c = cr.current
+    if (!c) return
+    let src: CanvasImageSource | null = null
+    let w = 0, h = 0
+    if (camSource === 'user' && vr.current) { src = vr.current; w = vr.current.videoWidth; h = vr.current.videoHeight }
+    else if (camSource === 'stream' && ir.current) { src = ir.current; w = ir.current.naturalWidth; h = ir.current.naturalHeight }
+    if (!src || !w || !h) { setError('No camera frame yet — is the camera connected?'); return }
+    c.width = w; c.height = h
+    c.getContext('2d')!.drawImage(src, 0, 0, w, h)
     c.toBlob(b => { if (b) setShots(p => [...p, b]) }, 'image/jpeg', 0.9)
   }
 
@@ -87,8 +108,13 @@ export default function Register() {
 
       {selectedId && selectedId !== '__new__' && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <video ref={vr} autoPlay playsInline muted
-            style={{ width: '100%', maxHeight: 320, borderRadius: 4, display: 'block', background: '#000' }} />
+          {camNote && <p style={{ fontSize: 12, color: '#d69e2e', margin: '0 0 8px' }}>{'⚠'} {camNote}</p>}
+          {camSource === 'stream'
+            ? <img ref={ir} src="/stream.mjpeg" alt="server camera"
+                onError={() => setCamNote('Server camera stream offline — no frames available.')}
+                style={{ width: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 4, display: 'block', background: '#000' }} />
+            : <video ref={vr} autoPlay playsInline muted
+                style={{ width: '100%', maxHeight: 320, borderRadius: 4, display: 'block', background: '#000' }} />}
           <canvas ref={cr} style={{ display: 'none' }} />
           <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
             <button className="btn" onClick={capture} disabled={uploading}>Capture</button>
