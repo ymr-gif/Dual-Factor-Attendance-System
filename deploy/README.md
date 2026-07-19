@@ -29,7 +29,12 @@ What it does (idempotent, safe to re-run):
 
 Then open **`http://localhost:8001/app/setup`** and finish in the browser (Step 42 — no terminal).
 
-Useful overrides: `NFC_PYTHON=/path/to/python`, `NFC_PORT`, `NFC_DB_PORT`, `NFC_NO_SYSTEMD=1`.
+Useful overrides: `NFC_PYTHON=/path/to/python`, `NFC_PORT`, `NFC_DB_PORT`, `NFC_NO_AUTOSTART=1`.
+
+**macOS** is fully supported by the same installer — it uses **launchd** agents
+(`deploy/launchd/`) instead of systemd, auto-detects the Arduino at `/dev/cu.usbmodem*`, and runs
+on CPU (no CUDA). Prereqs: `xcode-select --install`, `brew install python@3.11 node`, Docker Desktop.
+See the **Running on macOS** section in the root `README.md` for the full walkthrough.
 
 ## Kiosk auto-start (Step 40)
 

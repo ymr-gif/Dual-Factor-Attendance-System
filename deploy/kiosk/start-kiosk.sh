@@ -12,11 +12,21 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 
+FLAGS=(--kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --incognito)
+
+if [ "$(uname -s)" = "Darwin" ]; then
+  # macOS: Chrome/Chromium/Edge live in /Applications as .app bundles.
+  for app in "Google Chrome" "Chromium" "Microsoft Edge"; do
+    BIN="/Applications/$app.app/Contents/MacOS/${app%% *}"
+    [ -x "$BIN" ] || BIN="/Applications/$app.app/Contents/MacOS/$app"
+    [ -x "$BIN" ] && { exec "$BIN" "${FLAGS[@]}" "$URL"; }
+  done
+  echo "No Chrome/Chromium/Edge in /Applications. Open $URL manually." >&2; exit 1
+fi
+
 BROWSER="$(command -v chromium || command -v chromium-browser || command -v google-chrome || true)"
 if [ -z "$BROWSER" ]; then
   echo "No Chromium/Chrome found. Install one, or open $URL manually." >&2
   exit 1
 fi
-
-exec "$BROWSER" --kiosk --noerrdialogs --disable-infobars \
-  --disable-session-crashed-bubble --incognito "$URL"
+exec "$BROWSER" "${FLAGS[@]}" "$URL"
