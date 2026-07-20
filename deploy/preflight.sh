@@ -13,7 +13,13 @@ echo "== nfc-scan preflight ($OS) =="
 
 command -v docker  >/dev/null 2>&1 && ok "docker present" || bad "docker missing (needed for Postgres; use Docker Desktop on macOS)"
 command -v node    >/dev/null 2>&1 && ok "node present ($(node -v 2>/dev/null))" || warn "node missing (needed to build the SPA)"
-command -v python3 >/dev/null 2>&1 && ok "python3 present ($(python3 -V 2>&1))" || bad "python3 missing"
+if command -v python3 >/dev/null 2>&1; then
+  pv="$(python3 -c 'import sys;print("%d.%d"%sys.version_info[:2])' 2>/dev/null)"
+  case "$pv" in
+    3.10|3.11|3.12) ok "python3 present ($(python3 -V 2>&1))";;
+    *) warn "python3 is $pv — onnxruntime needs 3.10–3.12; installer will use python3.11 if present (brew install python@3.11)";;
+  esac
+else bad "python3 missing"; fi
 
 if command -v nvidia-smi >/dev/null 2>&1; then
   ok "NVIDIA GPU detected — set USE_GPU=true for ~5-10x on recognition"

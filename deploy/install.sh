@@ -42,13 +42,41 @@ else
 fi
 
 # 3) Python environment
+# onnxruntime / insightface only ship wheels for CPython 3.10–3.12 — NOT 3.13/3.14.
+_pyver(){ "$1" -c 'import sys;print("%d.%d"%sys.version_info[:2])' 2>/dev/null; }
+_supported(){ case "$1" in 3.10|3.11|3.12) return 0;; *) return 1;; esac; }
+find_supported_py(){
+  local c
+  for c in python3.11 python3.12 python3.10 python3 \
+           /opt/homebrew/bin/python3.11 /usr/local/bin/python3.11 \
+           /opt/homebrew/bin/python3.12 /usr/local/bin/python3.12; do
+    command -v "$c" >/dev/null 2>&1 || [ -x "$c" ] || continue
+    _supported "$(_pyver "$c")" && { echo "$c"; return 0; }
+  done
+  return 1
+}
+
 if [ -n "${NFC_PYTHON:-}" ]; then
-  PY="$NFC_PYTHON"; say "Reusing interpreter: $PY"
+  PY="$NFC_PYTHON"; say "Reusing interpreter: $PY ($(_pyver "$PY"))"
 else
-  BASE_PY="python3"; command -v python3.11 >/dev/null 2>&1 && BASE_PY="python3.11"
-  if [ ! -d .venv ]; then say "Creating virtualenv (.venv) with $BASE_PY"; "$BASE_PY" -m venv .venv; fi
+  # Recreate the venv if missing or built with an unsupported Python (e.g. 3.14 -> no onnxruntime).
+  if [ -x "$APP_DIR/.venv/bin/python" ] && ! _supported "$(_pyver "$APP_DIR/.venv/bin/python")"; then
+    say "Existing .venv uses Python $(_pyver "$APP_DIR/.venv/bin/python") (no onnxruntime wheels) — recreating"
+    rm -rf "$APP_DIR/.venv"
+  fi
+  if [ ! -d .venv ]; then
+    BASE_PY="$(find_supported_py || true)"
+    if [ -z "$BASE_PY" ]; then
+      echo "!! Need Python 3.10–3.12 (onnxruntime has no wheels for 3.13+). Install it, then re-run:"
+      echo "     macOS:   brew install python@3.11"
+      echo "     Debian:  sudo apt install python3.11 python3.11-venv"
+      echo "   (or set NFC_PYTHON=/path/to/python3.11)"; exit 1
+    fi
+    say "Creating virtualenv (.venv) with $BASE_PY ($(_pyver "$BASE_PY"))"
+    "$BASE_PY" -m venv .venv
+  fi
   PY="$APP_DIR/.venv/bin/python"
-  say "Installing Python requirements (pulls a large CV tree; on macOS needs Xcode CLT: xcode-select --install)"
+  say "Installing Python requirements (large CV tree; macOS needs Xcode CLT: xcode-select --install)"
   "$PY" -m pip install --upgrade pip -q
   "$PY" -m pip install -r requirements.txt -q
 fi
