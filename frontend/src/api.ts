@@ -289,6 +289,45 @@ export interface PerceptionState {
 
 export const getPerceptionState = () => req<PerceptionState>('/api/perception/state')
 
+export interface SerialPort {
+  device: string
+  description: string | null
+  manufacturer: string | null
+  product: string | null
+  vid: number | null
+  pid: number | null
+  vendor_name: string | null
+  score: number
+  likely_board: boolean
+}
+
+export interface SerialPorts {
+  ports: SerialPort[]
+  configured: string | null
+  auto_detect: boolean
+  would_open: string | null
+}
+
+export const getSerialPorts = () => req<SerialPorts>('/api/serial/ports')
+
+export interface CameraDevice {
+  index: number
+  name: string
+  model: string | null
+  unique_id: string | null
+  builtin: boolean
+}
+
+export interface CameraList {
+  cameras: CameraDevice[]
+  configured: number | null
+  auto_select: boolean
+  prefer_external: boolean
+  in_use: number
+}
+
+export const getCameras = () => req<CameraList>('/api/cameras')
+
 export interface SetupStatus {
   db: boolean
   token_required: boolean
