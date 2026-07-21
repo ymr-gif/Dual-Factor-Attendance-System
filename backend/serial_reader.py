@@ -5,6 +5,8 @@ import time
 import requests
 import serial
 
+from . import ports
+
 PORT = os.environ.get("SERIAL_PORT", "/dev/ttyACM0")
 BAUD = int(os.environ.get("SERIAL_BAUD", "9600"))
 TAP_URL = os.environ.get("TAP_URL", "http://localhost:8000/tap")
@@ -49,13 +51,25 @@ def flush_queue():
 
 
 def open_serial():
+    """Block until a board is open. Re-resolves each attempt, so replugging the
+    board under a different name recovers without editing .env."""
+    warned = False
     while True:
+        port = ports.pick_port(PORT)
+        if port is None:
+            if not warned:
+                print("no serial port found — waiting for a board "
+                      "(run 'make ports' to see what's connected)")
+                warned = True
+            time.sleep(RECONNECT_DELAY)
+            continue
         try:
-            ser = serial.Serial(PORT, BAUD, timeout=1)
-            print(f"listening on {PORT} @ {BAUD}")
+            ser = serial.Serial(port, BAUD, timeout=1)
+            print(f"listening on {port} @ {BAUD}")
             return ser
         except serial.SerialException as e:
-            print(f"could not open {PORT}: {e} — retrying in {RECONNECT_DELAY}s")
+            print(f"could not open {port}: {e} — retrying in {RECONNECT_DELAY}s")
+            warned = False
             time.sleep(RECONNECT_DELAY)
 
 

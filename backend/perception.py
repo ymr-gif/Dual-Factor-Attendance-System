@@ -42,6 +42,8 @@ PERCEPTION_SOURCE = os.environ.get("PERCEPTION_SOURCE") or None
 TRACK_IOU_THRESH = float(os.environ.get("TRACK_IOU_THRESH", "0.3"))
 TRACK_MAX_MISSES = int(os.environ.get("TRACK_MAX_MISSES", "15"))
 PERCEPTION_FPS = float(os.environ.get("PERCEPTION_FPS", "15"))  # loop-rate cap
+# Consecutive failed reads (~0.1s apart) tolerated before a live camera is given up on.
+CAMERA_MAX_MISSES = int(os.environ.get("CAMERA_MAX_MISSES", "600"))
 
 
 def enabled() -> bool:
@@ -216,12 +218,30 @@ def _camera_frames():
     if not cap.isOpened():
         print("[perception] camera/source not available — perception idle")
         return
+    # A live camera needs a moment before it delivers frames (AVFoundation on macOS
+    # returns ok=False for the first reads while the capture session starts), and can
+    # hiccup later. A video file, by contrast, means EOF the first time read() fails.
+    is_live = PERCEPTION_SOURCE is None or str(PERCEPTION_SOURCE).isdigit()
+    if is_live:
+        for _ in range(face.CAMERA_WARMUP_FRAMES):
+            cap.read()
     delay = 1.0 / PERCEPTION_FPS if PERCEPTION_FPS > 0 else 0.0
+    misses = 0
     try:
         while True:
             ok, frame = cap.read()
             if not ok or frame is None:
-                break  # EOF (video file) or a camera hiccup
+                if not is_live:
+                    break  # EOF (video file)
+                misses += 1
+                if misses == 1 or misses % 100 == 0:
+                    print(f"[perception] no frame from camera (x{misses}) — retrying")
+                if misses > CAMERA_MAX_MISSES:
+                    print("[perception] camera stopped delivering frames — perception idle")
+                    break
+                time.sleep(0.1)
+                continue
+            misses = 0
             yield frame
             if delay:
                 time.sleep(delay)
@@ -232,7 +252,7 @@ def _camera_frames():
 def main():
     print(
         f"[perception] starting (single camera owner) source="
-        f"{PERCEPTION_SOURCE if PERCEPTION_SOURCE is not None else face.CAMERA_INDEX} "
+        f"{PERCEPTION_SOURCE if PERCEPTION_SOURCE is not None else face.camera_index()} "
         f"iou={TRACK_IOU_THRESH} max_misses={TRACK_MAX_MISSES} fps={PERCEPTION_FPS}"
     )
     run(_camera_frames())
