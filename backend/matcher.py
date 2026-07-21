@@ -108,9 +108,12 @@ class Matcher:
         last = self._last_tap.get(uid)
         if last is not None and now - last < self.cooldown:
             return None
-        self._last_tap[uid] = now
+        # Construct before recording the debounce timestamp: if this raises, the
+        # tap never entered the buffer, and the caller (the /tap 500) should see
+        # the same failure on retry rather than a misleading 'debounced' success.
         t = PendingTap(self._next_id, uid, student_id, student, embedding, now)
         self._next_id += 1
+        self._last_tap[uid] = now
         self._taps.append(t)
         return t.id
 
