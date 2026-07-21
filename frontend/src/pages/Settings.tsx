@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getSettings, setSetting } from '../api'
+import CamerasPanel from '../components/CamerasPanel'
+import SerialPortsPanel from '../components/SerialPortsPanel'
 
 export default function Settings() {
   const [settings, setSettings] = useState<Record<string, string>>({})
@@ -54,6 +56,9 @@ export default function Settings() {
           ))}
         </div>
       )}
+
+      <SerialPortsPanel />
+      <CamerasPanel />
 
       {Object.keys(settings).length > 0 && (
         <details style={{ marginTop: 24, opacity: 0.5 }}>

@@ -50,9 +50,10 @@ def main():
     if args.match and ref is None:
         print(f"note: {args.match} has no enrolled face_embedding — match will be skipped")
 
-    cap = cv2.VideoCapture(face.CAMERA_INDEX)
+    cam_idx = face.camera_index()
+    cap = cv2.VideoCapture(cam_idx)
     if not cap.isOpened():
-        print(f"cannot open camera index {face.CAMERA_INDEX}")
+        print(f"cannot open camera index {cam_idx}")
         return
 
     face.get_app()  # warm the model
@@ -107,7 +108,7 @@ def main():
             now = time.time()
             fps = 0.9 * fps + 0.1 * (1.0 / max(now - t_prev, 1e-6))
             t_prev = now
-            head = (f"cam{face.CAMERA_INDEX}  faces:{len(dets)}  "
+            head = (f"cam{cam_idx}  faces:{len(dets)}  "
                     f"MIN_FACE_PX:{face.MIN_FACE_PX}  FACE_THR:{face.FACE_THRESHOLD}  "
                     f"{fps:4.1f}fps")
             cv2.putText(frame, head, (8, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, WHITE, 1)
