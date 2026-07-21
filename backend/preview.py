@@ -35,7 +35,7 @@ def _load_reference(student_id):
             row = cur.fetchone()
     if not row or row["face_embedding"] is None:
         return None
-    return np.asarray(row["face_embedding"], dtype=np.float32)
+    return db.embedding_to_numpy(row["face_embedding"])
 
 
 def main():
