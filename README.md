@@ -13,6 +13,9 @@ viewer.
 > [`docs/design-notes.md`](docs/design-notes.md). The bundled InsightFace `buffalo_l` model is
 > **non-commercial research only** ([`NOTICE`](NOTICE)) — obtain rights before any commercial use.
 
+This is the backend. The research proposal defense presentation for this project (S.A.F.E.) lives
+in [dual-factor-attendance-defense](https://github.com/ymr-gif/dual-factor-attendance-defense).
+
 ## Quickstart
 
 **One command** — same installer runs on **Debian/Ubuntu (systemd)** and **macOS (launchd)**. It
