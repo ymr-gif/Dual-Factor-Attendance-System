@@ -3,7 +3,6 @@
 Detailed record of every built step beyond the original 1–9 spec: files touched, env knobs,
 and verification status.
 
-- **Plan / order:** `ROADMAP.md` (Build sequence at top — the dependency-ordered path).
 - **Constraints / failure modes:** `docs/design-notes.md`.
 - **Test runbooks:** `docs/verification.md`, `docs/face-verification.md`, `docs/privacy.md`.
 
