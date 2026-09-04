@@ -2,7 +2,7 @@
 
 Cross-cutting decisions that don't belong to a single build step. Read this **before building
 Track 30–35** (the continuous-flow guardpost) — it records the constraints and failure behaviors
-that are easy to get silently wrong. Companion to [`../ROADMAP.md`](../ROADMAP.md).
+that are easy to get silently wrong. Companion to the README's "What's next" list.
 
 Status: **decisions on record + open questions**, not yet all implemented. Each item says whether
 it's decided or still open.
@@ -22,7 +22,7 @@ it's decided or still open.
   **once**, then non-technical staff just power it on. Primary OS = **Linux** (kiosk + GPU + camera +
   serial reliability, reuses systemd units); **Windows Inno Setup `.exe`** is a documented fallback
   if the box must run Windows. A literal single end-user exe is *not* a goal — the appliance is.
-  See ROADMAP **Deploy track (40–44)**.
+  See `deploy/README.md`.
 - **Why not "everything in one exe"**: Postgres and the NVIDIA driver/CUDA runtime are host-level
   and can't ship inside an app bundle; on Windows, Docker + webcam + serial + GPU together is
   fragile → the guardpost box installs **natively**, not via Docker (Docker stays a dev-DB convenience).
@@ -30,13 +30,13 @@ it's decided or still open.
 ## 2. Non-goals (explicit — don't build these unless re-scoped)
 - Not a general access-control / door-lock system (attendance logging only; Arduino drives no relay lock).
 - Not multi-site / multi-tenant (single guardpost, single DB).
-- Not cardless *presence* — cardless 1:N exists **only** to name tailgaters (§ROADMAP Step 33).
+- Not cardless *presence* — cardless 1:N exists **only** to name tailgaters (tailgater naming, see [`build-log.md`](build-log.md)).
 - No 3D-mask / high-end presentation-attack defense (passive liveness catches photo/replay, not masks).
 - No external SSO / identity provider — roles via a local `operators` table.
 
 ## 3. Hard constraints (violating these causes silent bugs)
 - **Single camera owner.** Only one process may open `/dev/video0`. The perception service
-  (ROADMAP Step 30) owns it; `capture_probe()`-style per-tap opens and `preview.py` must not run
+  (`backend/perception.py`) owns it; `capture_probe()`-style per-tap opens and `preview.py` must not run
   against the same camera concurrently. Everything else subscribes to its published streams.
   *(Realized in Step 30: `backend/perception.py` owns the loop; camera opening is centralized in
   `face.open_capture()`; when `PERCEPTION_ENABLED=true`, `/tap` no longer opens the camera and
@@ -73,7 +73,7 @@ is `TAP_COOLDOWN_SEC`; recognition-backpressure bound is `MAX_FACE_BUFFER` drop-
 | Perception process crash | Same as camera-dead + auto-restart (systemd) | Bounded restart loop. |
 | Postgres unreachable | Reader queues taps (`failed_taps.jsonl`); matcher retries; local roster cache verifies | Extends existing queue (Backbone Step 22). |
 | Recognition backpressure (faces > throughput) | **Bounded** queue, drop oldest frames, keep newest face per track | Never grow memory unbounded. |
-| Duplicate/held-card reads | Debounce within `TAP_COOLDOWN_SEC` | ROADMAP Step 31/23. |
+| Duplicate/held-card reads | Debounce within `TAP_COOLDOWN_SEC` | See `backend/matcher.py`. |
 | Tap, no matching face in window | `flagged: no-face` → review queue | Student pulled aside. |
 | Face below threshold for its tap | `flagged: mismatch` → review | Possible buddy-punch or bad capture. |
 | Face matching no tap | `tailgating` + cardless whole-DB name lookup → alert + review | Never marked present. |
