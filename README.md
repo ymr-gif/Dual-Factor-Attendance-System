@@ -79,7 +79,6 @@ curl -X POST localhost:8001/tap -H 'Content-Type: application/json' -d '{"uid":"
 
 ## Docs map
 
-- **[`ROADMAP.md`](ROADMAP.md)** — the plan (five tracks, dependency-ordered build sequence).
 - **[`docs/build-log.md`](docs/build-log.md)** — what each built step actually contains.
 - **[`docs/design-notes.md`](docs/design-notes.md)** — constraints, failure modes, legal/ethical gates.
 - **[`deploy/README.md`](deploy/README.md)** — appliance install, kiosk, backup/update (Steps 40–43).
@@ -259,31 +258,22 @@ arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno arduino/nfc_scan
 - [x] Real SMTP guardian notify — `backend/notify.py` emails the guardian when configured; console line always prints. Off until `SMTP_*` set. ⚠ not sent against a live provider yet
 - [x] Buddy-punch mitigation (2FA enforced) — `backend/decision.py` collapses face+liveness into a per-tap `status`; `ENFORCE_2FA` rejects a failed 2nd factor. **Off by default** (fail-open preserved). ⚠ flip on only after live validation
 
-## Roadmap
+## What's next
 
-Next up is the user-facing layer plus a continuous multi-student guardpost. The ordered build plan
-is in [`ROADMAP.md`](ROADMAP.md):
-- **UI track (10–16)** — one-command setup ✓ (Step 10), API + live stream ✓ (Step 11:
-  `GET /api/attendance|students|stats/today|config`, `WS /ws/taps`, `OPERATOR_TOKEN` auth),
-  SPA scaffold ✓ (Step 12: Vite+React+TS `frontend/`, served at `/app`), operator dashboard ✓
-  (Step 13: auth gate, today panel, live feed, history table).
-- **Backbone track (20–23)** — privacy/compliance ✓ (Step 20: consent gate, retention/purge,
-  right-to-erasure, audit log — see [`docs/privacy.md`](docs/privacy.md)), attendance sessions +
-  digest, reliability, anti-fraud.
-- **Flow track (30–35)** — continuous perception ✓ (Step 30: `backend/perception.py`,
-  single camera owner, IoU tracking, recognition once per track) + tap↔face correlation ✓
-  (Step 31: `backend/matcher.py`, async tap buffer + Hungarian, statuses
-  accepted/mismatch/no_face/spoof/tailgating) for a 3–5 students/sec guardpost,
-  boxes-only public viewer, in-app register wizard, review queue.
-- **Deploy track (40–44)** — one-touch install onto the GPU box as a boot-on appliance (Linux primary, Windows `.exe` fallback), in-UI first-run wizard, updates/backup, release CI.
-- **Tuning track (50–54)** — admin runtime panel: GPU/CPU device toggle, resolution presets + advanced, and an optimizer (auto-detect button, presets, adaptive), all hot-applied without a restart.
+Built and running: one-command appliance install, operator dashboard, live tap stream,
+continuous perception with tap↔face correlation, and the consent/retention tooling.
 
-Cross-cutting constraints, failure modes, edge cases, and the legal/consent + accuracy-eval gates
-are in [`docs/design-notes.md`](docs/design-notes.md) — **read it before starting the Flow track.**
+Next, in dependency order:
 
-A step-by-step **verification runbook** for everything built so far (Steps 10–33) is in
-[`docs/verification.md`](docs/verification.md); data-handling/consent/retention is in
-[`docs/privacy.md`](docs/privacy.md).
+1. Calibrate the liveness threshold against real spoof attempts, then enforce it.
+2. Verify guardian email against a live SMTP provider.
+3. Operator review queue and in-app registration wizard.
+4. Validate GPU throughput on the target box for a 3–5 students/sec guardpost.
+
+Constraints, failure modes, and the legal/consent gates are in
+[`docs/design-notes.md`](docs/design-notes.md) — read it before extending the perception path.
+Per-step detail of what is already built is in [`docs/build-log.md`](docs/build-log.md); the
+verification runbook is [`docs/verification.md`](docs/verification.md).
 
 ## Notes
 
