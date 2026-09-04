@@ -245,7 +245,7 @@ Reflashing the Arduino:
 arduino-cli compile --fqbn arduino:avr:uno arduino/nfc_scan
 arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno arduino/nfc_scan
 ```
-(`arduino-cli` ships inside the Arduino IDE flatpak if not on PATH — see project CLAUDE.md for the bundled path.)
+(`arduino-cli` ships inside the Arduino IDE flatpak if it is not on PATH: `/var/lib/flatpak/app/cc.arduino.IDE2/current/active/files/extra/resources/app/lib/backend/resources/arduino-cli`.)
 
 ## Status
 

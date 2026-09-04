@@ -1,15 +1,14 @@
 # Build log — what each built step contains (Steps 10+)
 
 Detailed record of every built step beyond the original 1–9 spec: files touched, env knobs,
-and verification status. Moved out of `CLAUDE.md` to keep the always-loaded context lean.
+and verification status.
 
 - **Plan / order:** `ROADMAP.md` (Build sequence at top — the dependency-ordered path).
 - **Constraints / failure modes:** `docs/design-notes.md`.
-- **Active UI handoff:** `handoff.md`.
 - **Test runbooks:** `docs/verification.md`, `docs/face-verification.md`, `docs/privacy.md`.
 
 > **Read the relevant entry before modifying a built area.** After changing code, run
-> `graphify update .` and update the matching entry here + `ROADMAP.md`/README "Status".
+> update the matching entry here and the README "Status" list.
 
 ---
 
@@ -47,7 +46,7 @@ and verification status. Moved out of `CLAUDE.md` to keep the always-loaded cont
 
 **Step 34 (manual review queue) is built** — `frontend/src/pages/Review.tsx`: unresolved review table with Confirm/Override/Dismiss per row, confirmation dialog. Backend endpoints `GET /api/review` + `POST /api/review/{id}/resolve` (from management layer).
 
-**Handoff UI surfaces (Tasks 1–9) are built** — the `handoff.md` set, pure frontend over existing endpoints: public boxes-only `Viewer`, attendance `Summary`/`Sessions`/CSV export, `Audit`/`Reenroll`/`Lookup` panels, `Ops`/health readout, kiosk audio. Pages in `frontend/src/pages/`, wired in `App.tsx` (operator pages behind `authed`; Viewer + Kiosk public). `api.ts` gained `reqBlob`/`reqText` + the per-task fetchers. Task 10 (README screenshots / final polish) deferred to Step 16.
+**UI surfaces (Tasks 1–9) are built** — pure frontend over existing endpoints: public boxes-only `Viewer`, attendance `Summary`/`Sessions`/CSV export, `Audit`/`Reenroll`/`Lookup` panels, `Ops`/health readout, kiosk audio. Pages in `frontend/src/pages/`, wired in `App.tsx` (operator pages behind `authed`; Viewer + Kiosk public). `api.ts` gained `reqBlob`/`reqText` + the per-task fetchers. Task 10 (README screenshots / final polish) deferred to Step 16.
 
 ## Camera stream + Register hardening (recent)
 
