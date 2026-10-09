@@ -41,13 +41,20 @@ seen within `ASSOC_WINDOW_SEC` (default 4 seconds) of it. For an enrolled card `
 | `unverified` | Known card, but no factor could run (no camera, no enrolled face, no consent). |
 | `unregistered` | The card is not on the roster. |
 
-The matcher also writes `no_face` (no face in the tap's window), `mismatch` (a face scored below
-the threshold), `spoof` (the face matched but a calibrated liveness check said not live) and
-`tailgating` (a face with no tap to claim it). Every status name is a constant in
-`backend/decision.py`.
+The matcher also writes `no_face` (the camera was watching and no face came within the tap's
+window), `mismatch` (a face scored below the threshold), `spoof` (the face matched but a calibrated
+liveness check said not live) and `tailgating` (a face with no tap to claim it). Every status name
+is a constant in `backend/decision.py`.
+
+**What counts as present.** `accepted`, `flagged` and `unverified` count. `rejected`, `no_face`,
+`mismatch`, `spoof` and `tailgating` do not. Every tap that failed a check goes to the review queue
+(the Review page), and a tap an operator overrides there counts. The summary, the late flag and
+the check-in/check-out sessions all apply this one rule, `decision.counts_as_present()`.
 
 The checks fail open. A factor that cannot run is stored as NULL, not as a failure, and the tap is
-still logged. A dead camera never blocks a tap; it shows up as `unverified` or `no_face`.
+logged `unverified`, which still counts. That includes a camera that is down: when no frame
+arrived during a tap's window, the tap is `unverified`, the backend prints an `[ALERT]` line, and
+the tap is put in the review queue so the outage cannot pass unseen.
 
 ## Install
 
@@ -118,7 +125,8 @@ and no secret is committed. These switches change what the system does:
 | `LIVENESS_ENABLED` | `true` | Run the MiniFASNet liveness check. |
 | `FACE_CONSENT_REQUIRED` | `false` | A student without recorded consent cannot be enrolled and gets no face check. |
 | `NOTIFY_EMAIL_ENABLED` | `false` | Email the guardian for each logged tap. Needs `SMTP_HOST` and the other `SMTP_*` values. |
-| `OPERATOR_TOKEN` | empty | When set, `/api/*` (except `/api/setup/status`) and the `/ws/taps` WebSocket require it. When empty they are open. |
+| `OPERATOR_TOKEN` | empty | When set, `/api/*` (except `/api/setup/status`), the `/ws/taps` WebSocket and the camera stream require it. When empty they are open. |
+| `ATTENDANCE_TZ` | unset | Time zone that days and `LATE_CUTOFF` are counted in. Unset means the zone of the machine the backend runs on. |
 | `USE_GPU` | `false` | Run both models on CUDA, falling back to CPU if it is unavailable. |
 
 `.env` is read by the installed services and by Docker Compose. A process started by hand,
@@ -131,9 +139,15 @@ Required before real use, and not done:
 - The subjects are children and face embeddings are biometric data. No data protection impact
   assessment (DPIA) exists, and the consent gate `FACE_CONSENT_REQUIRED` is off by default.
 - Face embeddings are not encrypted at rest, and `deploy/backup.sh` dumps them as plain SQL.
-- With `OPERATOR_TOKEN` unset the operator API is open to anyone who can reach port 8001. When set
-  it is one shared token, with no per-user roles. `/tap`, `/metrics` and `/stream.mjpeg` never ask
-  for a token, and the stream (shown by the Viewer page) is the live camera image with face boxes.
+- With `OPERATOR_TOKEN` unset the operator API and the camera stream are open to anyone who can
+  reach port 8001. When set it is one shared token, with no per-user roles: anyone holding it can
+  override a review. `/tap` and `/metrics` never ask for a token. The camera stream is the live
+  image with face boxes; it opens with a 60-second ticket, but the WebSocket still carries the
+  token in its URL.
+- A camera that is down does not stop attendance. A tap made while no frame arrives is counted on
+  the card alone until an operator reads the review queue, so whoever can unplug the camera can do
+  that. This is the documented fail-open choice ([`docs/design-notes.md`](docs/design-notes.md)),
+  not an oversight.
 - `buffalo_l` may not be used commercially without obtaining rights ([`NOTICE`](NOTICE)).
 
 Built, but not verified or not finished:
@@ -145,14 +159,11 @@ Built, but not verified or not finished:
   it is set, the matcher records the liveness score and does not act on it.
 - Guardian email has not been sent through a live SMTP provider, and throughput on the intended
   GPU machine has not been measured.
-- The status does not yet affect the count. `decision.counts_as_present()` defines which statuses
-  should count as attendance, but nothing calls it: `GET /api/attendance/summary` counts a student
-  present after any tap of their card, `rejected`, `mismatch` and `spoof` included. The Review page
-  and `/api/review` exist, but nothing adds rows to `review_queue`.
+- `ENFORCE_2FA` is read only when perception is off. With perception on it changes nothing:
+  `mismatch` and `spoof` never count, and a camera outage still fails open.
 
 Next, in order: calibrate liveness against real spoof attempts and then enforce it; send email
-through a live provider; make the present count and the review queue use the per-tap status;
-measure throughput against the target of 3 to 5 students per second. Constraints and failure modes
+through a live provider; measure throughput against the target of 3 to 5 students per second. Constraints and failure modes
 are in [`docs/design-notes.md`](docs/design-notes.md).
 
 ## Development
@@ -165,8 +176,10 @@ make test
 
 The tests need no database, camera, model files or network: `tests/conftest.py` replaces them with
 in-memory fakes and stubs the heavy packages that are not installed. They cover the status truth
-table (`tests/test_decision.py`) and `/tap` and `/health` through FastAPI's test client
-(`tests/test_tap.py`). The matcher, the SQL, the UI and the install scripts have no tests yet.
+table and the count rule (`tests/test_decision.py`), `/tap`, `/health`, the review queue and the
+stream guard through FastAPI's test client (`tests/test_tap.py`), the matcher's verdict for a tap
+no face claimed (`tests/test_matcher.py`) and the time zone handling (`tests/test_clock.py`). The
+SQL itself, tap-to-face assignment, the UI and the install scripts have no tests yet.
 
 ## Docs
 

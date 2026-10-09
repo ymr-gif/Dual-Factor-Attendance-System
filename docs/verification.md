@@ -152,7 +152,8 @@ print("matcher edge cases OK")
 PY
 ```
 
-Async path end-to-end (perception on, no camera → tap queues then resolves to `no_face`):
+Async path end-to-end (perception on, no camera → tap queues, then resolves to `unverified`
+because no frame arrived during its window, and is queued for review):
 
 ```bash
 PERCEPTION_ENABLED=true PERCEPTION_SOURCE=/nonexistent.mp4 ASSOC_WINDOW_SEC=1 RESOLVE_INTERVAL_SEC=0.3 \
@@ -160,10 +161,12 @@ PERCEPTION_ENABLED=true PERCEPTION_SOURCE=/nonexistent.mp4 ASSOC_WINDOW_SEC=1 RE
 sleep 6
 curl -s -XPOST localhost:8002/tap -H 'Content-Type: application/json' -d '{"uid":"C3BE343A"}'  # {"status":"queued",...}
 sleep 3
-curl -s "localhost:8002/api/attendance?student_id=S001&limit=1" | $PY -m json.tool  # status: no_face
+curl -s "localhost:8002/api/attendance?student_id=S001&limit=1" | $PY -m json.tool  # status: unverified
+curl -s localhost:8002/api/review | $PY -m json.tool  # one entry, reason "camera delivered no frame ..."
 kill %1
 ```
-Pass: edge cases assert clean; queued tap async-resolves to `no_face`.
+Pass: edge cases assert clean; queued tap async-resolves to `unverified`, with a review entry and
+an `[ALERT]` line in the backend output.
 
 ---
 
