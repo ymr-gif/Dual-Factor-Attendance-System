@@ -98,13 +98,14 @@ class Matcher:
         self.clock = clock or _time.time
         self.max_face_buffer = max_face_buffer
         self.max_tailgated_tracks = max_tailgated_tracks
-        # One tailgating verdict per physical presence episode (track_id): a
-        # refreshed PendingFace for a track already flagged is the same
-        # continuous dwell (perception.py's FACE_REFRESH_SEC re-emits it every
-        # few seconds), not a new episode — suppress the duplicate outcome.
-        # Bounded/drop-oldest so a long-running kiosk process never grows this
-        # unbounded.
-        self._tailgated_tracks: OrderedDict = OrderedDict()
+        # Tracks whose presence already has a verdict: a tap claimed one of the
+        # track's faces, or the track was reported as tailgating once. A later
+        # PendingFace for such a track is the same continuous dwell
+        # (perception.py's FACE_REFRESH_SEC re-emits it every few seconds), not a
+        # new cardless person, so it produces no tailgating outcome. It stays
+        # claimable by a later tap. Bounded/drop-oldest so a long-running kiosk
+        # process never grows this unbounded.
+        self._settled_tracks: OrderedDict = OrderedDict()
         self._taps: list[PendingTap] = []
         self._faces: list[PendingFace] = []
         self._last_tap: dict[str, float] = {}
@@ -167,6 +168,7 @@ class Matcher:
                 # only genuinely unassigned faces go on to be tailgating.
                 f = faces[j]
                 f.consumed = True
+                self._settle(f.track_id)
                 sim = face.cosine(t.embedding, f.embedding)
                 if sim < self.threshold:
                     outcomes.append(self._mismatch(t))
@@ -188,15 +190,14 @@ class Matcher:
                 abs(t.ts - f.ts) <= self.window for t in self._taps
             ):
                 f.emitted = True
-                if f.track_id in self._tailgated_tracks:
-                    # Already flagged this track's presence episode once; this
-                    # is a later refresh of the same continuous dwell, not a
-                    # new tailgater. Still evicted normally (f.emitted above),
-                    # just no repeat outcome.
+                if f.track_id is not None and f.track_id in self._settled_tracks:
+                    # This track's presence already has its verdict (a tap claimed
+                    # it, or it was flagged once); this is a later refresh of the
+                    # same continuous dwell, not a new tailgater. Still evicted
+                    # normally (f.emitted above), just no repeat outcome.
+                    self._settled_tracks.move_to_end(f.track_id)
                     continue
-                self._tailgated_tracks[f.track_id] = None
-                if len(self._tailgated_tracks) > self.max_tailgated_tracks:
-                    self._tailgated_tracks.popitem(last=False)
+                self._settle(f.track_id)
                 outcomes.append(self._tailgating(f))
 
         # Evict resolved / stale faces; keep live (within-window, unclaimed) ones.
@@ -209,6 +210,16 @@ class Matcher:
         for o in outcomes:
             self._emit(o)
         return outcomes
+
+    def _settle(self, track_id):
+        """Remember that this track's presence has had its verdict. A face event
+        without a track id identifies no presence, so it is never remembered."""
+        if track_id is None:
+            return
+        self._settled_tracks[track_id] = None
+        self._settled_tracks.move_to_end(track_id)
+        while len(self._settled_tracks) > self.max_tailgated_tracks:
+            self._settled_tracks.popitem(last=False)
 
     def _assign(self, taps, faces):
         """Optimal (Hungarian) tap->face assignment. Only time-valid pairs (within
