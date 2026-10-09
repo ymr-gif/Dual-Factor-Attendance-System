@@ -8,9 +8,8 @@ Usage:
     python -m backend.digest --date 2026-07-19      # specific date
     python -m backend.digest --dry-run              # print only, no email
 
-Schedule via cron:
-    0 18 * * * cd /home/scylla/dev/python-projects/nfc-scan && \
-        /home/scylla/.pyenv/versions/3.11.8/bin/python -m backend.digest
+Schedule via cron (use the interpreter the backend runs under):
+    0 18 * * * cd /path/to/nfc-scan && .venv/bin/python -m backend.digest
 """
 
 import argparse

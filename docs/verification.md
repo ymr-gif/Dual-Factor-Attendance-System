@@ -1,10 +1,11 @@
 # Verification runbook (Steps 10–33)
 
 How to confirm each built feature works. Ordered so you can run top-to-bottom.
-`[CPU]` steps verify fully here; `[GPU/HW]` steps verify their *logic* — real
-throughput / live-camera acceptance waits for the RTX box + devices.
+`[CPU]` steps verify fully on a CPU-only machine; `[GPU/HW]` steps verify their *logic* only.
+Real throughput and live-camera acceptance need the GPU target machine and devices.
 
-Prereqs: Postgres up, backend importable. Two ways to run the backend:
+Prereqs: Postgres up, backend importable. Run every command from the repo root. Two ways
+to run the backend:
 
 ```bash
 # A) docker (Step 10)
@@ -12,7 +13,7 @@ cp .env.example .env
 make up                       # db + backend
 curl -s localhost:8001/health # {"status":"ok","db":true}
 
-# B) local (systemd unit already present on the dev box)
+# B) local (systemd user units, installed by `make appliance`)
 systemctl --user restart nfc-scan-backend
 ```
 
@@ -20,7 +21,7 @@ Shorthands used below:
 
 ```bash
 BASE=http://localhost:8001
-PY=/home/scylla/.pyenv/versions/3.11.8/bin/python   # the env the backend uses
+PY=.venv/bin/python   # the interpreter the backend runs under (or just: python)
 # If OPERATOR_TOKEN is set, add:  -H "X-Operator-Token: $OPERATOR_TOKEN"
 ```
 
@@ -33,7 +34,7 @@ docker compose config -q && echo "compose valid"
 make help                              # lists targets
 curl -s $BASE/health                   # {"status":"ok","db":true}
 ```
-✅ Pass: compose validates, `/health` returns `db:true`.
+Pass: compose validates, `/health` returns `db:true`.
 
 ---
 
@@ -65,7 +66,7 @@ PY
 Auth (only when `OPERATOR_TOKEN` is set): a request **without** the token → `401`,
 **with** it → `200`.
 
-✅ Pass: every endpoint returns JSON, no embeddings leak, a `tap` event streams.
+Pass: every endpoint returns JSON, no embeddings leak, a `tap` event streams.
 
 ---
 
@@ -83,7 +84,7 @@ curl -s "$BASE/app/..%2f..%2f..%2f..%2f..%2fetc%2fpasswd" | grep -q "root:.*:0:0
 # Dev proxy:
 make web-dev    # then open http://localhost:5173/app/ ; /health + /api proxy to :8001
 ```
-✅ Pass: `/app` serves the shell, `/app/kiosk` falls back, traversal blocked, dev proxy reaches the API.
+Pass: `/app` serves the shell, `/app/kiosk` falls back, traversal blocked, dev proxy reaches the API.
 
 ---
 
@@ -113,7 +114,7 @@ print("track ids/frame:", [[t["track_id"] for t in fe["tracks"]] for fe in frame
 print("recognized tracks:", [fe["track_id"] for fe in faces])   # expect [1, 2]
 PY
 ```
-✅ Pass: face A keeps id 1 across frames, B is id 2, recognition fires once per track.
+Pass: face A keeps id 1 across frames, B is id 2, recognition fires once per track.
 Offline video: `PERCEPTION_SOURCE=clip.mp4 PYTHONPATH=. $PY -m backend.perception`.
 
 ---
@@ -162,7 +163,7 @@ sleep 3
 curl -s "localhost:8002/api/attendance?student_id=S001&limit=1" | $PY -m json.tool  # status: no_face
 kill %1
 ```
-✅ Pass: edge cases assert clean; queued tap async-resolves to `no_face`.
+Pass: edge cases assert clean; queued tap async-resolves to `no_face`.
 
 ---
 
@@ -181,7 +182,7 @@ PY
 # With a webcam + an enrolled student that has consent:
 python -m backend.enroll S001 --capture 3      # must NOT crash on the Probe tuple
 ```
-✅ Pass: `average_reference` returns a unit vector; `--capture` runs (needs a camera).
+Pass: `average_reference` returns a unit vector; `--capture` runs (needs a camera).
 
 ---
 
@@ -216,7 +217,7 @@ make purge
 curl -s -XDELETE $BASE/api/students/ZTEST -H 'X-Operator-Actor: tester' | $PY -m json.tool
 curl -s "$BASE/api/audit?limit=3" | $PY -m json.tool      # shows an 'erase' entry
 ```
-✅ Pass: gate off → allowed; gate on + no consent → refused; consent/erase write audit
+Pass: gate off → allowed; gate on + no consent → refused; consent/erase write audit
 rows; `make purge` runs; delete removes the student and logs.
 
 ---
@@ -226,12 +227,12 @@ rows; `make purge` runs; delete removes the student and logs.
 ```bash
 curl -s -XPOST $BASE/tap -H 'Content-Type: application/json' -d '{"uid":"C3BE343A"}' | $PY -m json.tool
 ```
-✅ Pass: returns a `log` with a status (`unverified` if no camera/face — fail-open).
+Pass: returns a `log` with a status (`unverified` if no camera/face — fail-open).
 
 ---
 
 ## Deferred (needs hardware)
 
-- **Step 30/31 live**: real webcam + video-file correlation, 3–5 students/s on the RTX 1050.
+- **Step 30/31 live**: real webcam + video-file correlation, 3–5 students/s on the GPU target machine.
 - **Steps 7/8/9 live**: liveness threshold calibration, real SMTP send, `ENFORCE_2FA=true`.
-- **`make up` full image build**: pulls the large CV/scipy dep tree (slow on this network).
+- **`make up` full image build**: pulls the large CV/scipy dependency tree.

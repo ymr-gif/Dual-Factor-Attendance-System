@@ -1,8 +1,9 @@
 # Deploy — appliance provisioning & operations (Steps 40–43)
 
 > **Prototype / MVP.** This gets the app onto a Linux box and running as an auto-start
-> appliance for a **demo**. It is **not** production-hardened — see the security/legal
-> notes in the root `README.md` before any real deployment with student data.
+> appliance for a **demo**. It is **not** production-hardened — see
+> [Limits and next steps](../README.md#limits-and-next-steps) in the root README before any real
+> deployment with student data.
 
 ## One-command install (Steps 40–41)
 
@@ -31,10 +32,11 @@ Then open **`http://localhost:8001/app/setup`** and finish in the browser (Step 
 
 Useful overrides: `NFC_PYTHON=/path/to/python`, `NFC_PORT`, `NFC_DB_PORT`, `NFC_NO_AUTOSTART=1`.
 
-**macOS** is fully supported by the same installer — it uses **launchd** agents
-(`deploy/launchd/`) instead of systemd, auto-detects the Arduino at `/dev/cu.usbmodem*`, and runs
-on CPU (no CUDA). Prereqs: `xcode-select --install`, `brew install python@3.11 node`, Docker Desktop.
-See the **Running on macOS** section in the root `README.md` for the full walkthrough.
+
+**macOS** uses the same installer. It installs **launchd** agents (`deploy/launchd/`) instead of
+systemd units, auto-detects the Arduino at `/dev/cu.usbmodem*`, and runs on CPU (no CUDA).
+Prereqs: `xcode-select --install`, `brew install python@3.11 node`, Docker Desktop. The
+walkthrough and launchd controls are in [`docs/operations.md`](../docs/operations.md#macos).
 
 ## Kiosk auto-start (Step 40)
 
@@ -46,8 +48,9 @@ cp deploy/kiosk/nfc-scan-kiosk.desktop ~/.config/autostart/
 ```
 
 `deploy/kiosk/start-kiosk.sh` waits for the backend, then opens Chromium `--kiosk` at the
-public **Viewer** (boxes only, no PII). Set `KIOSK_URL=http://localhost:8001/app/kiosk` for the
-verdict screen, or `/app/` for the operator dashboard.
+public **Viewer**, which shows the live camera image with face boxes drawn on it (no names or
+scores). Set `KIOSK_URL=http://localhost:8001/app/kiosk` for the verdict screen, or `/app/` for
+the operator dashboard.
 
 ## Updates, backup & recovery (Step 43)
 
@@ -71,7 +74,10 @@ journalctl --user -u nfc-scan-backend -f
 A graceful restart can hang in `deactivating` while a dashboard WebSocket / `/stream.mjpeg`
 drains — if so: `systemctl --user kill -s SIGKILL nfc-scan-backend && systemctl --user start nfc-scan-backend`.
 
-## Deferred to the real RTX 1050 box
+Start-at-boot (linger), macOS launchd controls, manual runs and the command-line tools are in
+[`docs/operations.md`](../docs/operations.md).
+
+## Deferred to the GPU target machine
 
 Live NVIDIA driver + CUDA/cuDNN + `onnxruntime-gpu`, kiosk auto-login, and camera/serial on
 real hardware. The installer is built and runnable in a VM/container up to those device steps.

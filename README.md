@@ -1,115 +1,102 @@
 # Dual-Factor Attendance System (nfc-scan)
 
-Guardpost attendance for a school kiosk: an **NFC card (RC522)** identifies the student and a
-**face check** confirms it's really them — two factors against cloned/shared cards. A continuous
-perception pipeline correlates taps with faces in real time (tap-then-face or face-then-tap),
-with passive liveness, a live operator dashboard, kiosk verdict screen, and a boxes-only public
-viewer.
+[![CI](https://github.com/ymr-gif/Dual-Factor-Attendance-System/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/ymr-gif/Dual-Factor-Attendance-System/actions/workflows/tests.yml)
 
-> ⚠️ **Prototype / research build — NOT production-ready.** This is an MVP that demonstrates the
-> full process end-to-end. It handles children's biometrics, which is special-category data: a real
-> deployment requires guardian consent + a DPIA, encryption at rest, access-control hardening, and
-> liveness calibration — **none of which are complete here.** See "Not production-ready" below and
-> [`docs/design-notes.md`](docs/design-notes.md). The bundled InsightFace `buffalo_l` model is
-> **non-commercial research only** ([`NOTICE`](NOTICE)) — obtain rights before any commercial use.
+Attendance logging for a school guardpost. A student taps an NFC card on an RC522 reader, which
+says who they claim to be. A camera then checks that the face at the kiosk belongs to that student
+and is a live person, not a photo. A card UID on its own can be cloned or lent to a friend, so the
+face check is the second factor.
 
-## Quickstart
+**Status: research prototype, not production-ready.** It processes children's biometrics and the
+safeguards a real deployment needs are not finished. Read
+[Limits and next steps](#limits-and-next-steps) before putting real student data in it. The
+InsightFace `buffalo_l` face model it uses is licensed for non-commercial research only (see
+[`NOTICE`](NOTICE)).
 
-**One command** — same installer runs on **Debian/Ubuntu (systemd)** and **macOS (launchd)**. It
-installs Postgres+pgvector, Python deps, models, builds the UI, and installs auto-start services:
+This repository holds the code: Arduino sketch, FastAPI backend, React operator UI and install
+scripts. The research proposal defense for the project (S.A.F.E.) is in
+[dual-factor-attendance-defense](https://github.com/ymr-gif/dual-factor-attendance-defense).
+
+## How it works
+
+1. The Arduino sketch (`arduino/nfc_scan/`) reads the card UID and prints it over USB serial. It
+   makes no decision.
+2. `backend/serial_reader.py` forwards each UID to `POST /tap`.
+3. The backend (`backend/main.py`) looks the UID up in Postgres, checks the face with InsightFace
+   `buffalo_l` (cosine similarity against `FACE_THRESHOLD`, default 0.5) and liveness with
+   MiniFASNet, and writes one row to `attendance_logs` with a `status`. A face is stored as a
+   512-number embedding in `students.face_embedding` (pgvector). No photo is written to disk.
+4. Each result prints a console line, reaches the operator UI at `/app` over a WebSocket, and can
+   be emailed to the student's guardian.
+
+`PERCEPTION_ENABLED` chooses how the camera is used. On (the value in `.env.example` and in the
+installed services): a perception loop owns the camera and a matcher pairs each tap with a face
+seen within `ASSOC_WINDOW_SEC` (default 4 seconds) of it. For an enrolled card `/tap` answers
+`queued` and the verdict is logged when that window closes. Off (the code default, used by
+`make dev`): `/tap` captures a few frames itself and returns the verdict in its response.
+
+| Status | Written when |
+|---|---|
+| `accepted` | Every factor that ran passed, or the matcher paired the tap with the enrolled face. |
+| `flagged` | A factor explicitly failed and `ENFORCE_2FA` is off. |
+| `rejected` | A factor explicitly failed and `ENFORCE_2FA` is on. |
+| `unverified` | Known card, but no factor could run (no camera, no enrolled face, no consent). |
+| `unregistered` | The card is not on the roster. |
+
+The matcher also writes `no_face` (no face in the tap's window), `mismatch` (a face scored below
+the threshold), `spoof` (the face matched but a calibrated liveness check said not live) and
+`tailgating` (a face with no tap to claim it). Every status name is a constant in
+`backend/decision.py`.
+
+The checks fail open. A factor that cannot run is stored as NULL, not as a failure, and the tap is
+still logged. A dead camera never blocks a tap; it shows up as `unverified` or `no_face`.
+
+## Install
+
+Needs Debian/Ubuntu or macOS with git, Docker, Node.js and Python 3.10 to 3.12.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ymr-gif/Dual-Factor-Attendance-System/main/deploy/bootstrap.sh | bash
-# then open http://localhost:8001/app/setup  and finish in the browser (no terminal)
 ```
 
-From a checkout: `make appliance` (or `bash deploy/install.sh`). Dev loop: `make dev` + `make web-dev`.
-Full deploy / backup / update docs: [`deploy/README.md`](deploy/README.md). macOS specifics below.
+As with any `curl | bash`, read [`deploy/bootstrap.sh`](deploy/bootstrap.sh) first. It clones the
+repo to `~/nfc-scan` and runs `deploy/install.sh`, which writes `.env`, creates `.venv`, starts
+Postgres 16 with pgvector in Docker on port 5433, downloads the liveness models, builds the web UI,
+and registers the backend and the serial reader as auto-start services (systemd user units on
+Linux, launchd agents on macOS). Then open `http://localhost:8001/app/setup`.
 
-## Running on macOS
-
-The **same project** runs on a Mac (Intel or Apple Silicon) — identical backend, DB, UI, face +
-liveness. Only three things differ from Linux, and the installer handles them:
-
-- **Auto-start** uses **launchd** (`~/Library/LaunchAgents/com.nfc-scan.*`), not systemd.
-- **No CUDA on Macs** — inference runs on **CPU** (keep `USE_GPU=false`; it's slower but fine for a demo).
-- **Device paths** — the Arduino is `/dev/cu.usbmodem*` (auto-detected into `.env`), and the camera
-  comes from AVFoundation via `CAMERA_INDEX` (default 0) — there's no `/dev/video0`.
-
-**Prerequisites** (one time):
+From a checkout, `make appliance` runs the same installer and `make up` starts Postgres and the
+backend under Docker Compose instead. For development:
 
 ```bash
-xcode-select --install                      # build tools (needed for insightface)
-brew install python@3.11 node
-# install Docker Desktop from https://www.docker.com/products/docker-desktop and launch it
+make setup                           # .venv, Python deps, liveness models, .env
+docker compose up -d db              # Postgres on localhost:5433
+make dev                             # backend on :8001 with autoreload
+make web-install && make web-dev     # UI dev server at http://localhost:5173/app/
 ```
 
-**Install (one command, same as Linux):**
+`make` with no target lists every command. On macOS inference is CPU-only and the Arduino appears
+as `/dev/cu.usbmodem*`; prerequisites and launchd controls are in
+[`docs/operations.md`](docs/operations.md#macos).
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/ymr-gif/Dual-Factor-Attendance-System/main/deploy/bootstrap.sh | bash
-# or, from a checkout:  make appliance
-```
-
-This creates a `.venv`, starts the Postgres container, fetches models, builds the SPA, and loads the
-launchd agents (backend + reader) so they start on login. Then open
-**`http://localhost:8001/app/setup`**. macOS will prompt for **Camera** access the first time — allow it.
-
-**Manual run** (no auto-start, e.g. for a quick demo):
-
-```bash
-NFC_NO_AUTOSTART=1 make appliance                 # provision only, no launchd
-source .venv/bin/activate
-uvicorn backend.main:app --host 0.0.0.0 --port 8001
-```
-
-**NFC reader:** `ls /dev/cu.*` to find the Arduino, set `SERIAL_PORT=/dev/cu.usbmodemXXXX` in `.env`,
-then `python -m backend.serial_reader`. **No hardware?** Simulate a tap:
+## Try it without hardware
 
 ```bash
 curl -X POST localhost:8001/tap -H 'Content-Type: application/json' -d '{"uid":"CCF98E02"}'
+curl -X POST localhost:8001/api/students -H 'Content-Type: application/json' \
+  -d '{"student_id":"S001","uid":"CCF98E02","name":"Test Student"}'
+curl -X POST localhost:8001/tap -H 'Content-Type: application/json' -d '{"uid":"CCF98E02"}'
+curl 'localhost:8001/api/attendance?limit=5'
 ```
 
-**launchd controls:** `launchctl list | grep nfc-scan` ·
-`launchctl unload ~/Library/LaunchAgents/com.nfc-scan.backend.plist` (stop) · logs in
-`backend.launchd.log` / `reader.launchd.log`. Backup/update scripts (`deploy/*.sh`) work unchanged.
-
-## Docs map
-
-- **[`ROADMAP.md`](ROADMAP.md)** — the plan (five tracks, dependency-ordered build sequence).
-- **[`docs/build-log.md`](docs/build-log.md)** — what each built step actually contains.
-- **[`docs/design-notes.md`](docs/design-notes.md)** — constraints, failure modes, legal/ethical gates.
-- **[`deploy/README.md`](deploy/README.md)** — appliance install, kiosk, backup/update (Steps 40–43).
-- Runbooks: [`docs/verification.md`](docs/verification.md), [`docs/face-verification.md`](docs/face-verification.md), [`docs/privacy.md`](docs/privacy.md).
-
-## Not production-ready (before any real deployment)
-
-- **Legal:** guardian consent gate exists but is **off by default**; no DPIA; `buffalo_l` is non-commercial.
-- **Security:** `OPERATOR_TOKEN` unset = open API by default; no per-user roles; **no encryption at rest** for face templates; CORS not locked down.
-- **Unverified:** liveness threshold **not calibrated** (spoof detection advisory only); SMTP not tested against a live provider; GPU throughput not validated on the target box.
-
-## Structure
-
-- `arduino/nfc_scan/` — Arduino sketch, RC522 UID read, relay only (no on-device auth decision)
-- `backend/` — FastAPI + Postgres logging service
-
-## Architecture (locked)
-
-- Arduino → UID over serial → laptop (relay only, no whitelist/decision on-device)
-- FastAPI backend (`backend/main.py`)
-- Postgres: `students` (uid → identity, `face_embedding`) + `attendance_logs` (student_id, timestamp, method, liveness_score, face_score, face_match)
-- SMTP: guardian notify (currently a print stub, see `backend/notify.py`)
-- InsightFace `buffalo_l` (ArcFace, 512-d): 1:1 match — NFC identifies, face verifies (built, Step 6). Chosen over `face_recognition`/dlib: no compile, better on off-angle/uneven-light faces.
-- MiniFASNet (Silent-Face-Anti-Spoofing): passive liveness (built, Step 7 — `backend/liveness.py`, fail-open; ⚠ threshold not yet calibrated live)
-
-Rule: no face/liveness work starts until tap → log → notify runs end-to-end. That milestone is done (see Status).
+`/tap` is what the serial reader calls, so `curl` can stand in for a card. The first tap is logged
+as `unregistered`. Once the card is on the roster, the second is logged for `S001` as `unverified`,
+because there is no camera and no enrolled face. Taps also appear on the dashboard at `/app/`.
 
 ## Hardware
 
-RC522 → Arduino Uno
-
-| RC522 | Uno |
-|-------|-----|
+| RC522 | Arduino Uno |
+|-------|-------------|
 | SDA   | 10  |
 | SCK   | 13  |
 | MOSI  | 11  |
@@ -118,176 +105,86 @@ RC522 → Arduino Uno
 | GND   | GND |
 | 3.3V  | 3.3V |
 
-USB webcam on the backend laptop (face verification). Selected via `CAMERA_INDEX` (default 0). Subjects: children at a controlled kiosk (they stop and face the camera).
+Plus a USB webcam on the machine that runs the backend, selected with `CAMERA_INDEX` (default 0).
+Flashing the sketch and the UID format are in [`docs/operations.md`](docs/operations.md#arduino).
 
-## Face verification (Step 6)
+## Configuration
 
-NFC identifies the student; the face check confirms it's really them (2nd factor vs cloned cards). Built and verified live (see [`docs/face-verification.md`](docs/face-verification.md) for the full runbook). **Fail-open**: no camera / no face / no enrolled reference → attendance still logs, scores stay NULL, notify prints a warning.
+Settings are environment variables. [`.env.example`](.env.example) lists them with their defaults,
+and no secret is committed. These switches change what the system does:
 
-- Library: InsightFace `buffalo_l` (ArcFace, 512-d), CPU. Model auto-downloads once to `~/.insightface`.
-- Face is stored as a **512-d embedding** in `students.face_embedding` (pgvector) — no photo is kept on disk.
+| Variable | Default | Effect |
+|---|---|---|
+| `PERCEPTION_ENABLED` | `false` in code, `true` in `.env.example` | Continuous camera loop and tap-to-face matcher, instead of one capture per tap. |
+| `ENFORCE_2FA` | `false` | A failed factor is stored as `rejected` instead of `flagged`. Read only when perception is off. |
+| `LIVENESS_ENABLED` | `true` | Run the MiniFASNet liveness check. |
+| `FACE_CONSENT_REQUIRED` | `false` | A student without recorded consent cannot be enrolled and gets no face check. |
+| `NOTIFY_EMAIL_ENABLED` | `false` | Email the guardian for each logged tap. Needs `SMTP_HOST` and the other `SMTP_*` values. |
+| `OPERATOR_TOKEN` | empty | When set, `/api/*` (except `/api/setup/status`) and the `/ws/taps` WebSocket require it. When empty they are open. |
+| `USE_GPU` | `false` | Run both models on CUDA, falling back to CPU if it is unavailable. |
 
-- CPU-tuned: recognition runs once on the largest face, so tap cost (~0.7s) is independent of crowd size. `USE_GPU=true` moves both face + liveness onto CUDA (auto-fallback to CPU) — flip it on after migrating to the RTX 1050 box, no code change.
+`.env` is read by the installed services and by Docker Compose. A process started by hand,
+`make dev` included, sees only its shell environment ([details](docs/operations.md#running-by-hand)).
 
-```
-python -m backend.enroll S001 --images a.jpg b.jpg c.jpg   # enroll from files (3–5 shots, averaged)
-python -m backend.preview --match S001      # live diagnostic window: aim/light the camera
-python -m backend.calibrate --days 7        # tune FACE_THRESHOLD from real logged scores
-```
-(`--capture` webcam enrollment was fixed in Step 33 — it now uses `probe.embedding`. The
-shared enroll core (`embeddings_from_frames`, `enroll_student`) is reused by the in-app
-register wizard, Step 35.)
+## Limits and next steps
 
-Env vars (incl. `USE_GPU`, `FACE_DET_SIZE`), camera setup, performance/GPU, threshold tuning, and troubleshooting: [`docs/face-verification.md`](docs/face-verification.md).
+Required before real use, and not done:
 
-## Setup (first run)
+- The subjects are children and face embeddings are biometric data. No data protection impact
+  assessment (DPIA) exists, and the consent gate `FACE_CONSENT_REQUIRED` is off by default.
+- Face embeddings are not encrypted at rest, and `deploy/backup.sh` dumps them as plain SQL.
+- With `OPERATOR_TOKEN` unset the operator API is open to anyone who can reach port 8001. When set
+  it is one shared token, with no per-user roles. `/tap`, `/metrics` and `/stream.mjpeg` never ask
+  for a token, and the stream (shown by the Viewer page) is the live camera image with face boxes.
+- `buffalo_l` may not be used commercially without obtaining rights ([`NOTICE`](NOTICE)).
 
-One command brings up the whole stack (Postgres + backend) in Docker:
+Built, but not verified or not finished:
 
-```
-git clone <repo-url> nfc-scan && cd nfc-scan
-cp .env.example .env      # then edit as needed
-make up                   # docker-compose: db + backend, schema self-migrates
-curl localhost:8001/health   # {"status":"ok","db":true}
-make down                 # stop (keeps the pgdata volume)
-```
+- Face match was checked live on 2026-07-10 with one enrolled student: genuine 0.86, impostor
+  0.018, against the 0.5 threshold ([record](docs/face-verification.md#verification-record)). That
+  is a working check, not an accuracy evaluation.
+- `LIVENESS_THRESHOLD` is unset, so liveness is not calibrated against real spoof attempts. Until
+  it is set, the matcher records the liveness score and does not act on it.
+- Guardian email has not been sent through a live SMTP provider, and throughput on the intended
+  GPU machine has not been measured.
+- The status does not yet affect the count. `decision.counts_as_present()` defines which statuses
+  should count as attendance, but nothing calls it: `GET /api/attendance/summary` counts a student
+  present after any tap of their card, `rejected`, `mismatch` and `spoof` included. The Review page
+  and `/api/review` exist, but nothing adds rows to `review_queue`.
 
-`make` targets: `setup` (local venv + deps + models + .env), `up`/`down`/`logs`
-(compose), `dev` (uvicorn --reload), `enroll`/`calibrate`/`preview`, `fmt`/`lint`,
-`health`. Run `make` with no target for the list. Webcam passthrough for face match
-is a commented `devices:` block in `docker-compose.yml` — uncomment on the kiosk box.
+Next, in order: calibrate liveness against real spoof attempts and then enforce it; send email
+through a live provider; make the present count and the review queue use the per-tap status;
+measure throughput against the target of 3 to 5 students per second. Constraints and failure modes
+are in [`docs/design-notes.md`](docs/design-notes.md).
 
-Or run it locally without Docker:
+## Development
 
-```
-make setup                                  # venv, deps, fetch models, seed .env
-. .venv/bin/activate
-
-# Postgres (dev container, pgvector) — see "Running (production)" for the full command
-docker run -d --name nfc-scan-postgres --restart unless-stopped \
-  -p 5433:5432 -v nfc-scan-pgdata:/var/lib/postgresql/data \
-  -e POSTGRES_DB=attendance -e POSTGRES_USER=attendance -e POSTGRES_PASSWORD=attendance \
-  pgvector/pgvector:pg16
-
-make dev                                    # uvicorn :8001, schema self-migrates
-```
-
-The InsightFace `buffalo_l` face model auto-downloads once to `~/.insightface` on first tap.
-All configuration is env-driven — see [`.env.example`](.env.example) for every knob. Nothing in
-the repo is a secret; SMTP credentials and DB DSN come from your environment.
-
-## Liveness, guardian email & enforcement (Steps 7–9)
-
-One webcam capture per tap feeds both face match and liveness. `decision.decide()` collapses
-the two factors into a per-tap `status` stored on `attendance_logs`:
-
-`accepted` (all available factors passed) · `flagged` (a factor failed, enforcement off — still
-present) · `rejected` (a factor failed, enforcement on — not counted, still stored for audit) ·
-`unverified` (no verdict, fail-open) · `unregistered` (unknown card).
-
-All checks stay **fail-open**: a missing camera / reference / model leaves scores NULL and the tap
-still logs. Enforcement only ever acts on an *explicit* fail.
-
-```
-# Liveness (Step 7) — MiniFASNet anti-spoof
-LIVENESS_ENABLED=true            # default
-LIVENESS_THRESHOLD=              # unset -> model argmax; set p_live cutoff after calibration
-python -m backend.fetch_liveness_models          # one-time weight download (already present here)
-python -m backend.calibrate --metric liveness    # tune the threshold from logged scores
-
-# Guardian email (Step 8) — off until SMTP is configured
-NOTIFY_EMAIL_ENABLED=false       # default (console-only). Set true to email guardians
-SMTP_HOST= SMTP_PORT=587         # 465 -> implicit SSL, else STARTTLS
-SMTP_USER= SMTP_PASSWORD= SMTP_FROM=
-SMTP_STARTTLS=true SMTP_TIMEOUT=10
-
-# 2FA enforcement (Step 9) — buddy-punch / photo-spoof rejection
-ENFORCE_2FA=false                # default. true -> failed factor => status 'rejected'
+```bash
+python3 -m venv .venv                             # skip if `make setup` already made it
+.venv/bin/pip install -r requirements-dev.txt
+make test
 ```
 
-## Running (production — systemd)
+The tests need no database, camera, model files or network: `tests/conftest.py` replaces them with
+in-memory fakes and stubs the heavy packages that are not installed. They cover the status truth
+table (`tests/test_decision.py`) and `/tap` and `/health` through FastAPI's test client
+(`tests/test_tap.py`). The matcher, the SQL, the UI and the install scripts have no tests yet.
 
-Backend and serial reader run as user-level systemd services with `Restart=always`, so they survive crashes and restart automatically:
+GitHub Actions ([`.github/workflows/tests.yml`](.github/workflows/tests.yml)) runs this suite and
+the frontend build (`npm ci`, then `npm run build` in `frontend/`) on every pull request and on
+every push to `main`.
 
-```
-systemctl --user status nfc-scan-backend nfc-scan-reader
-journalctl --user -u nfc-scan-backend -u nfc-scan-reader -f   # live logs
-systemctl --user restart nfc-scan-backend                     # after a code change
-```
+## Docs
 
-Unit files: `~/.config/systemd/user/nfc-scan-backend.service`, `~/.config/systemd/user/nfc-scan-reader.service`.
-
-Postgres runs in Docker with a persistent volume and its own restart policy (survives host reboot regardless of user login, since dockerd is a system service):
-```
-docker run -d --name nfc-scan-postgres --restart unless-stopped \
-  -p 5433:5432 -v nfc-scan-pgdata:/var/lib/postgresql/data \
-  -e POSTGRES_DB=attendance -e POSTGRES_USER=attendance -e POSTGRES_PASSWORD=attendance \
-  pgvector/pgvector:pg16
-```
-
-**Boot-independent start for the systemd user services still needs one manual step**: `sudo loginctl enable-linger scylla` — without it, the backend/reader units only start once this user logs in, not at pure boot.
-
-Default `DB_DSN` in `backend/db.py` points at the dev container (`localhost:5433`). Override via env var to point elsewhere.
-
-## Running (manual / dev)
-
-```
-uvicorn backend.main:app --host 0.0.0.0 --port 8001
-TAP_URL=http://localhost:8001/tap python3 -m backend.serial_reader
-```
-(needs Arduino IDE's Serial Monitor closed first — only one process can hold `/dev/ttyACM0`; also stop the systemd services first, or they'll fight over the port/serial device)
-
-Reflashing the Arduino:
-```
-arduino-cli compile --fqbn arduino:avr:uno arduino/nfc_scan
-arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno arduino/nfc_scan
-```
-(`arduino-cli` ships inside the Arduino IDE flatpak if not on PATH — see project CLAUDE.md for the bundled path.)
-
-## Status
-
-- [x] RC522 reads UID, relay only (no on-device whitelist)
-- [x] Serial → FastAPI `/tap` → Postgres logging
-- [x] Notify stub (print) fires on tap, registered or not
-- [x] End-to-end test loop with a fake student (`S001`)
-- [x] 24/7 hardening: systemd services (auto-restart), persistent Postgres volume, serial reconnect, failed-tap retry queue
-- [x] Face detection integration (1:1 match) — InsightFace `buffalo_l`, fail-open, best-of-N probe; verified live 2026-07-10 (genuine 0.86 / impostor 0.018)
-- [x] Passive liveness (MiniFASNet) — built + wired into `/tap` (`backend/liveness.py`, ensemble V2@2.7 + V1SE@4.0, fail-open). ⚠ needs live threshold calibration before enforcing (see below)
-- [x] Real SMTP guardian notify — `backend/notify.py` emails the guardian when configured; console line always prints. Off until `SMTP_*` set. ⚠ not sent against a live provider yet
-- [x] Buddy-punch mitigation (2FA enforced) — `backend/decision.py` collapses face+liveness into a per-tap `status`; `ENFORCE_2FA` rejects a failed 2nd factor. **Off by default** (fail-open preserved). ⚠ flip on only after live validation
-
-## Roadmap
-
-Next up is the user-facing layer plus a continuous multi-student guardpost. The ordered build plan
-is in [`ROADMAP.md`](ROADMAP.md):
-- **UI track (10–16)** — one-command setup ✓ (Step 10), API + live stream ✓ (Step 11:
-  `GET /api/attendance|students|stats/today|config`, `WS /ws/taps`, `OPERATOR_TOKEN` auth),
-  SPA scaffold ✓ (Step 12: Vite+React+TS `frontend/`, served at `/app`), operator dashboard ✓
-  (Step 13: auth gate, today panel, live feed, history table).
-- **Backbone track (20–23)** — privacy/compliance ✓ (Step 20: consent gate, retention/purge,
-  right-to-erasure, audit log — see [`docs/privacy.md`](docs/privacy.md)), attendance sessions +
-  digest, reliability, anti-fraud.
-- **Flow track (30–35)** — continuous perception ✓ (Step 30: `backend/perception.py`,
-  single camera owner, IoU tracking, recognition once per track) + tap↔face correlation ✓
-  (Step 31: `backend/matcher.py`, async tap buffer + Hungarian, statuses
-  accepted/mismatch/no_face/spoof/tailgating) for a 3–5 students/sec guardpost,
-  boxes-only public viewer, in-app register wizard, review queue.
-- **Deploy track (40–44)** — one-touch install onto the GPU box as a boot-on appliance (Linux primary, Windows `.exe` fallback), in-UI first-run wizard, updates/backup, release CI.
-- **Tuning track (50–54)** — admin runtime panel: GPU/CPU device toggle, resolution presets + advanced, and an optimizer (auto-detect button, presets, adaptive), all hot-applied without a restart.
-
-Cross-cutting constraints, failure modes, edge cases, and the legal/consent + accuracy-eval gates
-are in [`docs/design-notes.md`](docs/design-notes.md) — **read it before starting the Flow track.**
-
-A step-by-step **verification runbook** for everything built so far (Steps 10–33) is in
-[`docs/verification.md`](docs/verification.md); data-handling/consent/retention is in
-[`docs/privacy.md`](docs/privacy.md).
-
-## Notes
-
-UID alone is cloneable (magic cards). Not used as sole security — paired with face detection as 2nd factor.
-
-UID format from the relay-only firmware: uppercase hex, no separators (e.g. `C3BE343A`). Older firmware (now replaced) emitted spaced hex (`C3 BE 34 3A`) — any `students.uid` rows created against the old firmware need re-normalizing to the no-space format if the board gets reflashed again.
+- [`docs/operations.md`](docs/operations.md): services, macOS, manual runs, database, settings, CLI tools, Arduino.
+- [`deploy/README.md`](deploy/README.md): the installer, kiosk screen, backup, restore, update.
+- [`docs/design-notes.md`](docs/design-notes.md): constraints, failure modes, legal and ethical gates.
+- [`docs/face-verification.md`](docs/face-verification.md): enrollment, thresholds, camera, GPU, the live record.
+- [`docs/privacy.md`](docs/privacy.md): what is stored, consent, retention, erasure.
+- [`docs/verification.md`](docs/verification.md): manual checks for each built feature.
+- [`docs/build-log.md`](docs/build-log.md): what each build step added.
 
 ## License
 
-Apache-2.0 — see [`LICENSE`](LICENSE). Third-party model attribution (MiniFASNet, InsightFace) and the InsightFace non-commercial model note are in [`NOTICE`](NOTICE).
+Apache-2.0, see [`LICENSE`](LICENSE). Third-party model attribution (MiniFASNet, InsightFace) and
+the InsightFace non-commercial model note are in [`NOTICE`](NOTICE).
