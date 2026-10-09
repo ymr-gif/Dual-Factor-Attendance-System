@@ -120,3 +120,73 @@ def test_decide_only_returns_known_statuses():
         for enforce in (False, True)
     }
     assert produced == {UNREGISTERED, ACCEPTED, FLAGGED, REJECTED, UNVERIFIED}
+
+
+# --- review queue + the attendance count ----------------------------------------------
+
+# status -> does a tap with it go to the operator review queue?
+REVIEW_TABLE = {
+    ACCEPTED: False,
+    UNVERIFIED: False,
+    UNREGISTERED: False,
+    FLAGGED: True,
+    REJECTED: True,
+    NO_FACE: True,
+    MISMATCH: True,
+    SPOOF: True,
+    TAILGATING: True,
+}
+
+
+@pytest.mark.parametrize(("status", "review"), sorted(REVIEW_TABLE.items()))
+def test_needs_review(status, review):
+    assert decision.needs_review(status) is review
+
+
+def test_every_status_constant_has_a_review_ruling():
+    constants = {
+        value
+        for name, value in vars(decision).items()
+        if name.isupper() and not name.startswith("_") and isinstance(value, str)
+    }
+    assert constants == set(REVIEW_TABLE)
+
+
+def test_unverified_counts_and_is_not_reviewed():
+    # Fail-open: a factor that could not run (dead camera, no reference, no consent)
+    # must neither cost the student their attendance nor fill the review queue.
+    assert decision.counts_as_present(UNVERIFIED) is True
+    assert decision.needs_review(UNVERIFIED) is False
+
+
+def test_everything_that_does_not_count_is_reviewed():
+    # Otherwise a student could be marked absent with nothing for an operator to see.
+    not_present = {status for status, present in PRESENT_TABLE.items() if not present}
+    assert all(decision.needs_review(status) for status in not_present)
+
+
+def test_not_counted_statuses_is_the_list_the_attendance_queries_leave_out():
+    assert decision.not_counted_statuses() == [
+        "mismatch",
+        "no_face",
+        "rejected",
+        "spoof",
+        "tailgating",
+        "unregistered",
+    ]
+
+
+def test_sessions_view_leaves_out_the_same_statuses_and_honours_an_override():
+    # The attendance_sessions view is plain SQL, so it cannot call decision.py. This
+    # reads the list it spells out and compares it with the one db.py passes in.
+    import os
+    import re
+
+    schema = os.path.join(os.path.dirname(decision.__file__), "schema.sql")
+    with open(schema, encoding="utf-8") as fh:
+        sql = fh.read()
+    view = sql[sql.index("CREATE OR REPLACE VIEW attendance_sessions") :]
+    listed = re.search(r"l\.status NOT IN \((.*?)\)", view, re.S)
+    assert listed, "the view no longer filters on status"
+    assert sorted(re.findall(r"'([a-z_]+)'", listed.group(1))) == decision.not_counted_statuses()
+    assert "r.resolution = 'override'" in view

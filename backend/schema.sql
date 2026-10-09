@@ -58,7 +58,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     detail  TEXT
 );
 
--- Step 34 (review queue): schema landed early in the Phase B pass; populated later.
+-- Step 34 (review queue): one row per tap that failed a check (decision.needs_review).
+-- An `override` resolution makes that tap count toward attendance.
 CREATE TABLE IF NOT EXISTS review_queue (
     id          SERIAL PRIMARY KEY,
     log_id      INTEGER REFERENCES attendance_logs(id) ON DELETE CASCADE,
@@ -80,14 +81,25 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Step 21 (attendance sessions): pairs consecutive taps by a student within a day
 -- into check-in/check-out sessions. Odd-numbered taps = check-in, even = check-out.
 -- A lone odd tap with no partner (still present) has check_out = NULL.
--- Excludes unregistered taps (unknown cards, no student association).
+-- Only taps that count toward attendance are paired: the status list below is
+-- decision.not_counted_statuses() (tests/test_decision.py checks the two agree), and a
+-- tap an operator overrode in the review queue counts whatever its status.
 CREATE OR REPLACE VIEW attendance_sessions AS
 WITH ordered AS (
-    SELECT student_id, ts::date AS session_date, ts, status,
-        ROW_NUMBER() OVER (PARTITION BY student_id, ts::date ORDER BY ts) AS rn
-    FROM attendance_logs
-    WHERE student_id IS NOT NULL
-      AND (status IS NULL OR status <> 'unregistered')
+    SELECT l.student_id, l.ts::date AS session_date, l.ts, l.status,
+        ROW_NUMBER() OVER (PARTITION BY l.student_id, l.ts::date ORDER BY l.ts) AS rn
+    FROM attendance_logs l
+    WHERE l.student_id IS NOT NULL
+      AND (
+        l.status IS NULL
+        OR l.status NOT IN (
+            'mismatch', 'no_face', 'rejected', 'spoof', 'tailgating', 'unregistered'
+        )
+        OR EXISTS (
+            SELECT 1 FROM review_queue r
+            WHERE r.log_id = l.id AND r.resolution = 'override'
+        )
+      )
 ),
 paired AS (
     SELECT *, (rn + 1) / 2 AS pair_group
