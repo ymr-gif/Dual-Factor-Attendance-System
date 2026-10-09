@@ -162,9 +162,10 @@ the backend, and `cap.read()` then blocks hard enough that the backend needs a r
 the browser lets go. Close the register tab before expecting the dashboard feed. A second
 USB camera removes the conflict entirely.
 
-**macOS: launchd agents get no camera.** TCC grants camera access to a responsible GUI app.
-A launchd agent has none, and command-line binaries cannot be added to the Camera pane
-manually, so the backend gets no camera when it auto-starts. This is a genuine either/or:
+**macOS: launchd agents get no camera.** Seen on one Mac, not checked on others. TCC grants
+camera access to a responsible GUI app. A launchd agent has none, and command-line binaries
+cannot be added to the Camera pane manually, so the backend gets no camera when it
+auto-starts. There it was an either/or:
 
 ```bash
 make dev-cam     # foreground, camera works, no auto-start
@@ -182,6 +183,9 @@ tolerates transient dropouts. If a camera needs longer, raise `CAMERA_WARMUP_FRA
 ## Camera: wrong camera selected
 
 Leave `CAMERA_INDEX` unset and the backend prefers an external USB camera over the built-in
-one, falling back to built-in when nothing is plugged in. See `backend/cameras.py`,
-`make cameras`, and the Cameras panel in Settings. Pin a specific one with `CAMERA_INDEX`,
-or set `CAMERA_PREFER_EXTERNAL=false` to always use the built-in camera.
+one, falling back to built-in when nothing is plugged in. That split is reliable on macOS. On
+Linux a camera counts as built-in only when its name says so (`integrated`, `built-in`,
+`facetime`, `isight`); any other laptop camera is treated as external, and the lowest
+`/dev/video` node wins. See `backend/cameras.py`, `make cameras`, and the Cameras panel in
+Settings. Pin a specific one with `CAMERA_INDEX`, or set `CAMERA_PREFER_EXTERNAL=false` to
+prefer the built-in camera.

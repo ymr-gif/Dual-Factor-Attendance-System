@@ -106,9 +106,11 @@ because there is no camera and no enrolled face. Taps also appear on the dashboa
 | 3.3V  | 3.3V |
 
 Plus a webcam on the machine that runs the backend. With `CAMERA_INDEX` unset the backend picks
-one itself, an external USB camera before a built-in one; `make cameras` lists what it sees and
-which index it would open. When the `SERIAL_PORT` path is not present, the reader looks for the
-Arduino among the connected serial ports; `make ports` shows which one it would open.
+one itself. On macOS it takes an external USB camera before the built-in one. On Linux it can
+tell a built-in camera only by its name, so it usually takes the lowest `/dev/video` node: check
+with `make cameras` and set `CAMERA_INDEX` if that is the wrong one. When the `SERIAL_PORT` path
+is not present, the reader looks for the Arduino among the connected serial ports; `make ports`
+shows which one it would open.
 Flashing the sketch and the UID format are in [`docs/operations.md`](docs/operations.md#arduino).
 
 ## Configuration
@@ -172,8 +174,11 @@ The tests need no database, camera, model files or network: `tests/conftest.py` 
 in-memory fakes and stubs the heavy packages that are not installed. They cover the status truth
 table (`tests/test_decision.py`), `/tap` and `/health` through FastAPI's test client
 (`tests/test_tap.py`), the one-verdict-per-track rule for tailgating (`tests/test_tailgating.py`)
-and when a face track is recognized and refreshed (`tests/test_perception.py`). The SQL itself,
-tap-to-face assignment, the UI and the install scripts have no tests yet.
+and when a face track is recognized and refreshed (`tests/test_perception.py`), the tap
+debounce (`tests/test_debounce.py`), reading stored embeddings (`tests/test_embedding.py`) and
+serial port selection and the two device routes (`tests/test_devices.py`). The SQL itself,
+tap-to-face assignment, camera selection, the serial reader loop, the UI and the install
+scripts have no tests yet.
 
 GitHub Actions ([`.github/workflows/tests.yml`](.github/workflows/tests.yml)) runs this suite and
 the frontend build (`npm ci`, then `npm run build` in `frontend/`) on every pull request and on
