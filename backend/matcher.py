@@ -218,7 +218,8 @@ class Matcher:
             return
         self._settled_tracks[track_id] = None
         self._settled_tracks.move_to_end(track_id)
-        while len(self._settled_tracks) > self.max_tailgated_tracks:
+        # max(..., 0): a zero or negative setting remembers nothing; it must not raise.
+        while len(self._settled_tracks) > max(self.max_tailgated_tracks, 0):
             self._settled_tracks.popitem(last=False)
 
     def _assign(self, taps, faces):
