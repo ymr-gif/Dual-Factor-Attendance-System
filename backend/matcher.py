@@ -22,6 +22,7 @@ w.r.t. the clock so tests drive time explicitly.
 """
 
 import os
+from collections import OrderedDict
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -41,6 +42,7 @@ MATCH_THRESHOLD = _env_f("MATCH_THRESHOLD", face.FACE_THRESHOLD)
 TAILGATE_NAME_THRESHOLD = _env_f("TAILGATE_NAME_THRESHOLD", face.FACE_THRESHOLD)
 RESOLVE_INTERVAL_SEC = _env_f("RESOLVE_INTERVAL_SEC", 0.5)
 MAX_FACE_BUFFER = int(os.environ.get("MAX_FACE_BUFFER", "256"))
+MAX_TAILGATED_TRACKS = int(os.environ.get("MAX_TAILGATED_TRACKS", "512"))
 
 _BIG = 10.0  # cost sentinel for time-invalid tap/face pairs
 
@@ -82,6 +84,7 @@ class Matcher:
         face_search=None,
         clock=None,
         max_face_buffer=MAX_FACE_BUFFER,
+        max_tailgated_tracks=MAX_TAILGATED_TRACKS,
     ):
         import time as _time
 
@@ -94,6 +97,15 @@ class Matcher:
         self.face_search = face_search
         self.clock = clock or _time.time
         self.max_face_buffer = max_face_buffer
+        self.max_tailgated_tracks = max_tailgated_tracks
+        # Tracks whose presence already has a verdict: a tap claimed one of the
+        # track's faces, or the track was reported as tailgating once. A later
+        # PendingFace for such a track is the same continuous dwell
+        # (perception.py's FACE_REFRESH_SEC re-emits it every few seconds), not a
+        # new cardless person, so it produces no tailgating outcome. It stays
+        # claimable by a later tap. Bounded/drop-oldest so a long-running kiosk
+        # process never grows this unbounded.
+        self._settled_tracks: OrderedDict = OrderedDict()
         self._taps: list[PendingTap] = []
         self._faces: list[PendingFace] = []
         self._last_tap: dict[str, float] = {}
@@ -108,9 +120,12 @@ class Matcher:
         last = self._last_tap.get(uid)
         if last is not None and now - last < self.cooldown:
             return None
-        self._last_tap[uid] = now
+        # Construct before recording the debounce timestamp: if this raises, the
+        # tap never entered the buffer, and the caller (the /tap 500) should see
+        # the same failure on retry rather than a misleading 'debounced' success.
         t = PendingTap(self._next_id, uid, student_id, student, embedding, now)
         self._next_id += 1
+        self._last_tap[uid] = now
         self._taps.append(t)
         return t.id
 
@@ -153,6 +168,7 @@ class Matcher:
                 # only genuinely unassigned faces go on to be tailgating.
                 f = faces[j]
                 f.consumed = True
+                self._settle(f.track_id)
                 sim = face.cosine(t.embedding, f.embedding)
                 if sim < self.threshold:
                     outcomes.append(self._mismatch(t))
@@ -174,6 +190,14 @@ class Matcher:
                 abs(t.ts - f.ts) <= self.window for t in self._taps
             ):
                 f.emitted = True
+                if f.track_id is not None and f.track_id in self._settled_tracks:
+                    # This track's presence already has its verdict (a tap claimed
+                    # it, or it was flagged once); this is a later refresh of the
+                    # same continuous dwell, not a new tailgater. Still evicted
+                    # normally (f.emitted above), just no repeat outcome.
+                    self._settled_tracks.move_to_end(f.track_id)
+                    continue
+                self._settle(f.track_id)
                 outcomes.append(self._tailgating(f))
 
         # Evict resolved / stale faces; keep live (within-window, unclaimed) ones.
@@ -186,6 +210,17 @@ class Matcher:
         for o in outcomes:
             self._emit(o)
         return outcomes
+
+    def _settle(self, track_id):
+        """Remember that this track's presence has had its verdict. A face event
+        without a track id identifies no presence, so it is never remembered."""
+        if track_id is None:
+            return
+        self._settled_tracks[track_id] = None
+        self._settled_tracks.move_to_end(track_id)
+        # max(..., 0): a zero or negative setting remembers nothing; it must not raise.
+        while len(self._settled_tracks) > max(self.max_tailgated_tracks, 0):
+            self._settled_tracks.popitem(last=False)
 
     def _assign(self, taps, faces):
         """Optimal (Hungarian) tap->face assignment. Only time-valid pairs (within

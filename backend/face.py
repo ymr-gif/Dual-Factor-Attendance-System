@@ -21,7 +21,7 @@ Probe = namedtuple("Probe", "frame bbox embedding")
 # Recognition model pack — stored as embedding provenance (embed_model, Step 33).
 MODEL_NAME = "buffalo_l"
 
-CAMERA_INDEX = int(os.environ.get("CAMERA_INDEX", "0"))
+CAMERA_INDEX = int(os.environ.get("CAMERA_INDEX", "0"))  # explicit setting; prefer camera_index()
 FACE_THRESHOLD = float(os.environ.get("FACE_THRESHOLD", "0.5"))  # conservative; calibrate from logs
 CAMERA_WARMUP_FRAMES = int(os.environ.get("CAMERA_WARMUP_FRAMES", "5"))
 CAMERA_PROBE_FRAMES = int(os.environ.get("CAMERA_PROBE_FRAMES", "5"))
@@ -120,18 +120,31 @@ def encode_image(img):
     return embed(img, det)
 
 
+def camera_index() -> int:
+    """The camera index to open: CAMERA_INDEX when set, else auto-selected.
+
+    Resolved lazily rather than at import — discovery shells out to the OS, and
+    every CLI that imports this module would otherwise pay for it. See
+    backend/cameras.py for the selection rules.
+    """
+    from . import cameras
+
+    return cameras.pick_index(CAMERA_INDEX)
+
+
 def open_capture(source=None):
     """Open a cv2.VideoCapture on `source` and return it (caller owns/releases).
 
     `source` may be an int index, a numeric string, a device path, or a video /
-    image-sequence file. Defaults to CAMERA_INDEX. Centralizing camera opening here
-    lets the perception service (Step 30) be the *single camera owner* (design-notes
-    §3) and lets tests / the viewer feed a video file instead of the live cam.
+    image-sequence file. Defaults to the resolved camera (see camera_index()).
+    Centralizing camera opening here lets the perception service (Step 30) be the
+    *single camera owner* (design-notes §3) and lets tests / the viewer feed a
+    video file instead of the live cam.
     """
     import cv2
 
     if source is None:
-        source = CAMERA_INDEX
+        source = camera_index()
     elif isinstance(source, str) and source.isdigit():
         source = int(source)
     return cv2.VideoCapture(source)

@@ -5,7 +5,8 @@ VENV := .venv
 VPY := $(VENV)/bin/python
 COMPOSE := docker compose
 
-.PHONY: help setup up down logs dev enroll calibrate preview fmt lint test health \
+.PHONY: help setup up down logs dev dev-cam autostart ports cameras \
+        enroll calibrate preview fmt lint test health \
         web-install web-dev web-build purge digest doctor \
         appliance preflight backup restore update
 
@@ -33,6 +34,19 @@ logs:  ## Tail backend + db logs
 dev:  ## Run the backend locally with autoreload (needs a reachable Postgres)
 	$(VPY) -m uvicorn backend.main:app --host 0.0.0.0 --port 8001 --reload
 
+dev-cam:  ## Run the backend in this terminal so the camera works (macOS: launchd agents get no camera)
+	@# macOS ties camera permission (TCC) to a responsible GUI app. A launchd agent has
+	@# none, so perception/liveness stay idle there; started from a Terminal that holds
+	@# the Camera grant, they work. Stops the launchd backend first to free port 8001.
+	@launchctl unload ~/Library/LaunchAgents/com.nfc-scan.backend.plist 2>/dev/null || true
+	@echo "Backend in the foreground — Ctrl-C to stop, then 'make autostart' to hand back to launchd."
+	bash deploy/launchd/run-backend.sh
+
+autostart:  ## Hand the backend back to launchd (auto-starts at login; no camera on macOS)
+	@launchctl unload ~/Library/LaunchAgents/com.nfc-scan.backend.plist 2>/dev/null || true
+	launchctl load ~/Library/LaunchAgents/com.nfc-scan.backend.plist
+	@echo "Backend under launchd. Camera stays idle — use 'make dev-cam' when you need it."
+
 health:  ## Curl the health endpoint
 	@curl -fsS http://localhost:8001/health && echo
 
@@ -53,6 +67,12 @@ digest:  ## Send guardian attendance digest for yesterday
 
 doctor:  ## Run system health check
 	$(VPY) -m backend.doctor
+
+ports:  ## List connected serial ports and show which one the reader would open
+	@set -a; [ -f .env ] && . ./.env; set +a; $(VPY) -m backend.ports
+
+cameras:  ## List cameras and show which one the backend would open
+	@set -a; [ -f .env ] && . ./.env; set +a; $(VPY) -m backend.cameras
 
 web-install:  ## Install frontend deps (npm)
 	cd frontend && npm install
