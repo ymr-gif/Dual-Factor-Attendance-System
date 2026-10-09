@@ -10,8 +10,8 @@ pyserial
 requests
 insightface
 # Intel macOS: pinned to the newest releases that ship an x86_64 wheel for macOS 12
-# or older, so that an older Intel Mac installs wheels instead of building from
-# source. Later releases ship macOS wheels for version 13 or newer only.
+# or older. Later releases ship macOS wheels for version 13 or newer only, so on an
+# older Intel Mac pip would build opencv from source and find no onnxruntime at all.
 onnxruntime==1.19.2; sys_platform == "darwin" and platform_machine == "x86_64"
 onnxruntime; sys_platform != "darwin" or platform_machine != "x86_64"
 # opencv-python (non-headless) is pinned too: insightface pulls it in transitively.

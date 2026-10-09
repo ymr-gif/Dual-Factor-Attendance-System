@@ -46,7 +46,7 @@ systemctl --user restart nfc-scan-backend
 
 ## macOS
 
-The same installer runs on macOS. Three things differ from Linux:
+The same installer runs on macOS. Four things differ from Linux:
 
 - Auto-start uses launchd agents in `~/Library/LaunchAgents/` instead of systemd units.
 - There is no CUDA, so inference runs on the CPU. Leave `USE_GPU=false`.
@@ -54,6 +54,9 @@ The same installer runs on macOS. Three things differ from Linux:
   to `.env` as `SERIAL_PORT`. The camera is `CAMERA_INDEX` when that is set; otherwise the
   backend picks one, an external camera before the built-in one (`make cameras` shows
   which). There is no `/dev/video0`.
+- A backend started by launchd may get no camera, because macOS grants camera access to
+  the app that started the process. `make dev-cam` runs it in a terminal instead. See
+  [`hardware-troubleshooting.md`](hardware-troubleshooting.md); this was seen on one Mac.
 
 Prerequisites, once:
 

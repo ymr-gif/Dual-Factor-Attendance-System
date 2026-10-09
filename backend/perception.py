@@ -43,7 +43,7 @@ def _bool(name: str, default: str) -> bool:
 
 
 PERCEPTION_ENABLED = _bool("PERCEPTION_ENABLED", "false")
-# None -> face.CAMERA_INDEX. Set to a video-file path (or image-sequence pattern)
+# None -> the camera face.camera_index() selects. Set to a video-file path (or image-sequence pattern)
 # to run the pipeline offline against recorded footage — the acceptance path.
 PERCEPTION_SOURCE = os.environ.get("PERCEPTION_SOURCE") or None
 TRACK_IOU_THRESH = float(os.environ.get("TRACK_IOU_THRESH", "0.3"))
