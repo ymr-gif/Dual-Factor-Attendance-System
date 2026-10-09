@@ -11,7 +11,8 @@ sometimes omits usbmodem devices entirely, while globbing /dev finds those devic
 but tells us nothing about them.
 
 Env:
-  SERIAL_PORT       explicit device path; used as-is when present (auto-detect off)
+  SERIAL_PORT       explicit device path; used as-is when present (auto-detect off).
+                    Unset, /dev/ttyACM0 is tried first.
   SERIAL_PORT_AUTO  false -> never auto-detect, only ever use SERIAL_PORT
 
 CLI:
@@ -20,6 +21,7 @@ CLI:
 
 import glob
 import os
+import sys
 
 from serial.tools import list_ports
 
@@ -33,6 +35,10 @@ KNOWN_VENDORS = {
     0x16C0: "Teensy/Arduino clone",
     0x239A: "Adafruit",
 }
+
+# The port tried first when SERIAL_PORT is unset. The reader, this module's CLI and
+# GET /api/serial/ports all resolve through pick_port(), so they name the same port.
+DEFAULT_PORT = "/dev/ttyACM0"
 
 DEVICE_GLOBS = ("/dev/cu.usbmodem*", "/dev/cu.usbserial*", "/dev/ttyACM*", "/dev/ttyUSB*")
 
@@ -116,11 +122,12 @@ def auto_enabled() -> bool:
 def pick_port(prefer: str | None = None):
     """Resolve the port to open, or None when nothing plausible is connected.
 
-    An explicitly configured port wins whenever it is actually present. Otherwise —
-    and only when auto-detect is enabled — the highest-scoring connected board is
-    used, so a replug under a new name recovers on the next reconnect.
+    An explicitly configured port wins whenever it is actually present; with
+    SERIAL_PORT unset that is DEFAULT_PORT. Otherwise — and only when auto-detect is
+    enabled — the highest-scoring connected board is used, so a replug under a new
+    name recovers on the next reconnect.
     """
-    prefer = prefer or configured_port()
+    prefer = prefer or configured_port() or DEFAULT_PORT
     if prefer and os.path.exists(prefer):
         return prefer
     if not auto_enabled():
@@ -175,8 +182,11 @@ def main():
         else:
             print("      auto-detect found no board either — plug one in.")
     print("\nTo pin a specific port, set SERIAL_PORT in .env, then restart the reader:")
-    print("  launchctl unload ~/Library/LaunchAgents/com.nfc-scan.reader.plist && \\")
-    print("  launchctl load   ~/Library/LaunchAgents/com.nfc-scan.reader.plist")
+    if sys.platform == "darwin":
+        print("  launchctl unload ~/Library/LaunchAgents/com.nfc-scan.reader.plist && \\")
+        print("  launchctl load   ~/Library/LaunchAgents/com.nfc-scan.reader.plist")
+    else:
+        print("  systemctl --user restart nfc-scan-reader")
 
 
 if __name__ == "__main__":

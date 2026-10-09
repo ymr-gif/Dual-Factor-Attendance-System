@@ -69,10 +69,10 @@ doctor:  ## Run system health check
 	$(VPY) -m backend.doctor
 
 ports:  ## List connected serial ports and show which one the reader would open
-	@$(VPY) -m backend.ports
+	@set -a; [ -f .env ] && . ./.env; set +a; $(VPY) -m backend.ports
 
 cameras:  ## List cameras and show which one the backend would open
-	@$(VPY) -m backend.cameras
+	@set -a; [ -f .env ] && . ./.env; set +a; $(VPY) -m backend.cameras
 
 web-install:  ## Install frontend deps (npm)
 	cd frontend && npm install
