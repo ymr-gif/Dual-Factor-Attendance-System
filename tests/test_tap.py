@@ -567,7 +567,7 @@ def test_a_ticket_is_only_issued_to_a_caller_with_the_token(client, locked):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["expires_in"] == 60
+    assert body["expires_in"] == 30
     assert body["ticket"] != "s3cret" and len(body["ticket"]) >= 32
     assert list(locked._stream_tickets) == [body["ticket"]]
 
@@ -582,18 +582,33 @@ def test_an_issued_ticket_opens_the_stream_and_the_token_header_still_works(clie
     assert client.get("/stream.mjpeg", headers={"Authorization": "Bearer s3cret"}).status_code == 200
 
 
+def test_a_ticket_opens_one_stream_only(client, locked, monkeypatch):
+    from fastapi.responses import PlainTextResponse
+
+    monkeypatch.setattr(locked, "StreamingResponse", lambda *a, **k: PlainTextResponse("frames"))
+    ticket = client.post("/api/stream-ticket", headers={"X-Operator-Token": "s3cret"}).json()["ticket"]
+
+    assert client.get(f"/stream.mjpeg?ticket={ticket}").status_code == 200
+    # The URL is now in an access log and a browser history. Replaying it must fail.
+    assert client.get(f"/stream.mjpeg?ticket={ticket}").status_code == 401
+    assert ticket not in locked._stream_tickets
+
+
 def test_a_ticket_stops_working_when_it_expires(locked, monkeypatch):
     clock = {"now": 1000.0}
     monkeypatch.setattr(locked.time, "monotonic", lambda: clock["now"])
     guard = locked.require_stream_access
-    ticket = locked._issue_stream_ticket()
 
-    assert guard(ticket=ticket, authorization=None, x_operator_token=None) is None
+    in_time = locked._issue_stream_ticket()
+    clock["now"] += locked.STREAM_TICKET_TTL - 0.001
+    assert guard(ticket=in_time, authorization=None, x_operator_token=None) is None
 
+    too_late = locked._issue_stream_ticket()
     clock["now"] += locked.STREAM_TICKET_TTL  # exactly at expiry: no longer valid
     with pytest.raises(Exception) as denied:
-        guard(ticket=ticket, authorization=None, x_operator_token=None)
+        guard(ticket=too_late, authorization=None, x_operator_token=None)
     assert getattr(denied.value, "status_code", None) == 401
+    assert too_late not in locked._stream_tickets, "an expired ticket is spent by the attempt too"
 
 
 def test_a_bad_ticket_is_not_rescued_by_a_valid_header(locked):

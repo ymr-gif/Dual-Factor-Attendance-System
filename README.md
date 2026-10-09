@@ -142,7 +142,7 @@ Required before real use, and not done:
 - With `OPERATOR_TOKEN` unset the operator API and the camera stream are open to anyone who can
   reach port 8001. When set it is one shared token, with no per-user roles: anyone holding it can
   override a review. `/tap` and `/metrics` never ask for a token. The camera stream is the live
-  image with face boxes; it opens with a 60-second ticket, but the WebSocket still carries the
+  image with face boxes; it opens with a single-use ticket, but the WebSocket still carries the
   token in its URL.
 - A camera that is down does not stop attendance. A tap made while no frame arrives is counted on
   the card alone until an operator reads the review queue, so whoever can unplug the camera can do

@@ -248,10 +248,10 @@ Postgres does not know is reported once in the log and the session stays on UTC.
 
 `/stream.mjpeg` is the live camera image. When `OPERATOR_TOKEN` is set it needs either the
 token in a header, or a ticket: `POST /api/stream-ticket` (token in a header) returns a
-random ticket that opens the stream for 60 seconds, as `/stream.mjpeg?ticket=...`. The pages
-do this themselves. The operator token is never accepted from the URL, because URLs end up in
-access logs and browser history. A stream that is already open keeps running after its
-ticket expires; the ticket only gates the connection.
+random ticket that opens the stream once, within 30 seconds, as `/stream.mjpeg?ticket=...`.
+The pages do this themselves. The operator token is never accepted from the URL, because URLs
+end up in access logs and browser history; a ticket found there has already been spent. A
+stream that is already open keeps running; the ticket only gates the connection.
 
 GPU setup (`USE_GPU`) is in
 [`face-verification.md`](face-verification.md#performance--gpu). Consent and retention
