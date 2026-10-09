@@ -12,6 +12,51 @@ export function setToken(t: string): void {
   else localStorage.removeItem(TOKEN_KEY)
 }
 
+// Today as YYYY-MM-DD on this device's clock. toISOString() gives the UTC date, which
+// is yesterday until 08:00 in a UTC+8 school.
+export function localToday(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+
+async function req<T>(path: string): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['X-Operator-Token'] = token
+  const res = await fetch(path, { headers })
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`)
+  return res.json() as Promise<T>
+}
+
+async function reqJson<T>(path: string, method: string, body: unknown): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['X-Operator-Token'] = token
+  const res = await fetch(path, { method, headers, body: JSON.stringify(body) })
+  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status}`)
+  return res.json() as Promise<T>
+}
+
+async function del<T>(path: string): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['X-Operator-Token'] = token
+  const res = await fetch(path, { method: 'DELETE', headers })
+  if (!res.ok) throw new Error(`DELETE ${path} -> ${res.status}`)
+  return res.json() as Promise<T>
+}
+
+async function postFormData<T>(path: string, data: FormData): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['X-Operator-Token'] = token
+  const res = await fetch(path, { method: 'POST', headers, body: data })
+  if (!res.ok) throw new Error(`POST ${path} -> ${res.status}`)
+  return res.json() as Promise<T>
+}
+
 // Trade the operator token for a short-lived ticket that opens /stream.mjpeg only.
 export async function getStreamTicket(): Promise<string> {
   const r = await reqJson<{ ticket: string }>('/api/stream-ticket', 'POST', {})
