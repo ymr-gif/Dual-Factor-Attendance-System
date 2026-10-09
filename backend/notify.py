@@ -56,7 +56,7 @@ def _console(student: dict | None, log: dict, notes: list[str]) -> None:
     if status:
         line += f"  [{status.upper()}]"
     for n in notes:
-        line += f"  ⚠ {n}"
+        line += f"  WARNING: {n}"
     print(line)
 
 

@@ -5,9 +5,9 @@
 set -uo pipefail
 
 OS="$(uname -s)"
-ok(){   printf '  \033[32m✓\033[0m %s\n' "$1"; }
-warn(){ printf '  \033[33m!\033[0m %s\n' "$1"; }
-bad(){  printf '  \033[31m✗\033[0m %s\n' "$1"; }
+ok(){   printf '  \033[32mOK\033[0m   %s\n' "$1"; }
+warn(){ printf '  \033[33mWARN\033[0m %s\n' "$1"; }
+bad(){  printf '  \033[31mFAIL\033[0m %s\n' "$1"; }
 
 echo "== nfc-scan preflight ($OS) =="
 

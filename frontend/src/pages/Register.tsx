@@ -163,7 +163,7 @@ export default function Register() {
 
       {showCamera && (
         <div className="card" style={{ marginBottom: 16 }}>
-          {camNote && <p style={{ fontSize: 12, color: '#d69e2e', margin: '0 0 8px' }}>{'⚠'} {camNote}</p>}
+          {camNote && <p style={{ fontSize: 12, color: '#d69e2e', margin: '0 0 8px' }}>Warning: {camNote}</p>}
 
           <div style={{ maxWidth: 420 }}>
             {camSource === 'stream'
@@ -179,7 +179,7 @@ export default function Register() {
           <div style={{ marginTop: 8 }}>
             {gateActive ? (
               <span className="pill" style={{ background: pstate?.ready ? '#1f5c2a' : '#5c4a1f' }}>
-                {pstate?.ready ? '✓ ' : '● '}{pstate?.reason}
+                {pstate?.ready ? 'OK: ' : ''}{pstate?.reason}
               </span>
             ) : (
               <span style={{ fontSize: 12, opacity: 0.6 }}>Live quality check unavailable (perception off) — capture allowed.</span>
@@ -221,7 +221,7 @@ export default function Register() {
           <p style={{ fontSize: 13 }}>Frames used: {result.used} / {result.frames.length}</p>
           {result.duplicate && (
             <p style={{ fontSize: 13, color: '#d69e2e' }}>
-              {'⚠'} Possible duplicate: {result.duplicate.name || result.duplicate.student_id} (sim: {result.duplicate.similarity.toFixed(3)})
+              Warning: possible duplicate: {result.duplicate.name || result.duplicate.student_id} (sim: {result.duplicate.similarity.toFixed(3)})
             </p>
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>

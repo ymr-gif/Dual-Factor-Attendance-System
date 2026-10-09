@@ -7,10 +7,10 @@ import { getSetupStatus, getPerceptionState, setToken, getToken, type SetupStatu
 
 function Check({ ok, label, hint }: { ok: boolean | null; label: string; hint?: string }) {
   const color = ok == null ? '#5c4a1f' : ok ? '#1f5c2a' : '#5c1f22'
-  const mark = ok == null ? '…' : ok ? '✓' : '✗'
+  const mark = ok == null ? '…' : ok ? 'OK' : 'NO'
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
-      <span className="pill" style={{ background: color, minWidth: 26, textAlign: 'center' }}>{mark}</span>
+      <span className="pill" style={{ background: color, minWidth: 30, textAlign: 'center' }}>{mark}</span>
       <div>
         <div style={{ fontSize: 14 }}>{label}</div>
         {hint && <div style={{ fontSize: 12, opacity: 0.6 }}>{hint}</div>}
@@ -66,7 +66,7 @@ export default function SetupWizard() {
             value={tokenInput} onChange={e => setTokenInput(e.target.value)}
             style={{ flex: 1, background: '#12141a', color: '#e6e8ee', border: '1px solid #333', borderRadius: 4, padding: '6px 10px', fontSize: 13 }}
           />
-          <button className="btn" onClick={saveToken}>{saved ? 'Saved ✓' : 'Save'}</button>
+          <button className="btn" onClick={saveToken}>{saved ? 'Saved' : 'Save'}</button>
         </div>
       </div>
 
@@ -101,7 +101,7 @@ export default function SetupWizard() {
       {/* Done */}
       <div className="card" style={{ background: status?.ready ? '#16351d' : '#1c1f27' }}>
         <h3 style={{ margin: '0 0 6px', fontSize: 15 }}>
-          {status?.ready ? '✓ Ready to run' : 'Almost there'}
+          {status?.ready ? 'Ready to run' : 'Almost there'}
         </h3>
         <p style={{ fontSize: 13, opacity: 0.75, margin: 0 }}>
           {status?.ready
