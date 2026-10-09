@@ -55,6 +55,12 @@ def _broadcast_frame(data: bytes) -> None:
             pass
 
 
+def _note_frame(frame, ev):
+    """Perception frame sink: tell the matcher the camera delivered a frame, so it can
+    tell a tap nobody showed their face for from a tap the camera never watched."""
+    matcher.note_frame(ev.get("ts"))
+
+
 def _on_frame_event(frame, ev):
     """Perception frame sink (called from camera thread). Draw boxes, encode JPEG,
     hand off to the async MJPEG endpoint via the event loop."""
@@ -121,8 +127,22 @@ def _strip_embedding(student):
     return {k: v for k, v in student.items() if k != "face_embedding"}
 
 
+def _queue_review(log, reason=None, force=False):
+    """Put a tap that failed a check in front of an operator (Step 34). `force` queues
+    a tap whose status alone would not, i.e. one the camera never watched. Best-effort:
+    a failed insert is printed and the tap carries on to notify + broadcast."""
+    status = log.get("status")
+    if not (force or decision.needs_review(status)):
+        return
+    try:
+        db.insert_review(log["id"], log.get("student_id"), status, reason)
+    except Exception as e:
+        print(f"review queue insert failed: {e}")
+
+
 def _write_outcome(o):
-    """Matcher outcome writer (Step 31): log -> notify -> broadcast. Fail-open."""
+    """Matcher outcome writer (Step 31): log -> review queue -> notify -> broadcast.
+    Fail-open."""
     log = db.insert_log(
         uid=o["uid"],
         student_id=o.get("student_id"),
@@ -133,6 +153,14 @@ def _write_outcome(o):
         liveness_pass=o.get("liveness_pass"),
         status=o["status"],
     )
+    camera_down = bool(o.get("camera_down"))
+    if camera_down:
+        # design-notes: the degraded mode must be visible, never a silent fallback.
+        print(
+            f"[ALERT] camera delivered no frame for tap uid={o['uid']}: "
+            "logged card-only, queued for review"
+        )
+    _queue_review(log, o.get("reason"), force=camera_down)
     student = o.get("student")
     try:
         notify(student, log)
@@ -163,7 +191,9 @@ def _post_log(student, log):
 
 
 # The single in-process matcher (design-notes §3: one worker, shared buffers).
-matcher = matcher_mod.Matcher(outcome_sink=_write_outcome, face_search=db.search_face)
+matcher = matcher_mod.Matcher(
+    outcome_sink=_write_outcome, face_search=db.search_face, camera_heartbeat=True
+)
 
 # Single shared operator token (Step 11). Unset -> /api/* is open (dev default);
 # set it to lock down reads + writes. WS passes it as ?token=. CORS/hardening is
@@ -243,6 +273,7 @@ async def _start_perception():
     if not perception.enabled():
         return
     perception.on_face(matcher.on_face)  # in-process face events -> matcher
+    perception.on_frame(_note_frame)  # camera heartbeat -> matcher
     perception.on_frame(_on_frame_event)  # annotated frames -> MJPEG stream
 
     async def _resolve_loop():
@@ -756,6 +787,12 @@ def tap(req: TapRequest):
         liveness_pass=liveness_pass,
         status=status,
     )
+    failed = []
+    if face_match is False:
+        failed.append("face below match threshold")
+    if liveness_pass is False:
+        failed.append("liveness fail")
+    _queue_review(log, "; ".join(failed) or None)
     _post_log(student, log)
     return {"student": student_out, "log": log}
 
