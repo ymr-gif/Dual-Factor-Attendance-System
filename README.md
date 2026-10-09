@@ -146,8 +146,8 @@ Required before real use, and not done:
   token in its URL.
 - A camera that is down does not stop attendance. A tap made while no frame arrives is counted on
   the card alone until an operator reads the review queue, so whoever can unplug the camera can do
-  that. This is the documented fail-open choice ([`docs/design-notes.md`](docs/design-notes.md)),
-  not an oversight.
+  that. Whether such a tap should count is an open decision
+  ([`docs/design-notes.md`](docs/design-notes.md), section 10, item 6).
 - `buffalo_l` may not be used commercially without obtaining rights ([`NOTICE`](NOTICE)).
 
 Built, but not verified or not finished:
