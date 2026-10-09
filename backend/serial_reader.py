@@ -7,7 +7,7 @@ import serial
 
 from . import ports
 
-PORT = os.environ.get("SERIAL_PORT", "/dev/ttyACM0")
+PORT = os.environ.get("SERIAL_PORT", ports.DEFAULT_PORT)
 BAUD = int(os.environ.get("SERIAL_BAUD", "9600"))
 TAP_URL = os.environ.get("TAP_URL", "http://localhost:8000/tap")
 QUEUE_PATH = os.environ.get(
