@@ -1,0 +1,7 @@
+# Test dependencies. Enough on its own to run `make test`: tests/conftest.py stubs
+# the CV stack and the database driver when they are not installed.
+pytest
+httpx
+fastapi
+# FastAPI refuses to declare the upload routes in backend/main.py without it.
+python-multipart

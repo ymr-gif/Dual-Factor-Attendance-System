@@ -5,7 +5,7 @@ VENV := .venv
 VPY := $(VENV)/bin/python
 COMPOSE := docker compose
 
-.PHONY: help setup up down logs dev enroll calibrate preview fmt lint health \
+.PHONY: help setup up down logs dev enroll calibrate preview fmt lint test health \
         web-install web-dev web-build purge digest doctor \
         appliance preflight backup restore update
 
@@ -96,6 +96,9 @@ restore:  ## Restore a backup: make restore FILE=backups/attendance-*.sql (Step 
 
 update:  ## Pull latest, migrate, rebuild, restart — data preserved (Step 43)
 	bash deploy/update.sh
+
+test:  ## Run the smoke tests (first: pip install -r requirements-dev.txt)
+	$(VPY) -m pytest tests -q
 
 fmt:  ## Format backend code (black if available)
 	@$(VPY) -m black backend 2>/dev/null || echo "black not installed — 'pip install black'"

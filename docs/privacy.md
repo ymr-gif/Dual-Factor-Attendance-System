@@ -55,7 +55,7 @@ Every enroll, consent change, and erasure writes to `audit_log` (`actor`, `actio
 ## Not yet done
 
 - **Embedding encryption at rest** (pgcrypto or app-level) is a documented second
-  pass — see ROADMAP Step 20. The key-management tradeoff (a key on the same box
+  pass — not yet implemented. The key-management tradeoff (a key on the same box
   protects against disk theft, not host compromise) must be decided first.
 - The legal **consent-collection workflow** with guardians is an institutional
   process, out of scope for the code; the gate above enforces its outcome.

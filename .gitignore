@@ -20,8 +20,11 @@ backend/failed_taps.jsonl
 #   python -m backend.fetch_liveness_models
 backend/models/
 
-# Local Claude Code machine permissions (project CLAUDE.md is committed)
-.claude/settings.local.json
+# Local editor/agent tooling — not part of the project
+.claude/
+CLAUDE.md
+AGENTS.md
+handoff.md
 
 # Stray WhatsApp-web cache (unrelated to this project)
 .wwebjs_cache/
@@ -36,10 +39,8 @@ frontend/dist/
 # Deploy — local backups contain face templates (PII); never commit
 backups/
 
-# graphify — keep the graph outputs, drop the local cache + dated backups (noise)
-graphify-out/cache/
-graphify-out/20*/
-graphify-out/.graphify_*
+# graphify — local code-index output, never committed
+graphify-out/
 
 # OS / editor
 .DS_Store
