@@ -32,8 +32,6 @@ Then open **`http://localhost:8001/app/setup`** and finish in the browser (Step 
 
 Useful overrides: `NFC_PYTHON=/path/to/python`, `NFC_PORT`, `NFC_DB_PORT`, `NFC_NO_AUTOSTART=1`.
 
-Note: the `.env` written in step 2 needs a one-time cleanup before the services start correctly.
-See [Known issue](../docs/operations.md#known-issue-env-copied-from-envexample).
 
 **macOS** uses the same installer. It installs **launchd** agents (`deploy/launchd/`) instead of
 systemd units, auto-detects the Arduino at `/dev/cu.usbmodem*`, and runs on CPU (no CUDA).
