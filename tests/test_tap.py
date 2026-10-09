@@ -525,3 +525,108 @@ def test_startup_registers_the_heartbeat_with_perception(backend_main, monkeypat
 
     assert backend_main._note_frame in registered
 
+
+# --- /stream.mjpeg: the live camera image is locked with the rest of the API ---------
+
+
+@pytest.fixture
+def locked(backend_main, monkeypatch):
+    """OPERATOR_TOKEN set, no tickets outstanding."""
+    monkeypatch.setattr(backend_main, "OPERATOR_TOKEN", "s3cret")
+    monkeypatch.setattr(backend_main, "_stream_tickets", {})
+    return backend_main
+
+
+def test_stream_is_refused_without_a_ticket_or_token(client, locked, monkeypatch):
+    from fastapi.responses import PlainTextResponse
+
+    # The real response never ends. If the guard were ever removed, this stand-in turns
+    # what would be a hung test run into a plain 200 and a failed assertion.
+    monkeypatch.setattr(locked, "StreamingResponse", lambda *a, **k: PlainTextResponse("frames"))
+
+    assert client.get("/stream.mjpeg").status_code == 401
+    assert client.get("/stream.mjpeg?ticket=made-up").status_code == 401
+    assert client.get("/stream.mjpeg", headers={"X-Operator-Token": "wrong"}).status_code == 401
+
+
+def test_the_operator_token_is_not_accepted_from_the_url(client, locked, monkeypatch):
+    from fastapi.responses import PlainTextResponse
+
+    monkeypatch.setattr(locked, "StreamingResponse", lambda *a, **k: PlainTextResponse("frames"))
+
+    # A token in a URL ends up in access logs and browser history.
+    assert client.get("/stream.mjpeg?token=s3cret").status_code == 401
+    assert client.get("/stream.mjpeg?ticket=s3cret").status_code == 401
+
+
+def test_a_ticket_is_only_issued_to_a_caller_with_the_token(client, locked):
+    assert client.post("/api/stream-ticket").status_code == 401
+    assert locked._stream_tickets == {}
+
+    response = client.post("/api/stream-ticket", headers={"X-Operator-Token": "s3cret"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["expires_in"] == 60
+    assert body["ticket"] != "s3cret" and len(body["ticket"]) >= 32
+    assert list(locked._stream_tickets) == [body["ticket"]]
+
+
+def test_an_issued_ticket_opens_the_stream_and_the_token_header_still_works(client, locked, monkeypatch):
+    from fastapi.responses import PlainTextResponse
+
+    monkeypatch.setattr(locked, "StreamingResponse", lambda *a, **k: PlainTextResponse("frames"))
+    ticket = client.post("/api/stream-ticket", headers={"X-Operator-Token": "s3cret"}).json()["ticket"]
+
+    assert client.get(f"/stream.mjpeg?ticket={ticket}").status_code == 200
+    assert client.get("/stream.mjpeg", headers={"Authorization": "Bearer s3cret"}).status_code == 200
+
+
+def test_a_ticket_stops_working_when_it_expires(locked, monkeypatch):
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(locked.time, "monotonic", lambda: clock["now"])
+    guard = locked.require_stream_access
+    ticket = locked._issue_stream_ticket()
+
+    assert guard(ticket=ticket, authorization=None, x_operator_token=None) is None
+
+    clock["now"] += locked.STREAM_TICKET_TTL  # exactly at expiry: no longer valid
+    with pytest.raises(Exception) as denied:
+        guard(ticket=ticket, authorization=None, x_operator_token=None)
+    assert getattr(denied.value, "status_code", None) == 401
+
+
+def test_a_bad_ticket_is_not_rescued_by_a_valid_header(locked):
+    # Otherwise "?ticket=anything" plus a stolen page would behave differently from
+    # no ticket at all; one credential, one verdict.
+    with pytest.raises(Exception) as denied:
+        locked.require_stream_access(ticket="made-up", authorization="Bearer s3cret", x_operator_token=None)
+    assert getattr(denied.value, "status_code", None) == 401
+
+
+def test_expired_tickets_are_dropped_and_the_store_is_bounded(locked, monkeypatch):
+    clock = {"now": 0.0}
+    monkeypatch.setattr(locked.time, "monotonic", lambda: clock["now"])
+
+    old = locked._issue_stream_ticket()
+    clock["now"] = locked.STREAM_TICKET_TTL + 1
+    fresh = locked._issue_stream_ticket()
+    assert old not in locked._stream_tickets and fresh in locked._stream_tickets
+
+    for _ in range(locked._STREAM_TICKET_LIMIT + 50):
+        locked._issue_stream_ticket()
+    assert len(locked._stream_tickets) <= locked._STREAM_TICKET_LIMIT
+
+
+def test_stream_is_open_when_no_token_is_configured(backend_main, monkeypatch):
+    monkeypatch.setattr(backend_main, "OPERATOR_TOKEN", "")
+    guard = backend_main.require_stream_access
+
+    assert guard(ticket=None, authorization=None, x_operator_token=None) is None
+    assert guard(ticket="anything", authorization=None, x_operator_token=None) is None
+
+
+def test_stream_route_carries_the_guard(backend_main):
+    route = next(r for r in backend_main.app.routes if getattr(r, "path", "") == "/stream.mjpeg")
+
+    assert backend_main.require_stream_access in [d.call for d in route.dependant.dependencies]
