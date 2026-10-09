@@ -2,7 +2,7 @@
 
 Cross-cutting decisions that don't belong to a single build step. Read this **before building
 Track 30–35** (the continuous-flow guardpost) — it records the constraints and failure behaviors
-that are easy to get silently wrong. Companion to the README's "What's next" list.
+that are easy to get silently wrong. Companion to the README's "Limits and next steps" section.
 
 Status: **decisions on record + open questions**, not yet all implemented. Each item says whether
 it's decided or still open.
@@ -17,6 +17,8 @@ it's decided or still open.
 - **Trust boundary**: the Arduino is relay-only (no decisions on-device); all identity/verification
   logic is on the backend. LAN is semi-trusted (see §6).
 - **Scale**: hundreds of enrolled students, not tens of thousands (affects 1:N index choices).
+- **Face library**: InsightFace `buffalo_l` (ArcFace, 512-d) was chosen over `face_recognition`/dlib:
+  no compile step, and better on off-angle and unevenly lit faces.
 - **Distribution & runtime**: the repo is the *install channel* for the GPU box. Target is a
   **dedicated appliance** that **auto-starts into the UI on boot**; a technician provisions it
   **once**, then non-technical staff just power it on. Primary OS = **Linux** (kiosk + GPU + camera +
