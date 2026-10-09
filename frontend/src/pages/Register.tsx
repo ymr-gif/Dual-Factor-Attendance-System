@@ -4,6 +4,7 @@ import {
   type Student, type EnrollResult, type PerceptionState,
 } from '../api'
 import { useTapStream } from '../useTapStream'
+import { useStreamUrl } from '../useStreamUrl'
 
 const is: React.CSSProperties = {
   background: '#12141a', color: '#e6e8ee', border: '1px solid #333', borderRadius: 4,
@@ -27,6 +28,7 @@ export default function Register() {
   const [scanningUid, setScanningUid] = useState(false)
   const vr = useRef<HTMLVideoElement>(null)
   const ir = useRef<HTMLImageElement>(null)
+  const streamSrc = useStreamUrl()
   const cr = useRef<HTMLCanvasElement>(null)
   const sr = useRef<MediaStream | null>(null)
   const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -165,7 +167,7 @@ export default function Register() {
 
           <div style={{ maxWidth: 420 }}>
             {camSource === 'stream'
-              ? <img ref={ir} src="/stream.mjpeg" alt="camera"
+              ? <img ref={ir} src={streamSrc ?? undefined} alt="camera"
                   onError={() => setCamNote('Server camera stream offline — no frames available.')}
                   style={{ width: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 4, display: 'block', background: '#000' }} />
               : <video ref={vr} autoPlay playsInline muted

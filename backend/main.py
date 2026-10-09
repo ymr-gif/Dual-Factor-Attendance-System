@@ -1,5 +1,6 @@
 import asyncio
 import os
+import secrets
 import time
 
 from datetime import datetime, timedelta, timezone
@@ -196,8 +197,8 @@ matcher = matcher_mod.Matcher(
 )
 
 # Single shared operator token (Step 11). Unset -> /api/* is open (dev default);
-# set it to lock down reads + writes. WS passes it as ?token=. CORS/hardening is
-# Step 16.
+# set it to lock down reads + writes. WS passes it as ?token=; the camera stream uses
+# a short-lived ticket instead (see require_stream_access). CORS/hardening is Step 16.
 OPERATOR_TOKEN = os.environ.get("OPERATOR_TOKEN", "")
 
 
@@ -243,6 +244,47 @@ def require_operator(
         supplied = x_operator_token.strip()
     if supplied != OPERATOR_TOKEN:
         raise HTTPException(status_code=401, detail="invalid or missing operator token")
+
+
+# Stream tickets. /stream.mjpeg is loaded by an <img> tag, which cannot send a header,
+# so its credential has to ride in the URL, and URLs end up in access logs and browser
+# history. The operator token therefore never goes there: an authenticated call to
+# POST /api/stream-ticket trades it for a random ticket that opens the stream only and
+# stops working after STREAM_TICKET_TTL seconds. Single worker, so a dict is enough.
+STREAM_TICKET_TTL = 60.0
+_STREAM_TICKET_LIMIT = 256
+_stream_tickets: dict[str, float] = {}  # ticket -> expiry on time.monotonic()
+
+
+def _issue_stream_ticket() -> str:
+    now = time.monotonic()
+    for ticket, expires in list(_stream_tickets.items()):
+        if expires <= now:
+            _stream_tickets.pop(ticket, None)
+    while len(_stream_tickets) >= _STREAM_TICKET_LIMIT:
+        _stream_tickets.pop(next(iter(_stream_tickets)))  # oldest first
+    ticket = secrets.token_urlsafe(32)
+    _stream_tickets[ticket] = now + STREAM_TICKET_TTL
+    return ticket
+
+
+def require_stream_access(
+    ticket: str | None = Query(default=None),
+    authorization: str | None = Header(default=None),
+    x_operator_token: str | None = Header(default=None),
+):
+    """Guard /stream.mjpeg. The stream is the live camera image, so it is locked
+    whenever /api/* is: by an unexpired ticket in `?ticket=`, or by the operator token
+    in a header for a client that can send one. The token itself is never accepted
+    from the URL."""
+    if not OPERATOR_TOKEN:
+        return
+    if ticket is not None:
+        expires = _stream_tickets.get(ticket)
+        if expires is None or expires <= time.monotonic():
+            raise HTTPException(status_code=401, detail="unknown or expired stream ticket")
+        return
+    require_operator(authorization, x_operator_token)
 
 
 @app.on_event("startup")
@@ -648,6 +690,12 @@ def api_delete_student(student_id: str, actor: str = Depends(_actor)):
     return {"erased": student_id, **counts}
 
 
+@app.post("/api/stream-ticket", dependencies=[Depends(require_operator)])
+def api_stream_ticket():
+    """Trade the operator token (sent in a header) for a short-lived stream ticket."""
+    return {"ticket": _issue_stream_ticket(), "expires_in": int(STREAM_TICKET_TTL)}
+
+
 @app.websocket("/ws/taps")
 async def ws_taps(websocket: WebSocket):
     # Auth via query param (?token=) — matches OPERATOR_TOKEN when it is set.
@@ -666,7 +714,7 @@ async def ws_taps(websocket: WebSocket):
         events.unsubscribe(q)
 
 
-@app.get("/stream.mjpeg")
+@app.get("/stream.mjpeg", dependencies=[Depends(require_stream_access)])
 async def stream_mjpeg():
     """Live camera feed as MJPEG stream. perception.on_frame broadcasts annotated
     JPEG frames to every connected client; this endpoint yields one client's frames
