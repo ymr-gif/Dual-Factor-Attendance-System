@@ -79,7 +79,7 @@ All optional; set on the `nfc-scan-backend` systemd unit.
 | Var | Default | Meaning |
 |-----|---------|---------|
 | `FACE_MATCH_ENABLED` | `true` | `false` runs the backend headless (no webcam needed) |
-| `CAMERA_INDEX` | `0` | webcam device index (`/dev/videoN`) |
+| `CAMERA_INDEX` | unset | webcam device index (`/dev/videoN`); unset lets the backend pick: an external USB camera first on macOS, usually the lowest `/dev/video` node on Linux (`make cameras` shows which) |
 | `FACE_THRESHOLD` | `0.5` | cosine cutoff for a match |
 | `CAMERA_WARMUP_FRAMES` | `5` | frames discarded before capture (sensor settle) |
 | `CAMERA_PROBE_FRAMES` | `5` | best-of-N frames per tap (lower = faster tap) |

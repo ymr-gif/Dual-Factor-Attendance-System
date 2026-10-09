@@ -18,7 +18,14 @@ It fans out two in-process streams via registered sinks:
     intentional deviation from the roadmap's "publish on the bus" wording.
 
 Recognition runs **once per new track** (stable IoU track IDs), not per frame — the
-throughput win and the "in/out of frame" semantics both come from that.
+throughput win and the "in/out of frame" semantics both come from that. A track that
+stays visible re-publishes its face event every `FACE_REFRESH_SEC`, and is recognized
+again first if it lost its face for a frame or more since the last recognition, or if
+no frame was processed for `TRACK_STALE_SEC`.
+
+Limit: tracks are matched by box overlap only. A person who takes over a track with no
+missed frame keeps the previous person's cached identity until that track next loses
+its face.
 
 Fail-open: enabling perception (PERCEPTION_ENABLED) makes it the camera owner; while
 it is down / not yet correlating, `/tap` logs card-only `unverified` (never silently
@@ -36,12 +43,27 @@ def _bool(name: str, default: str) -> bool:
 
 
 PERCEPTION_ENABLED = _bool("PERCEPTION_ENABLED", "false")
-# None -> face.CAMERA_INDEX. Set to a video-file path (or image-sequence pattern)
+# None -> the camera face.camera_index() selects. Set to a video-file path (or image-sequence pattern)
 # to run the pipeline offline against recorded footage — the acceptance path.
 PERCEPTION_SOURCE = os.environ.get("PERCEPTION_SOURCE") or None
 TRACK_IOU_THRESH = float(os.environ.get("TRACK_IOU_THRESH", "0.3"))
 TRACK_MAX_MISSES = int(os.environ.get("TRACK_MAX_MISSES", "15"))
 PERCEPTION_FPS = float(os.environ.get("PERCEPTION_FPS", "15"))  # loop-rate cap
+# How often a still-visible, already-recognized track publishes a new face event, so
+# that a tap which comes after the first recognition can still claim the face. The
+# matcher keeps a face event for ASSOC_WINDOW_SEC + 1 s and judges a tap
+# ASSOC_WINDOW_SEC after it arrived, so a tap can claim an event published up to about
+# 1 s before it, or any time in the window after it. With a refresh longer than that,
+# a person who taps and leaves before the next refresh gets no_face.
+# An unbroken track re-publishes its cached embedding and liveness verdict, so a
+# refresh costs no recognition. A track that missed a frame since it was last
+# recognized may hold another person, and is recognized again instead.
+FACE_REFRESH_SEC = float(os.environ.get("FACE_REFRESH_SEC", "2.0"))
+# A pause this long with no processed frame (failed camera reads, a stalled loop) counts
+# as a missed frame for every track: the tracker did not see who came and went.
+TRACK_STALE_SEC = float(os.environ.get("TRACK_STALE_SEC", "1.0"))
+# Consecutive failed reads (~0.1s apart) tolerated before a live camera is given up on.
+CAMERA_MAX_MISSES = int(os.environ.get("CAMERA_MAX_MISSES", "600"))
 
 
 def enabled() -> bool:
@@ -91,13 +113,23 @@ def _iou(a, b) -> float:
 
 
 class _Track:
-    __slots__ = ("id", "bbox", "misses", "recognized")
+    __slots__ = (
+        "id", "bbox", "misses", "reacquired", "recognized", "embedding", "live_score",
+        "is_live", "last_face_ts",
+    )
 
     def __init__(self, tid: int, bbox):
         self.id = tid
         self.bbox = bbox
         self.misses = 0
+        # True once the track was matched again after one or more missed frames, until
+        # it is next recognized: the face in it now may not be the one recognized.
+        self.reacquired = False
         self.recognized = False
+        self.embedding = None
+        self.live_score = None
+        self.is_live = None
+        self.last_face_ts = None
 
 
 class FaceTracker:
@@ -109,6 +141,9 @@ class FaceTracker:
         self.max_misses = max_misses
         self._tracks: dict[int, _Track] = {}
         self._next = 1
+        # When process_frame last finished a frame. Measured from the end of a frame,
+        # so time spent recognizing inside a frame is not mistaken for a pause.
+        self.last_done_ts = None
 
     def update(self, dets):
         """Advance the tracker by one frame. `dets` is a list of face.Detection.
@@ -132,6 +167,8 @@ class FaceTracker:
             if tid in assigned:
                 d = dets[assigned[tid]]
                 tr.bbox = d.bbox
+                if tr.misses:
+                    tr.reacquired = True
                 tr.misses = 0
                 results.append((tr, d, False))
             else:
@@ -154,33 +191,66 @@ def _usable(bbox) -> bool:
     return min(x2 - x1, y2 - y1) >= face.MIN_FACE_PX
 
 
+def _face_event(tr: _Track, det, ts: float) -> dict:
+    return {
+        "type": "face",
+        "track_id": tr.id,
+        "bbox": list(det.bbox),
+        "embedding": tr.embedding,
+        "live_score": tr.live_score,
+        "is_live": tr.is_live,
+        "ts": ts,
+    }
+
+
+def _recognize(tr: _Track, frame, det) -> None:
+    """Measure the face now in this track: embedding, and liveness when enabled.
+    The track is updated only once both are in hand, so a failure part-way leaves
+    it as it was and still due for recognition."""
+    embedding = face.embed(frame, det)
+    live_score = is_live = None
+    if liveness.enabled():
+        live_score, is_live = liveness.assess(frame, det.bbox)
+    tr.embedding = embedding
+    tr.live_score, tr.is_live = live_score, is_live
+    tr.recognized = True
+    tr.reacquired = False
+
+
 def process_frame(frame, tracker: FaceTracker) -> list:
-    """Detect + track one frame, recognize any newly-usable track once, and emit
-    the frame (boxes) + face (embedding) events. Returns the tracker's updates."""
+    """Detect + track one frame, recognize any newly-usable track, refresh the
+    tracks that are due, and emit the frame (boxes) + face (embedding) events.
+    Returns the tracker's updates."""
     dets = face.detect(frame)
     ts = time.time()
+    # No frame was processed for longer than TRACK_STALE_SEC: the tracker counted no
+    # missed frame, but whoever is in a track now may not be who was recognized.
+    stalled = tracker.last_done_ts is not None and ts - tracker.last_done_ts > TRACK_STALE_SEC
     updates = tracker.update(dets)
+    if stalled:
+        for tr, _det, _is_new in updates:
+            tr.reacquired = True
 
     for tr, det, _is_new in updates:
-        # Recognize once, the first frame a track is large enough to be usable.
-        if not tr.recognized and _usable(det.bbox):
-            emb = face.embed(frame, det)
-            tr.recognized = True
-            live_score = is_live = None
-            if liveness.enabled():
-                live_score, is_live = liveness.assess(frame, det.bbox)
-            _emit(
-                _face_sinks,
-                {
-                    "type": "face",
-                    "track_id": tr.id,
-                    "bbox": list(det.bbox),
-                    "embedding": emb,
-                    "live_score": live_score,
-                    "is_live": is_live,
-                    "ts": ts,
-                },
-            )
+        if not _usable(det.bbox):
+            continue
+        if not tr.recognized:
+            # Recognize once, the first frame a track is large enough to be usable.
+            _recognize(tr, frame, det)
+            tr.last_face_ts = ts
+            _emit(_face_sinks, _face_event(tr, det, ts))
+        elif ts - tr.last_face_ts >= FACE_REFRESH_SEC:
+            # Still visible: publish again under a fresh timestamp so a tap that
+            # lands after the first recognition (but while the person is still
+            # standing there) can still claim it. An unbroken track re-publishes
+            # its cached embedding, so recognition is not paid for again. A track
+            # that lost its face for a frame or more can have passed to the next
+            # person standing in the same spot; replaying the cache would then
+            # accept the first person's card, so that track is recognized again.
+            if tr.reacquired:
+                _recognize(tr, frame, det)
+            tr.last_face_ts = ts
+            _emit(_face_sinks, _face_event(tr, det, ts))
 
     _emit(
         _frame_sinks,
@@ -194,6 +264,7 @@ def process_frame(frame, tracker: FaceTracker) -> list:
             ],
         },
     )
+    tracker.last_done_ts = time.time()
     return updates
 
 
@@ -216,12 +287,30 @@ def _camera_frames():
     if not cap.isOpened():
         print("[perception] camera/source not available — perception idle")
         return
+    # A live camera needs a moment before it delivers frames (AVFoundation on macOS
+    # returns ok=False for the first reads while the capture session starts), and can
+    # hiccup later. A video file, by contrast, means EOF the first time read() fails.
+    is_live = PERCEPTION_SOURCE is None or str(PERCEPTION_SOURCE).isdigit()
+    if is_live:
+        for _ in range(face.CAMERA_WARMUP_FRAMES):
+            cap.read()
     delay = 1.0 / PERCEPTION_FPS if PERCEPTION_FPS > 0 else 0.0
+    misses = 0
     try:
         while True:
             ok, frame = cap.read()
             if not ok or frame is None:
-                break  # EOF (video file) or a camera hiccup
+                if not is_live:
+                    break  # EOF (video file)
+                misses += 1
+                if misses == 1 or misses % 100 == 0:
+                    print(f"[perception] no frame from camera (x{misses}) — retrying")
+                if misses > CAMERA_MAX_MISSES:
+                    print("[perception] camera stopped delivering frames — perception idle")
+                    break
+                time.sleep(0.1)
+                continue
+            misses = 0
             yield frame
             if delay:
                 time.sleep(delay)
@@ -232,7 +321,7 @@ def _camera_frames():
 def main():
     print(
         f"[perception] starting (single camera owner) source="
-        f"{PERCEPTION_SOURCE if PERCEPTION_SOURCE is not None else face.CAMERA_INDEX} "
+        f"{PERCEPTION_SOURCE if PERCEPTION_SOURCE is not None else face.camera_index()} "
         f"iou={TRACK_IOU_THRESH} max_misses={TRACK_MAX_MISSES} fps={PERCEPTION_FPS}"
     )
     run(_camera_frames())

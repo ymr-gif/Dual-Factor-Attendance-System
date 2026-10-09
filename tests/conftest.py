@@ -30,6 +30,8 @@ if REPO_ROOT not in sys.path:
 #
 # numpy, scipy, psycopg2 and pgvector are imported when backend.db / face / liveness /
 # matcher load, so `backend.main` cannot be imported without them (or a stand-in).
+# pyserial is imported when backend.ports loads, and backend.main imports that module
+# for GET /api/serial/ports.
 # cv2, onnxruntime, insightface and prometheus_client are imported inside functions
 # only (camera, model load, /metrics). The tests replace those functions, so their
 # stubs are a guard against an accidental real import, not a requirement.
@@ -42,6 +44,7 @@ _THIRD_PARTY = {
     "onnxruntime": ["onnxruntime"],
     "insightface": ["insightface", "insightface.app", "insightface.app.common"],
     "prometheus_client": ["prometheus_client"],
+    "serial": ["serial", "serial.tools", "serial.tools.list_ports"],
 }
 
 
