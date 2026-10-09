@@ -9,8 +9,9 @@ psycopg2-binary
 pyserial
 requests
 insightface
-# Intel macOS: last versions published as x86_64 wheels. Unpinned, pip falls back
-# to a multi-hour source build (opencv) / has no candidate (onnxruntime).
+# Intel macOS: pinned to the newest releases that ship an x86_64 wheel for macOS 12
+# or older, so that an older Intel Mac installs wheels instead of building from
+# source. Later releases ship macOS wheels for version 13 or newer only.
 onnxruntime==1.19.2; sys_platform == "darwin" and platform_machine == "x86_64"
 onnxruntime; sys_platform != "darwin" or platform_machine != "x86_64"
 # opencv-python (non-headless) is pinned too: insightface pulls it in transitively.

@@ -5,7 +5,8 @@ VENV := .venv
 VPY := $(VENV)/bin/python
 COMPOSE := docker compose
 
-.PHONY: help setup up down logs dev enroll calibrate preview fmt lint test health \
+.PHONY: help setup up down logs dev dev-cam autostart ports cameras \
+        enroll calibrate preview fmt lint test health \
         web-install web-dev web-build purge digest doctor \
         appliance preflight backup restore update
 

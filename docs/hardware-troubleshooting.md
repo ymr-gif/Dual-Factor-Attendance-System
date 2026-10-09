@@ -1,25 +1,27 @@
 # Hardware troubleshooting
 
-Field notes for the two devices the guardpost depends on: the RC522 reader on the
-Arduino, and the camera. Both fail *quietly* — the backend fails open by design, so a
-dead device shows up as taps logged `unverified` rather than as an error.
+Notes on the two devices the guardpost depends on: the RC522 reader on the Arduino, and
+the camera. Both fail *quietly*. A dead reader sends no taps at all, and the backend
+fails open by design, so a dead camera shows up in the statuses of the taps that are
+logged (see "How it works" in the README) rather than as an error.
 
 ---
 
 ## Reader: `READY` arrives but no `UID:` lines
 
 **Symptom.** The reader connects and stays connected, but tapping a card logs nothing.
-`make ports` shows the board, `reader.launchd.log` shows `listening on /dev/cu.usbmodem… @ 9600`,
-and no taps follow.
+`make ports` shows the board, the reader's log shows `listening on <port> @ 9600`, and no
+taps follow.
 
 **Isolate the layer before touching code.** Stop the reader (it owns the port) and watch
 the raw serial:
 
 ```bash
+systemctl --user stop nfc-scan-reader                               # Linux
 launchctl unload ~/Library/LaunchAgents/com.nfc-scan.reader.plist   # macOS
 .venv/bin/python - <<'PY'
 import serial, time
-s = serial.Serial('/dev/cu.usbmodem14201', 9600, timeout=1)   # your port from `make ports`
+s = serial.Serial('/dev/ttyACM0', 9600, timeout=1)   # your port from `make ports`
 t0 = time.time()
 while time.time() - t0 < 45:
     line = s.readline()
@@ -58,7 +60,7 @@ Silence, no error. That is why a clean `READY` proves nothing about the reader.
 `VersionReg` is a hardware constant, so reading it repeatedly doubles as a bus test: a sound
 link returns the same value every time. **A plausible-looking value can still be noise.**
 
-**Observed 2026-07-21 on the macOS box**, and the reason this check exists in its current form:
+An example from one marginal link, three boots in a row:
 
 ```
 first boot:   RC522:0xB2      <- looks like a clone version; actually noise
@@ -66,14 +68,13 @@ second boot:  RC522:0x06      <- same constant, different value
 third boot:   RC522:0x02
 ```
 
-A first pass at this check only flagged `0x00`/`0xFF`, so it reported `0xB2` as `OK` and sent
-the debugging in the wrong direction — a single lucky `UID:` read on the same marginal bus
-reinforced the mistake. Values that vary between reads are the tell, and noise is usually
-neither `0x00` nor `0xFF`. Distrust any version outside `0x91`/`0x92` until it repeats.
+A check that only flags `0x00`/`0xFF` reports `0xB2` as `OK`, and a single lucky `UID:` read
+on the same marginal bus then looks like confirmation. Values that vary between reads are
+the tell, and noise is usually neither `0x00` nor `0xFF`. Distrust any version outside
+`0x91`/`0x92` until it repeats.
 
-Earlier in the same session the board emitted a burst of raw `0xFF` bytes on tap. The sketch
-only ever emits ASCII, so that was the same fault at a coarser level: an undriven SPI line
-reads back as all-ones.
+A burst of raw `0xFF` bytes on tap is the same fault at a coarser level. The sketch only
+ever emits ASCII; an undriven SPI line reads back as all-ones.
 
 **`MISO` is the prime suspect for all of the above** — it is the only line the chip drives
 back to the Arduino, so writes keep appearing to work while every read returns rubbish.
@@ -114,27 +115,27 @@ the whole feedback loop. Do not judge by whether taps work; judge by `OK`/`OK-CL
 
 ### Reflashing
 
-The reader must be stopped first — it holds the port, and the upload needs it:
+The reader must be stopped first — it holds the port, and the upload needs it. The
+commands are in [`operations.md`](operations.md#arduino). Two additions:
 
-```bash
-launchctl unload ~/Library/LaunchAgents/com.nfc-scan.reader.plist   # macOS
-CLI="/Applications/Arduino IDE.app/Contents/Resources/app/lib/backend/resources/arduino-cli"
-CFG=~/.arduinoIDE/arduino-cli.yaml
-"$CLI" --config-file "$CFG" lib install MFRC522        # once; not preinstalled here
-"$CLI" --config-file "$CFG" board list                 # confirm port + FQBN
-"$CLI" --config-file "$CFG" compile --fqbn arduino:avr:uno arduino/nfc_scan
-"$CLI" --config-file "$CFG" upload -p /dev/cu.usbmodem14201 --fqbn arduino:avr:uno arduino/nfc_scan
-launchctl load ~/Library/LaunchAgents/com.nfc-scan.reader.plist
-```
+- With the Arduino IDE installed on macOS and no `arduino-cli` on `PATH`, the IDE's own
+  copy can be used. Run it with the IDE's configuration file:
 
-arduino-cli ships inside the IDE rather than on `PATH`, hence the full path above. A CH340
-clone board reports as `Unknown` (the chip carries no board identity) and needs its FQBN given
-explicitly — `arduino:avr:nano:cpu=atmega328old` for most Nano clones.
+  ```bash
+  CLI="/Applications/Arduino IDE.app/Contents/Resources/app/lib/backend/resources/arduino-cli"
+  CFG=~/.arduinoIDE/arduino-cli.yaml
+  "$CLI" --config-file "$CFG" lib install MFRC522        # once
+  "$CLI" --config-file "$CFG" board list                 # confirm port + FQBN
+  ```
+
+- A CH340 clone board reports as `Unknown` (the chip carries no board identity) and needs
+  its FQBN given explicitly — `arduino:avr:nano:cpu=atmega328old` for most Nano clones.
 
 **Remember to restart the reader** when finished — it stays down until you do:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/com.nfc-scan.reader.plist
+systemctl --user start nfc-scan-reader                              # Linux
+launchctl load ~/Library/LaunchAgents/com.nfc-scan.reader.plist     # macOS
 ```
 
 ---
