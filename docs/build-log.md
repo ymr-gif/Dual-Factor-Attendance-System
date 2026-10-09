@@ -98,7 +98,9 @@ was always empty. `main._queue_review` now adds every tap that failed a check
 from the matcher's outcome writer and from the per-tap path. A failed insert is printed and the
 tap still notifies and broadcasts.
 
-**Camera-dead degraded mode is implemented** (the Decision row in design-notes "Failure modes").
+**A camera that delivers nothing no longer reads as `no_face`.** Whether a card-only tap during
+a camera outage should count at all is still an open decision (design-notes section 10, item 6);
+what follows keeps the outcome such a tap had before, and makes it visible.
 Before, a camera that delivered nothing made every queued tap `no_face`. With the count wired to
 the status that would have marked the whole school absent. The matcher now takes a heartbeat:
 `perception.on_frame` feeds `Matcher.note_frame`, and each pending tap counts the frames inside its

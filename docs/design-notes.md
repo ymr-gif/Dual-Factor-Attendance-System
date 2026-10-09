@@ -179,3 +179,18 @@ Security: embedding theft · stream auth/TLS · token rotation · audit tamper.
 4. Accuracy target (FAR/FRR operating point) for this population?
 5. Consent/legal jurisdiction + is the school use "commercial" for the model license?
 6. Camera-dead degraded mode: log as `unverified` (recommended) vs block taps entirely?
+   **Still open as of 10 Oct 2026. It is the owner's call; do not settle it in passing.**
+   - *What the code does now.* A tap whose window saw no camera frame is logged `unverified`,
+     an `[ALERT]` line is printed and the tap is queued for review. `unverified` counts as
+     present (`decision.counts_as_present`), so the student is counted on the card alone. This
+     keeps the outcome a dead camera had before the status was wired into the count. It was
+     done to avoid changing that outcome by accident, not to answer this question.
+   - *Why it is not settled.* The table in section 4 says `unverified` "(not `present`)", which
+     can be read as "do not count", while `decision.py` says `unverified` counts. And whoever
+     can unplug the camera is counted without a face check until an operator reads the queue.
+   - *The options.* (a) Keep counting, flagged for review. (b) Never count without an operator
+     override, which turns one camera fault into a manual override for every student that
+     morning. (c) Follow `ENFORCE_2FA`: count while it is off, do not count while it is on.
+     Today that switch is not read at all when perception is on.
+   - *Where the change would go.* `Matcher._unwatched` in `backend/matcher.py` picks the status
+     for such a tap. `no_face` already means "not counted, reviewed, overridable".
