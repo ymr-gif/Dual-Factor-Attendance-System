@@ -78,22 +78,21 @@ Replace `backend` with `reader` for the serial reader. The backup and restore sc
 `deploy/` work unchanged. `deploy/update.sh` and `deploy/factory-reset.sh` restart the
 services only where `systemctl` exists, so on macOS reload the agents yourself afterwards.
 
-## Known issue: `.env` copied from `.env.example`
+## Editing `.env`
 
-The installer creates `.env` by copying `.env.example`. That file puts comments on the
-same line as values and leaves `DB_DSN` unquoted, and each loader reads that differently:
+Three things read `.env`, and they parse it differently: systemd (`EnvironmentFile=`), a
+shell (`set -a; . ./.env; set +a`, which is what the launchd wrappers do) and Docker Compose
+(`env_file`). Two rules keep all three in agreement:
 
-- **systemd** (`EnvironmentFile=`) keeps the trailing comment as part of the value.
-  `CAMERA_INDEX` becomes `0             # USB webcam; ...`, the backend raises
-  `ValueError` while importing `backend/face.py`, and the unit restarts in a loop.
-- **The launchd wrappers** (and `set -a; . ./.env; set +a` in any shell) cut `DB_DSN` at
-  its first space, leaving `dbname=attendance`, which no longer points at the container
-  on port 5433.
-- **Docker Compose** (`make up`) reads the numbers correctly, but takes an empty value that
-  has a trailing comment, such as `SMTP_HOST=`, to be the comment text. That only matters
-  once email is switched on.
+- Put every comment on its own line. systemd keeps a trailing `# comment` as part of the
+  value, and Compose does the same when the value is empty.
+- Double-quote any value that contains a space, such as `DB_DSN`. A shell otherwise cuts
+  it at the first space.
 
-Until `.env.example` is changed, clean the generated file once and restart:
+`.env.example` follows both rules. A `.env` created from an older copy of it does not: its
+`CAMERA_INDEX` reaches the backend as `0   # USB webcam; ...`, `backend/face.py` raises
+`ValueError` on import, and the systemd unit restarts in a loop. The installer leaves an
+existing `.env` untouched, so clean such a file once and restart:
 
 ```bash
 cd ~/nfc-scan      # or wherever the checkout lives
@@ -101,9 +100,7 @@ sed -i.bak -E -e 's/[[:space:]]+#.*$//' -e 's/^DB_DSN=([^"].*)$/DB_DSN="\1"/' .e
 systemctl --user restart nfc-scan-backend nfc-scan-reader     # Linux
 ```
 
-The `sed` line removes trailing comments and wraps `DB_DSN` in double quotes. On macOS,
-unload and load both agents instead of the last line. When you edit `.env` later, put
-comments on their own lines.
+On macOS, unload and load both agents instead of the last line.
 
 ## Running by hand
 
@@ -119,7 +116,7 @@ TAP_URL=http://localhost:8001/tap .venv/bin/python -m backend.serial_reader
 - A process started by hand reads its own environment only. Nothing loads `.env` for it,
   so it runs on the code defaults, which include `PERCEPTION_ENABLED=false`. Pass settings
   inline (`ENFORCE_2FA=true make dev`) or export the file first with
-  `set -a; . ./.env; set +a` (see the known issue above).
+  `set -a; . ./.env; set +a` (see [Editing `.env`](#editing-env) above).
 - The reader's built-in `TAP_URL` default is port 8000, so set it as shown. `SERIAL_PORT`
   defaults to `/dev/ttyACM0` and `SERIAL_BAUD` to 9600. On macOS use
   `SERIAL_PORT=/dev/cu.usbmodemXXXX` (`ls /dev/cu.*` lists the candidates).
