@@ -13,8 +13,8 @@ from . import db
 
 
 def _check(ok: bool, name: str, hint: str = ""):
-    icon = "✓" if ok else "✗"
-    print(f"  {icon} {name}" + (f"  — {hint}" if hint else ""))
+    mark = "[OK]  " if ok else "[FAIL]"
+    print(f"  {mark} {name}" + (f"  — {hint}" if hint else ""))
 
 
 def run():

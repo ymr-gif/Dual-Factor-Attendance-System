@@ -46,7 +46,7 @@ def _digest_body(student_name: str, student_id: str, sessions: list[dict],
     # Late flag
     for p in summary.get("present", []):
         if p["student_id"] == student_id and p.get("late"):
-            lines.append("  ⚠ LATE (after cutoff)")
+            lines.append("  LATE (after cutoff)")
             lines.append("")
 
     lines.append("— nfc-scan attendance system")

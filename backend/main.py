@@ -104,7 +104,7 @@ def _on_frame_event(frame, ev):
         x1, y1, x2, y2 = track["bbox"]
         color = (0, 180, 0) if track.get("recognized") else (0, 165, 255)  # green / amber BGR
         cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
-        label = f"{'✓' if track.get('recognized') else '?'} #{track['track_id']}"
+        label = f"{'OK' if track.get('recognized') else '?'} #{track['track_id']}"
         cv2.putText(annotated, label, (x1, y1 - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
 
     ok, jpeg = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
