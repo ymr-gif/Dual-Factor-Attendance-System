@@ -133,8 +133,9 @@ Goal: capture the strengths, cut the cons to the floor.
 ## 6. Security & privacy (implementation-affecting)
 - **Embeddings are permanent PII.** A face template can't be reset like a password; a DB leak is
   forever. → encryption at rest (Backbone Step 20) is higher-priority here than typical apps.
-- **Stream auth.** The admin dashboard + WS are token-gated. The **public viewer** shows boxes +
-  status only, **no names** (decided) — but its MJPEG/annotated stream is still kids' faces; keep it
+- **Stream auth.** The admin dashboard + WS are token-gated, and so is the MJPEG stream (a
+  short-lived ticket from `POST /api/stream-ticket`, so the token is never in a URL). The viewer
+  shows boxes + status only, **no names** (decided) — but the stream is still kids' faces; keep it
   **LAN-only + consider TLS**, and don't expose it beyond the guardpost network.
 - **Operator token** is a shared secret → rotation plan; promote to per-user `operators` accounts
   (Step 35). Audit log (Step 20) should be append-only / tamper-evident where feasible.
