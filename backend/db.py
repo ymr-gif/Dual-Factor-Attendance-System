@@ -1,6 +1,6 @@
 import os
 from contextlib import contextmanager
-from datetime import time
+from datetime import datetime, time
 
 import psycopg2
 import psycopg2.extras
@@ -23,9 +23,62 @@ if _LATE_CUTOFF_STR:
         pass
 
 
+def _local_utc_offset():
+    """This machine's current offset from UTC, as a timedelta (None if unknown)."""
+    return datetime.now().astimezone().utcoffset()
+
+
+def _system_timezone() -> str | None:
+    """This machine's time zone, in a form Postgres accepts: the IANA name behind
+    /etc/localtime when it is a zoneinfo link (Linux, macOS), else the current UTC
+    offset as a POSIX zone string."""
+    target = os.path.realpath("/etc/localtime")
+    marker = "zoneinfo/"
+    if marker in target:
+        return target.split(marker, 1)[1]
+    offset = _local_utc_offset()
+    if offset is None:
+        return None
+    minutes = int(offset.total_seconds() // 60)
+    hours, mins = divmod(abs(minutes), 60)
+    # POSIX zone strings count the offset westward, so the sign after the name is the
+    # opposite of the one in the name: UTC+8 is written <+0800>-08:00.
+    name_sign, posix_sign = ("+", "-") if minutes >= 0 else ("-", "+")
+    return f"<{name_sign}{hours:02d}{mins:02d}>{posix_sign}{hours:02d}:{mins:02d}"
+
+
+# The attendance clock. Every "which day" and "what time" question is answered in SQL
+# (ts::date, ts::time, CURRENT_DATE), in the session's time zone, and Postgres in Docker
+# defaults that to UTC. In a UTC+8 school that files a 07:30 tap under the previous day
+# and compares 23:30 against LATE_CUTOFF. Each session is therefore switched to the zone
+# the school runs on: ATTENDANCE_TZ when set (an IANA name such as Asia/Manila), else
+# this machine's own zone.
+SESSION_TZ = os.environ.get("ATTENDANCE_TZ") or _system_timezone()
+_tz_warned = False
+
+
+def _use_attendance_clock(conn) -> None:
+    """Switch the session to SESSION_TZ. Best-effort: a zone Postgres does not know is
+    reported once and the session keeps the server default."""
+    global _tz_warned
+    if not SESSION_TZ:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SET TIME ZONE %s", (SESSION_TZ,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        if not _tz_warned:
+            _tz_warned = True
+            print(f"db: could not set session time zone {SESSION_TZ!r}: {e}")
+            print("db: days and LATE_CUTOFF are counted on the database server's clock")
+
+
 @contextmanager
 def get_conn():
     conn = psycopg2.connect(DB_DSN)
+    _use_attendance_clock(conn)
     # Enable vector <-> numpy adaptation. Best-effort: the very first connection
     # (from init_db, before CREATE EXTENSION runs) has no `vector` type yet, so
     # skip silently — every later connection registers fine.
@@ -512,7 +565,8 @@ def get_sessions(student_id: str | None = None, date: str | None = None):
 
 
 def get_summary(date: str | None = None):
-    """Today's attendance summary: expected vs present/absent/late.
+    """Attendance summary for one day (default: today on the attendance clock):
+    expected vs present/absent/late.
     `expected` = all students with a UID (roster members).
     `present`  = students with >=1 tap that counts: a status that
                  decision.counts_as_present() accepts, or a tap an operator
@@ -523,14 +577,16 @@ def get_summary(date: str | None = None):
     """
     from datetime import date as date_type
 
-    if date:
-        target_date = date_type.fromisoformat(date)
-    else:
-        target_date = date_type.today()
-    target_str = target_date.isoformat()
-
     with get_conn() as conn:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        if date:
+            target_date = date_type.fromisoformat(date)
+        else:
+            # "Today" on the attendance clock (SESSION_TZ), the same one ts::date uses.
+            cur.execute("SELECT CURRENT_DATE AS today")
+            target_date = cur.fetchone()["today"]
+        target_str = target_date.isoformat()
 
         cur.execute("SELECT student_id, name FROM students ORDER BY student_id")
         all_students = {r["student_id"]: r["name"] for r in cur.fetchall()}
