@@ -63,10 +63,6 @@ Postgres 16 with pgvector in Docker on port 5433, downloads the liveness models,
 and registers the backend and the serial reader as auto-start services (systemd user units on
 Linux, launchd agents on macOS). Then open `http://localhost:8001/app/setup`.
 
-Note: the generated `.env` needs a one-time cleanup before the services start correctly, because
-of how `.env.example` is written (inline comments, unquoted `DB_DSN`). The one-line fix is in
-[`docs/operations.md`](docs/operations.md#known-issue-env-copied-from-envexample).
-
 From a checkout, `make appliance` runs the same installer and `make up` starts Postgres and the
 backend under Docker Compose instead. For development:
 
