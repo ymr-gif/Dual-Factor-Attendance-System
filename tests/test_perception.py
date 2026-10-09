@@ -4,7 +4,8 @@ A track is recognized on its first usable frame. While it stays visible it publi
 a face event again every `FACE_REFRESH_SEC`, so a tap that comes late can still claim
 the face. A refresh of an unbroken track reuses the cached embedding. A track that
 lost its face for a frame or more may have passed to another person, so its next
-refresh recognizes again instead of replaying the first person's identity.
+refresh recognizes again instead of replaying the first person's identity. A pause
+with no processed frame at all is treated the same way.
 
 `process_frame` is driven with a fake detector, recognizer and clock. A "frame" here
 is just the list of (person, bbox) pairs in view; no camera or model is involved.
@@ -45,6 +46,7 @@ class Scene:
         monkeypatch.setattr(face, "MIN_FACE_PX", 80)
         monkeypatch.setattr(liveness, "enabled", lambda: False)
         monkeypatch.setattr(perception, "FACE_REFRESH_SEC", 2.0)
+        monkeypatch.setattr(perception, "TRACK_STALE_SEC", 1.0)
         monkeypatch.setattr(perception, "time", types.SimpleNamespace(time=lambda: self.now))
         monkeypatch.setattr(perception, "_face_sinks", [self.events.append])
         monkeypatch.setattr(perception, "_frame_sinks", [])
@@ -129,4 +131,89 @@ def test_a_refresh_that_recognizes_again_also_checks_liveness_again(scene, monke
     assert [(e["embedding"], e["is_live"]) for e in scene.events] == [
         ("embedding-of-A", True),
         ("embedding-of-B", False),
+    ]
+
+
+def test_one_missed_frame_is_enough_to_recognize_again(scene):
+    scene.show([("A", SPOT)], until=1.0)
+    scene.show([], until=1.1)  # exactly one frame without the face
+    scene.show([("B", SAME_SPOT)], until=2.5)
+
+    assert scene.recognized == ["A", "B"]
+    assert scene.published() == [(0.0, 1, "embedding-of-A"), (2.0, 1, "embedding-of-B")]
+
+
+def test_a_track_that_changed_hands_while_too_small_is_recognized_when_it_is_usable(scene):
+    scene.show([("A", NEAR)], until=1.0)
+    scene.show([], until=1.3)
+    scene.show([("B", FAR)], until=3.0)  # B inherits the track but is too small to publish
+    scene.show([("B", NEAR)], until=3.5)
+
+    assert len(scene.tracker._tracks) == 1
+    assert scene.recognized == ["A", "B"]
+    assert [e[2] for e in scene.published()] == ["embedding-of-A", "embedding-of-B"]
+
+
+def test_a_face_that_starts_too_small_is_not_recognized_until_it_is_usable(scene):
+    scene.show([("A", FAR)], until=1.0)
+    assert scene.recognized == [] and scene.published() == []
+    scene.show([("A", NEAR)], until=1.5)
+    assert scene.recognized == ["A"]
+
+
+def test_a_pause_with_no_processed_frame_counts_as_a_missed_frame(scene):
+    # The camera delivers nothing from 1.0 to 3.0 s (failed reads, a stalled loop). The
+    # tracker sees no empty frame, so only the clock shows that B could have replaced A.
+    scene.show([("A", SPOT)], until=1.0)
+    scene.now = 3.0
+    scene.show([("B", SAME_SPOT)], until=3.5)
+
+    assert len(scene.tracker._tracks) == 1
+    assert scene.recognized == ["A", "B"]
+    assert scene.published() == [(0.0, 1, "embedding-of-A"), (3.0, 1, "embedding-of-B")]
+
+
+def test_a_pause_shorter_than_the_stale_limit_does_not_cost_a_recognition(scene):
+    scene.show([("A", SPOT)], until=1.0)
+    scene.now = 1.8  # 0.9 s since the last processed frame, under TRACK_STALE_SEC
+    scene.show([("A", SPOT)], until=2.5)
+
+    assert scene.recognized == ["A"]
+    assert scene.published() == [(0.0, 1, "embedding-of-A"), (2.0, 1, "embedding-of-A")]
+
+
+def test_time_spent_recognizing_is_not_mistaken_for_a_pause(scene, monkeypatch):
+    # Recognition is slow. If the pause were measured from the start of the previous
+    # frame, one slow recognition would mark every track stale and trigger the next.
+    def slow_embed(frame, det):
+        scene.recognized.append("A")
+        scene.now += 1.5
+        return "embedding-of-A"
+
+    monkeypatch.setattr(face, "embed", slow_embed)
+    scene.show([("A", SPOT)], until=8.0)
+
+    assert scene.recognized == ["A"]
+
+
+def test_a_recognition_that_fails_leaves_the_track_due_for_another(scene, monkeypatch):
+    def assess(frame, bbox):
+        if scene.now == 2.0:
+            raise RuntimeError("liveness model failed")
+        return 0.9, True
+
+    monkeypatch.setattr(liveness, "enabled", lambda: True)
+    monkeypatch.setattr(liveness, "assess", assess)
+
+    scene.show([("A", SPOT)], until=1.0)
+    scene.show([], until=1.3)
+    with pytest.raises(RuntimeError):
+        scene.show([("B", SAME_SPOT)], until=2.05)  # the refresh at 2.0 fails
+    scene.now = 2.1
+    scene.show([("B", SAME_SPOT)], until=2.5)
+
+    # B was measured in full on the next frame: an embedding and a liveness verdict.
+    assert [(e["ts"], e["embedding"], e["is_live"]) for e in scene.events] == [
+        (0.0, "embedding-of-A", True),
+        (2.1, "embedding-of-B", True),
     ]
