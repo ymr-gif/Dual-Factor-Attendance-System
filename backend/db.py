@@ -25,9 +25,9 @@ if _LATE_CUTOFF_STR:
 def embedding_to_numpy(v):
     """Normalize a fetched `vector` column to a numpy float32 array.
 
-    pgvector-python (as installed: 0.5.0) decodes `vector` columns into its own
-    `Vector` wrapper regardless of register_vector() — it no longer hands back a
-    raw ndarray. np.asarray() doesn't know how to unpack a Vector (it isn't
+    pgvector-python 0.5.0 and 0.5.1 decode `vector` columns into their own
+    `Vector` wrapper regardless of register_vector(); 0.4.x hands back a raw
+    ndarray. np.asarray() doesn't know how to unpack a Vector (it isn't
     list-like or buffer-like to numpy), so every downstream np.asarray(embedding)
     call raised TypeError for any row read through this module until callers
     unwrap it here first.
