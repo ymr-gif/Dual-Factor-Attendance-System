@@ -1,13 +1,23 @@
 fastapi
 uvicorn
+# uvicorn has no WebSocket support of its own; without this /ws/taps 404s and the
+# dashboard live feed silently receives nothing.
+websockets
 python-multipart
 prometheus_client
 psycopg2-binary
 pyserial
 requests
 insightface
-onnxruntime
-opencv-python-headless
+# Intel macOS: pinned to the newest releases that ship an x86_64 wheel for macOS 12
+# or older. Later releases ship macOS wheels for version 13 or newer only, so on an
+# older Intel Mac pip would build opencv from source and find no onnxruntime at all.
+onnxruntime==1.19.2; sys_platform == "darwin" and platform_machine == "x86_64"
+onnxruntime; sys_platform != "darwin" or platform_machine != "x86_64"
+# opencv-python (non-headless) is pinned too: insightface pulls it in transitively.
+opencv-python-headless==4.10.0.84; sys_platform == "darwin" and platform_machine == "x86_64"
+opencv-python==4.10.0.84; sys_platform == "darwin" and platform_machine == "x86_64"
+opencv-python-headless; sys_platform != "darwin" or platform_machine != "x86_64"
 numpy
 scipy
 pgvector
