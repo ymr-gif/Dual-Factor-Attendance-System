@@ -1,5 +1,7 @@
 # Dual-Factor Attendance System (nfc-scan)
 
+[![CI](https://github.com/ymr-gif/Dual-Factor-Attendance-System/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/ymr-gif/Dual-Factor-Attendance-System/actions/workflows/tests.yml)
+
 Attendance logging for a school guardpost. A student taps an NFC card on an RC522 reader, which
 says who they claim to be. A camera then checks that the face at the kiosk belongs to that student
 and is a live person, not a photo. A card UID on its own can be cloned or lent to a friend, so the
@@ -167,6 +169,10 @@ The tests need no database, camera, model files or network: `tests/conftest.py` 
 in-memory fakes and stubs the heavy packages that are not installed. They cover the status truth
 table (`tests/test_decision.py`) and `/tap` and `/health` through FastAPI's test client
 (`tests/test_tap.py`). The matcher, the SQL, the UI and the install scripts have no tests yet.
+
+GitHub Actions ([`.github/workflows/tests.yml`](.github/workflows/tests.yml)) runs this suite and
+the frontend build (`npm ci`, then `npm run build` in `frontend/`) on every pull request and on
+every push to `main`.
 
 ## Docs
 
