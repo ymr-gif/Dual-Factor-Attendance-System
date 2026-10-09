@@ -156,3 +156,9 @@ def test_a_matched_face_is_accepted_whatever_the_frame_count(monkeypatch, frames
     assert statuses(outcomes) == [decision.ACCEPTED]
     assert outcomes[0]["face_score"] == 0.86 and outcomes[0]["track_id"] == 7
     assert outcomes[0]["camera_down"] is False
+
+
+def test_the_track_memory_and_the_heartbeat_are_separate_settings():
+    m = matcher_mod.Matcher(max_face_buffer=8, max_tailgated_tracks=3, camera_heartbeat=True)
+    assert (m.max_face_buffer, m.max_tailgated_tracks, m.camera_heartbeat) == (8, 3, True)
+    assert matcher_mod.Matcher().camera_heartbeat is False
