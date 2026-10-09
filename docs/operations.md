@@ -46,13 +46,17 @@ systemctl --user restart nfc-scan-backend
 
 ## macOS
 
-The same installer runs on macOS. Three things differ from Linux:
+The same installer runs on macOS. Four things differ from Linux:
 
 - Auto-start uses launchd agents in `~/Library/LaunchAgents/` instead of systemd units.
 - There is no CUDA, so inference runs on the CPU. Leave `USE_GPU=false`.
 - The Arduino appears as `/dev/cu.usbmodem*`. The installer writes the first one it finds
-  to `.env` as `SERIAL_PORT`. The camera is chosen by `CAMERA_INDEX` (default 0); there is
-  no `/dev/video0`.
+  to `.env` as `SERIAL_PORT`. The camera is `CAMERA_INDEX` when that is set; otherwise the
+  backend picks one, an external camera before the built-in one (`make cameras` shows
+  which). There is no `/dev/video0`.
+- A backend started by launchd may get no camera, because macOS grants camera access to
+  the app that started the process. `make dev-cam` runs it in a terminal instead. See
+  [`hardware-troubleshooting.md`](hardware-troubleshooting.md); this was seen on one Mac.
 
 Prerequisites, once:
 
@@ -118,8 +122,11 @@ TAP_URL=http://localhost:8001/tap .venv/bin/python -m backend.serial_reader
   inline (`ENFORCE_2FA=true make dev`) or export the file first with
   `set -a; . ./.env; set +a` (see [Editing `.env`](#editing-env) above).
 - The reader's built-in `TAP_URL` default is port 8000, so set it as shown. `SERIAL_PORT`
-  defaults to `/dev/ttyACM0` and `SERIAL_BAUD` to 9600. On macOS use
-  `SERIAL_PORT=/dev/cu.usbmodemXXXX` (`ls /dev/cu.*` lists the candidates).
+  defaults to `/dev/ttyACM0` and `SERIAL_BAUD` to 9600. When that path does not exist the
+  reader opens the most likely board it can find instead, and looks again on every
+  reconnect; `make ports` lists the candidates and the one it would open. Set
+  `SERIAL_PORT_AUTO=false` to make it wait for `SERIAL_PORT` only. On macOS a pinned port
+  looks like `SERIAL_PORT=/dev/cu.usbmodemXXXX`.
 - Keep the backend at one worker. The tap buffer, the event bus and the loaded models
   live in process memory (see [`design-notes.md`](design-notes.md), section 3).
 
@@ -248,6 +255,12 @@ arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:avr:uno arduino/nfc_scan
 
 Stop the reader first (`systemctl --user stop nfc-scan-reader`), because the upload needs
 the serial port. Use the `/dev/cu.usbmodem*` path on macOS.
+
+**Boot check.** On reset the sketch reads the RC522 version register and prints
+`RC522:0x` plus the value and a verdict (`OK`, `OK-CLONE`, `UNSTABLE-SPI` or `NO-COMMS`),
+then `READY`. The reader forwards only lines that start with `UID:`, so the verdict is
+visible in a serial monitor, not in the reader's log. What each verdict means and what to
+check is in [`hardware-troubleshooting.md`](hardware-troubleshooting.md).
 
 **UID format.** The sketch prints one line per card, `UID:` followed by the UID as
 uppercase hex with no separators, for example `UID:C3BE343A`. `/tap` trims and uppercases

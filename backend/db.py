@@ -2,6 +2,7 @@ import os
 from contextlib import contextmanager
 from datetime import time
 
+import numpy as np
 import psycopg2
 import psycopg2.extras
 from pgvector.psycopg2 import register_vector
@@ -19,6 +20,22 @@ if _LATE_CUTOFF_STR:
         LATE_CUTOFF = time.fromisoformat(_LATE_CUTOFF_STR)
     except ValueError:
         pass
+
+
+def embedding_to_numpy(v):
+    """Normalize a fetched `vector` column to a numpy float32 array.
+
+    pgvector-python 0.5.0 and 0.5.1 decode `vector` columns into their own
+    `Vector` wrapper; 0.4.x hands back a raw ndarray. np.asarray() doesn't know how to unpack a Vector (it isn't
+    list-like or buffer-like to numpy), so every downstream np.asarray(embedding)
+    call raised TypeError for any row read through this module until callers
+    unwrap it here first.
+    """
+    if v is None:
+        return None
+    if hasattr(v, "to_numpy"):
+        return v.to_numpy()
+    return np.asarray(v, dtype=np.float32)
 
 
 @contextmanager
@@ -198,7 +215,10 @@ def find_student_by_uid(uid: str):
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT * FROM students WHERE uid = %s", (uid,))
-            return cur.fetchone()
+            row = cur.fetchone()
+    if row is not None:
+        row["face_embedding"] = embedding_to_numpy(row["face_embedding"])
+    return row
 
 
 def insert_log(
@@ -232,7 +252,10 @@ def get_student(student_id: str):
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT * FROM students WHERE student_id = %s", (student_id,))
-            return cur.fetchone()
+            row = cur.fetchone()
+    if row is not None:
+        row["face_embedding"] = embedding_to_numpy(row["face_embedding"])
+    return row
 
 
 def set_face_embedding(student_id: str, embedding, embed_model: str | None = None):

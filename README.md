@@ -105,7 +105,12 @@ because there is no camera and no enrolled face. Taps also appear on the dashboa
 | GND   | GND |
 | 3.3V  | 3.3V |
 
-Plus a USB webcam on the machine that runs the backend, selected with `CAMERA_INDEX` (default 0).
+Plus a webcam on the machine that runs the backend. With `CAMERA_INDEX` unset the backend picks
+one itself. On macOS it takes an external USB camera before the built-in one. On Linux it can
+tell a built-in camera only by its name, so it usually takes the lowest `/dev/video` node: check
+with `make cameras` and set `CAMERA_INDEX` if that is the wrong one. When the `SERIAL_PORT` path
+is not present, the reader looks for the Arduino among the connected serial ports; `make ports`
+shows which one it would open.
 Flashing the sketch and the UID format are in [`docs/operations.md`](docs/operations.md#arduino).
 
 ## Configuration
@@ -167,8 +172,13 @@ make test
 
 The tests need no database, camera, model files or network: `tests/conftest.py` replaces them with
 in-memory fakes and stubs the heavy packages that are not installed. They cover the status truth
-table (`tests/test_decision.py`) and `/tap` and `/health` through FastAPI's test client
-(`tests/test_tap.py`). The matcher, the SQL, the UI and the install scripts have no tests yet.
+table (`tests/test_decision.py`), `/tap` and `/health` through FastAPI's test client
+(`tests/test_tap.py`), the one-verdict-per-track rule for tailgating (`tests/test_tailgating.py`)
+and when a face track is recognized and refreshed (`tests/test_perception.py`), the tap
+debounce (`tests/test_debounce.py`), reading stored embeddings (`tests/test_embedding.py`) and
+serial port selection and the two device routes (`tests/test_devices.py`). The SQL itself,
+tap-to-face assignment, camera selection, the serial reader loop, the UI and the install
+scripts have no tests yet.
 
 GitHub Actions ([`.github/workflows/tests.yml`](.github/workflows/tests.yml)) runs this suite and
 the frontend build (`npm ci`, then `npm run build` in `frontend/`) on every pull request and on
@@ -180,6 +190,7 @@ every push to `main`.
 - [`deploy/README.md`](deploy/README.md): the installer, kiosk screen, backup, restore, update.
 - [`docs/design-notes.md`](docs/design-notes.md): constraints, failure modes, legal and ethical gates.
 - [`docs/face-verification.md`](docs/face-verification.md): enrollment, thresholds, camera, GPU, the live record.
+- [`docs/hardware-troubleshooting.md`](docs/hardware-troubleshooting.md): the RC522 boot check, reader wiring, camera selection.
 - [`docs/privacy.md`](docs/privacy.md): what is stored, consent, retention, erasure.
 - [`docs/verification.md`](docs/verification.md): manual checks for each built feature.
 - [`docs/build-log.md`](docs/build-log.md): what each build step added.

@@ -20,7 +20,10 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import db, decision, events, face, liveness, matcher as matcher_mod, perception, privacy
+from . import (
+    cameras, db, decision, events, face, liveness, matcher as matcher_mod,
+    perception, ports, privacy,
+)
 from .notify import notify
 
 # --- MJPEG live camera stream (perception.on_frame → browser) ---
@@ -661,6 +664,34 @@ async def stream_mjpeg():
             _mjpeg_subscribers.discard(q)
 
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
+@app.get("/api/cameras", dependencies=[Depends(require_operator)])
+def camera_list():
+    """Cameras the OS reports, plus which one the backend resolves to. Read-only:
+    nothing is opened here — perception is the single camera owner, and probing a
+    device would take it away mid-shift. Changing camera needs a backend restart."""
+    return {
+        "cameras": cameras.list_cameras(),
+        "configured": cameras.configured_index(),
+        "auto_select": cameras.auto_enabled(),
+        "prefer_external": cameras.prefer_external(),
+        "in_use": face.camera_index(),
+    }
+
+
+@app.get("/api/serial/ports", dependencies=[Depends(require_operator)])
+def serial_ports():
+    """Serial ports currently connected, best reader candidate first, plus how the
+    reader would resolve one. Lets the UI show what is plugged in instead of making
+    an operator guess a device path. Read-only: nothing is opened here — the reader
+    owns the port, and opening it from the API would steal it mid-shift."""
+    return {
+        "ports": ports.list_ports_detailed(),
+        "configured": ports.configured_port(),
+        "auto_detect": ports.auto_enabled(),
+        "would_open": ports.pick_port(),
+    }
 
 
 @app.get("/api/perception/state", dependencies=[Depends(require_operator)])
