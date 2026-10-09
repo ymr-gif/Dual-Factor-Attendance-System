@@ -11,6 +11,8 @@ Tap-to-face assignment needs numpy/scipy, which the minimal test environment stu
 so the tests that need a pairing pin `_assign` and `face.cosine`.
 """
 
+import pytest
+
 from backend import decision
 from backend import matcher as matcher_mod
 
@@ -139,12 +141,35 @@ def test_the_memory_of_settled_tracks_is_bounded():
     for track_id in (1, 2, 3):
         face_event(m, track_id=track_id, at=0.0)
     assert len(m.resolve(now=4.0)) == 3
-    assert len(m._settled_tracks) == 2
 
-    # Track 1 was the oldest and has been forgotten, so it is flagged afresh; track 3
-    # is still remembered.
+    # Only two tracks are remembered. Track 1 was the oldest and has been forgotten, so
+    # it is flagged afresh; tracks 2 and 3 are not.
     face_event(m, track_id=3, at=10.0)
+    face_event(m, track_id=2, at=10.0)
     face_event(m, track_id=1, at=10.0)
-    again = m.resolve(now=14.0)
 
-    assert [o["track_id"] for o in again] == [1]
+    assert [o["track_id"] for o in m.resolve(now=14.0)] == [1]
+
+
+def test_a_track_still_in_view_outlives_newer_tracks_in_the_bounded_memory():
+    m, _ = build(max_tailgated_tracks=2)
+    face_event(m, track_id=1, at=0.0)
+    assert statuses(m.resolve(now=4.0)) == [decision.TAILGATING]
+    face_event(m, track_id=2, at=4.0)
+    face_event(m, track_id=1, at=4.0)
+    assert [o["track_id"] for o in m.resolve(now=8.0)] == [2]
+    face_event(m, track_id=3, at=8.0)
+    face_event(m, track_id=1, at=8.0)
+
+    # Track 1 was seen more recently than track 2, so track 2 is the one forgotten.
+    assert [o["track_id"] for o in m.resolve(now=12.0)] == [3]
+
+
+@pytest.mark.parametrize("cap", [0, -1])
+def test_a_memory_of_no_tracks_flags_every_refresh_and_does_not_raise(cap):
+    m, _ = build(max_tailgated_tracks=cap)
+    face_event(m, track_id=1, at=0.0)
+    face_event(m, track_id=1, at=2.0)
+
+    assert statuses(m.resolve(now=4.0)) == [decision.TAILGATING]
+    assert statuses(m.resolve(now=6.0)) == [decision.TAILGATING]
