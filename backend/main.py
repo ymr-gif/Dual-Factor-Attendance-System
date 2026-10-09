@@ -249,9 +249,10 @@ def require_operator(
 # Stream tickets. /stream.mjpeg is loaded by an <img> tag, which cannot send a header,
 # so its credential has to ride in the URL, and URLs end up in access logs and browser
 # history. The operator token therefore never goes there: an authenticated call to
-# POST /api/stream-ticket trades it for a random ticket that opens the stream only and
-# stops working after STREAM_TICKET_TTL seconds. Single worker, so a dict is enough.
-STREAM_TICKET_TTL = 60.0
+# POST /api/stream-ticket trades it for a random ticket that opens the stream only,
+# once, within STREAM_TICKET_TTL seconds. A ticket read back out of a log or a history
+# entry has already been spent. Single worker, so a dict is enough.
+STREAM_TICKET_TTL = 30.0
 _STREAM_TICKET_LIMIT = 256
 _stream_tickets: dict[str, float] = {}  # ticket -> expiry on time.monotonic()
 
@@ -274,15 +275,15 @@ def require_stream_access(
     x_operator_token: str | None = Header(default=None),
 ):
     """Guard /stream.mjpeg. The stream is the live camera image, so it is locked
-    whenever /api/* is: by an unexpired ticket in `?ticket=`, or by the operator token
-    in a header for a client that can send one. The token itself is never accepted
-    from the URL."""
+    whenever /api/* is: by an unused, unexpired ticket in `?ticket=`, or by the operator
+    token in a header for a client that can send one. A ticket opens one stream and is
+    spent by doing so. The token itself is never accepted from the URL."""
     if not OPERATOR_TOKEN:
         return
     if ticket is not None:
-        expires = _stream_tickets.get(ticket)
+        expires = _stream_tickets.pop(ticket, None)  # single use, whatever the outcome
         if expires is None or expires <= time.monotonic():
-            raise HTTPException(status_code=401, detail="unknown or expired stream ticket")
+            raise HTTPException(status_code=401, detail="unknown, used or expired stream ticket")
         return
     require_operator(authorization, x_operator_token)
 
@@ -692,7 +693,7 @@ def api_delete_student(student_id: str, actor: str = Depends(_actor)):
 
 @app.post("/api/stream-ticket", dependencies=[Depends(require_operator)])
 def api_stream_ticket():
-    """Trade the operator token (sent in a header) for a short-lived stream ticket."""
+    """Trade the operator token (sent in a header) for a single-use stream ticket."""
     return {"ticket": _issue_stream_ticket(), "expires_in": int(STREAM_TICKET_TTL)}
 
 

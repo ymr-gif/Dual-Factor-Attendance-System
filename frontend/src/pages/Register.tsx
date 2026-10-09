@@ -28,7 +28,6 @@ export default function Register() {
   const [scanningUid, setScanningUid] = useState(false)
   const vr = useRef<HTMLVideoElement>(null)
   const ir = useRef<HTMLImageElement>(null)
-  const streamSrc = useStreamUrl()
   const cr = useRef<HTMLCanvasElement>(null)
   const sr = useRef<MediaStream | null>(null)
   const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -123,6 +122,7 @@ export default function Register() {
 
   const enrolling = selectedId && selectedId !== '__new__'
   const showCamera = creating || enrolling
+  const streamSrc = useStreamUrl(Boolean(showCamera) && camSource === 'stream')
 
   return (
     <div className="page">

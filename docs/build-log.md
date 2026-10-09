@@ -116,8 +116,8 @@ and `spoof` never count regardless, and a camera outage still fails open.
 **The camera stream needs the operator token.** `GET /stream.mjpeg` was open to anyone who could
 reach the port, even with `OPERATOR_TOKEN` set. It is guarded by `main.require_stream_access`: the
 token in a header, or a ticket. An `<img>` cannot send a header, and a credential in a URL ends up
-in access logs, so `POST /api/stream-ticket` trades the token for a random ticket valid for 60
-seconds and for the stream only (`frontend/src/useStreamUrl.ts`). The token is never accepted from
+in access logs, so `POST /api/stream-ticket` trades the token for a random ticket that opens the
+stream only, once, within 30 seconds (`frontend/src/useStreamUrl.ts`). The token is never accepted from
 the URL. `/ws/taps` still takes it as `?token=`; that is unchanged and still open to the same
 objection. The Viewer page was called "public, boxes-only" above. It shows this stream and always
 did, so with a token set it now needs the token.
