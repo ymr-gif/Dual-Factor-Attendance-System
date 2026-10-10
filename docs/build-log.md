@@ -132,7 +132,7 @@ today. The Summary and History pages used `toISOString()`, the UTC date, as thei
 they use the local date now. An unknown zone name is reported once and the session stays on UTC.
 Stored timestamps are `timestamptz` and did not change; only how they are bucketed did.
 
-**Verification.** `make test` (132 tests, no database or camera). Against a throwaway Postgres 16
+**Verification.** `make test` (no database or camera). Against a throwaway Postgres 16
 with the previous schema loaded first: the count rule, lateness, sessions, override, and a second
 `init_db`. From a UTC+8 host against that UTC server: 9 of 9 clock checks, 0 of 9 with the
 session forced to UTC. A real backend process with perception on and no camera: tap queued,
