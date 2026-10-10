@@ -1,5 +1,6 @@
 // API client (Step 12–13). Operator token (if set) is stored in localStorage
-// and sent as X-Operator-Token on REST / ?token= on the WebSocket.
+// and sent as X-Operator-Token on REST / ?token= on the WebSocket. The camera stream
+// uses a short-lived ticket instead (useStreamUrl.ts).
 
 const TOKEN_KEY = 'operator_token'
 
@@ -10,6 +11,15 @@ export function setToken(t: string): void {
   if (t) localStorage.setItem(TOKEN_KEY, t)
   else localStorage.removeItem(TOKEN_KEY)
 }
+
+// Today as YYYY-MM-DD on this device's clock. toISOString() gives the UTC date, which
+// is yesterday until 08:00 in a UTC+8 school.
+export function localToday(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 
 async function req<T>(path: string): Promise<T> {
   const token = getToken()
@@ -45,6 +55,12 @@ async function postFormData<T>(path: string, data: FormData): Promise<T> {
   const res = await fetch(path, { method: 'POST', headers, body: data })
   if (!res.ok) throw new Error(`POST ${path} -> ${res.status}`)
   return res.json() as Promise<T>
+}
+
+// Trade the operator token for a short-lived ticket that opens /stream.mjpeg only.
+export async function getStreamTicket(): Promise<string> {
+  const r = await reqJson<{ ticket: string }>('/api/stream-ticket', 'POST', {})
+  return r.ticket
 }
 
 export async function reqBlob(path: string): Promise<Blob> {

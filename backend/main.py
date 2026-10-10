@@ -1,5 +1,6 @@
 import asyncio
 import os
+import secrets
 import time
 
 from datetime import datetime, timedelta, timezone
@@ -58,6 +59,12 @@ def _broadcast_frame(data: bytes) -> None:
             pass
 
 
+def _note_frame(frame, ev):
+    """Perception frame sink: tell the matcher the camera delivered a frame, so it can
+    tell a tap nobody showed their face for from a tap the camera never watched."""
+    matcher.note_frame(ev.get("ts"))
+
+
 def _on_frame_event(frame, ev):
     """Perception frame sink (called from camera thread). Draw boxes, encode JPEG,
     hand off to the async MJPEG endpoint via the event loop."""
@@ -100,7 +107,7 @@ def _on_frame_event(frame, ev):
         x1, y1, x2, y2 = track["bbox"]
         color = (0, 180, 0) if track.get("recognized") else (0, 165, 255)  # green / amber BGR
         cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
-        label = f"{'✓' if track.get('recognized') else '?'} #{track['track_id']}"
+        label = f"{'OK' if track.get('recognized') else '?'} #{track['track_id']}"
         cv2.putText(annotated, label, (x1, y1 - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
 
     ok, jpeg = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
@@ -124,8 +131,22 @@ def _strip_embedding(student):
     return {k: v for k, v in student.items() if k != "face_embedding"}
 
 
+def _queue_review(log, reason=None, force=False):
+    """Put a tap that failed a check in front of an operator (Step 34). `force` queues
+    a tap whose status alone would not, i.e. one the camera never watched. Best-effort:
+    a failed insert is printed and the tap carries on to notify + broadcast."""
+    status = log.get("status")
+    if not (force or decision.needs_review(status)):
+        return
+    try:
+        db.insert_review(log["id"], log.get("student_id"), status, reason)
+    except Exception as e:
+        print(f"review queue insert failed: {e}")
+
+
 def _write_outcome(o):
-    """Matcher outcome writer (Step 31): log -> notify -> broadcast. Fail-open."""
+    """Matcher outcome writer (Step 31): log -> review queue -> notify -> broadcast.
+    Fail-open."""
     log = db.insert_log(
         uid=o["uid"],
         student_id=o.get("student_id"),
@@ -136,6 +157,14 @@ def _write_outcome(o):
         liveness_pass=o.get("liveness_pass"),
         status=o["status"],
     )
+    camera_down = bool(o.get("camera_down"))
+    if camera_down:
+        # design-notes: the degraded mode must be visible, never a silent fallback.
+        print(
+            f"[ALERT] camera delivered no frame for tap uid={o['uid']}: "
+            "logged card-only, queued for review"
+        )
+    _queue_review(log, o.get("reason"), force=camera_down)
     student = o.get("student")
     try:
         notify(student, log)
@@ -166,11 +195,13 @@ def _post_log(student, log):
 
 
 # The single in-process matcher (design-notes §3: one worker, shared buffers).
-matcher = matcher_mod.Matcher(outcome_sink=_write_outcome, face_search=db.search_face)
+matcher = matcher_mod.Matcher(
+    outcome_sink=_write_outcome, face_search=db.search_face, camera_heartbeat=True
+)
 
 # Single shared operator token (Step 11). Unset -> /api/* is open (dev default);
-# set it to lock down reads + writes. WS passes it as ?token=. CORS/hardening is
-# Step 16.
+# set it to lock down reads + writes. WS passes it as ?token=; the camera stream uses
+# a short-lived ticket instead (see require_stream_access). CORS/hardening is Step 16.
 OPERATOR_TOKEN = os.environ.get("OPERATOR_TOKEN", "")
 
 
@@ -218,6 +249,48 @@ def require_operator(
         raise HTTPException(status_code=401, detail="invalid or missing operator token")
 
 
+# Stream tickets. /stream.mjpeg is loaded by an <img> tag, which cannot send a header,
+# so its credential has to ride in the URL, and URLs end up in access logs and browser
+# history. The operator token therefore never goes there: an authenticated call to
+# POST /api/stream-ticket trades it for a random ticket that opens the stream only,
+# once, within STREAM_TICKET_TTL seconds. A ticket read back out of a log or a history
+# entry has already been spent. Single worker, so a dict is enough.
+STREAM_TICKET_TTL = 30.0
+_STREAM_TICKET_LIMIT = 256
+_stream_tickets: dict[str, float] = {}  # ticket -> expiry on time.monotonic()
+
+
+def _issue_stream_ticket() -> str:
+    now = time.monotonic()
+    for ticket, expires in list(_stream_tickets.items()):
+        if expires <= now:
+            _stream_tickets.pop(ticket, None)
+    while len(_stream_tickets) >= _STREAM_TICKET_LIMIT:
+        _stream_tickets.pop(next(iter(_stream_tickets)))  # oldest first
+    ticket = secrets.token_urlsafe(32)
+    _stream_tickets[ticket] = now + STREAM_TICKET_TTL
+    return ticket
+
+
+def require_stream_access(
+    ticket: str | None = Query(default=None),
+    authorization: str | None = Header(default=None),
+    x_operator_token: str | None = Header(default=None),
+):
+    """Guard /stream.mjpeg. The stream is the live camera image, so it is locked
+    whenever /api/* is: by an unused, unexpired ticket in `?ticket=`, or by the operator
+    token in a header for a client that can send one. A ticket opens one stream and is
+    spent by doing so. The token itself is never accepted from the URL."""
+    if not OPERATOR_TOKEN:
+        return
+    if ticket is not None:
+        expires = _stream_tickets.pop(ticket, None)  # single use, whatever the outcome
+        if expires is None or expires <= time.monotonic():
+            raise HTTPException(status_code=401, detail="unknown, used or expired stream ticket")
+        return
+    require_operator(authorization, x_operator_token)
+
+
 @app.on_event("startup")
 def on_startup():
     for attempt in range(1, 11):
@@ -246,6 +319,7 @@ async def _start_perception():
     if not perception.enabled():
         return
     perception.on_face(matcher.on_face)  # in-process face events -> matcher
+    perception.on_frame(_note_frame)  # camera heartbeat -> matcher
     perception.on_frame(_on_frame_event)  # annotated frames -> MJPEG stream
 
     async def _resolve_loop():
@@ -620,6 +694,12 @@ def api_delete_student(student_id: str, actor: str = Depends(_actor)):
     return {"erased": student_id, **counts}
 
 
+@app.post("/api/stream-ticket", dependencies=[Depends(require_operator)])
+def api_stream_ticket():
+    """Trade the operator token (sent in a header) for a single-use stream ticket."""
+    return {"ticket": _issue_stream_ticket(), "expires_in": int(STREAM_TICKET_TTL)}
+
+
 @app.websocket("/ws/taps")
 async def ws_taps(websocket: WebSocket):
     # Auth via query param (?token=) — matches OPERATOR_TOKEN when it is set.
@@ -638,7 +718,7 @@ async def ws_taps(websocket: WebSocket):
         events.unsubscribe(q)
 
 
-@app.get("/stream.mjpeg")
+@app.get("/stream.mjpeg", dependencies=[Depends(require_stream_access)])
 async def stream_mjpeg():
     """Live camera feed as MJPEG stream. perception.on_frame broadcasts annotated
     JPEG frames to every connected client; this endpoint yields one client's frames
@@ -787,6 +867,12 @@ def tap(req: TapRequest):
         liveness_pass=liveness_pass,
         status=status,
     )
+    failed = []
+    if face_match is False:
+        failed.append("face below match threshold")
+    if liveness_pass is False:
+        failed.append("liveness fail")
+    _queue_review(log, "; ".join(failed) or None)
     _post_log(student, log)
     return {"student": student_out, "log": log}
 

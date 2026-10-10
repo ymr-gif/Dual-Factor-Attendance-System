@@ -331,3 +331,317 @@ def test_operator_token_guards_api_but_not_tap_or_health(client, fake_db, backen
     # The serial reader posts taps without a token, so /tap stays open.
     assert post_tap(client, uid="DEADBEEF").status_code == 200
     assert client.get("/health").status_code == 200
+
+
+# --- review queue: a tap that failed a check is put in front of an operator ----------
+
+
+def test_flagged_tap_is_queued_for_review_with_the_reason(client, fake_db, camera):
+    fake_db.add_student(enrolled_student())
+    camera.sees(score=0.018, live_score=0.1, is_live=False)
+
+    log = post_tap(client).json()["log"]
+
+    assert log["status"] == decision.FLAGGED
+    assert fake_db.reviews == [
+        {
+            "log_id": log["id"],
+            "student_id": "S001",
+            "status": decision.FLAGGED,
+            "reason": "face below match threshold; liveness fail",
+        }
+    ]
+
+
+def test_rejected_tap_is_queued_for_review(client, fake_db, camera, monkeypatch):
+    monkeypatch.setattr(decision, "ENFORCE_2FA", True)
+    fake_db.add_student(enrolled_student())
+    camera.sees(score=0.86, live_score=0.1, is_live=False)
+
+    log = post_tap(client).json()["log"]
+
+    assert log["status"] == decision.REJECTED
+    assert [(r["log_id"], r["status"], r["reason"]) for r in fake_db.reviews] == [
+        (log["id"], decision.REJECTED, "liveness fail")
+    ]
+
+
+def test_taps_that_passed_or_could_not_be_checked_are_not_queued(client, fake_db, camera):
+    fake_db.add_student(enrolled_student())
+
+    post_tap(client)  # no usable face -> unverified
+    camera.sees(score=0.86, live_score=0.97, is_live=True)
+    post_tap(client)  # accepted
+    post_tap(client, uid="DEADBEEF")  # unregistered
+
+    assert [row["status"] for row in fake_db.logs] == [
+        decision.UNVERIFIED,
+        decision.ACCEPTED,
+        decision.UNREGISTERED,
+    ]
+    assert fake_db.reviews == []
+
+
+def test_review_queue_failure_does_not_fail_the_tap(client, fake_db, camera, sinks):
+    fake_db.review_error = RuntimeError("review_queue is unavailable")
+    fake_db.add_student(enrolled_student())
+    camera.sees(score=0.018, live_score=0.97, is_live=True)
+
+    response = post_tap(client)
+
+    assert response.status_code == 200
+    assert response.json()["log"]["status"] == decision.FLAGGED
+    assert len(sinks.notified) == 1 and len(sinks.published) == 1
+
+
+def matcher_outcome(status, **extra):
+    """An outcome dict the way backend.matcher builds one."""
+    outcome = {
+        "status": status,
+        "uid": UID,
+        "student_id": "S001",
+        "student": enrolled_student(),
+        "method": "nfc+face",
+        "face_score": None,
+        "face_match": None,
+        "liveness_score": None,
+        "liveness_pass": None,
+        "track_id": None,
+        "reason": None,
+        "camera_down": False,
+    }
+    outcome.update(extra)
+    return outcome
+
+
+@pytest.mark.parametrize(
+    "status",
+    [decision.NO_FACE, decision.MISMATCH, decision.SPOOF, decision.TAILGATING],
+)
+def test_matcher_review_states_are_logged_and_queued(client, backend_main, fake_db, sinks, status):
+    backend_main._write_outcome(matcher_outcome(status, reason="why the matcher said so"))
+
+    assert [row["status"] for row in fake_db.logs] == [status]
+    assert fake_db.reviews == [
+        {"log_id": 1, "student_id": "S001", "status": status, "reason": "why the matcher said so"}
+    ]
+    assert sinks.published[0]["reason"] == "why the matcher said so"
+    assert "face_embedding" not in sinks.published[0]["student"]
+
+
+@pytest.mark.parametrize("status", [decision.ACCEPTED, decision.UNVERIFIED])
+def test_matcher_outcomes_that_count_are_logged_but_not_queued(
+    client, backend_main, fake_db, sinks, status
+):
+    backend_main._write_outcome(matcher_outcome(status, reason="verified"))
+
+    assert [row["status"] for row in fake_db.logs] == [status]
+    assert fake_db.reviews == []
+    assert len(sinks.notified) == 1
+
+
+def test_matcher_outcome_survives_a_review_queue_failure(client, backend_main, fake_db, sinks):
+    fake_db.review_error = RuntimeError("review_queue is unavailable")
+
+    backend_main._write_outcome(matcher_outcome(decision.MISMATCH, reason="below threshold"))
+
+    assert [row["status"] for row in fake_db.logs] == [decision.MISMATCH]
+    assert len(sinks.notified) == 1 and len(sinks.published) == 1
+
+
+# --- camera heartbeat: what lets the matcher tell `no_face` from an unwatched tap -----
+
+
+def test_a_tap_the_camera_never_watched_is_reviewed_although_it_counts(
+    client, backend_main, fake_db, sinks, capsys
+):
+    outcome = matcher_outcome(
+        decision.UNVERIFIED,
+        method="nfc",
+        reason="camera delivered no frame during the tap; card-only",
+        camera_down=True,
+    )
+
+    backend_main._write_outcome(outcome)
+
+    assert [row["status"] for row in fake_db.logs] == [decision.UNVERIFIED]
+    # `unverified` alone is never queued; this one is, so the outage cannot pass unseen.
+    assert fake_db.reviews == [
+        {
+            "log_id": 1,
+            "student_id": "S001",
+            "status": decision.UNVERIFIED,
+            "reason": "camera delivered no frame during the tap; card-only",
+        }
+    ]
+    assert "[ALERT] camera delivered no frame" in capsys.readouterr().out
+    assert len(sinks.notified) == 1 and len(sinks.published) == 1
+
+
+def test_the_app_matcher_listens_for_the_camera_heartbeat(backend_main):
+    from backend import matcher as matcher_mod
+
+    # `backend_main.matcher` is swapped for a fake by the `client` fixture, so find the
+    # real instance by type.
+    app_matcher = [
+        value for value in vars(backend_main).values() if isinstance(value, matcher_mod.Matcher)
+    ]
+    assert app_matcher, "backend.main no longer builds a Matcher at import"
+    assert app_matcher[0].camera_heartbeat is True
+
+
+def test_frame_sink_forwards_the_frame_time_to_the_matcher(backend_main, monkeypatch):
+    seen = []
+
+    class Recorder:
+        def note_frame(self, ts=None):
+            seen.append(ts)
+
+    monkeypatch.setattr(backend_main, "matcher", Recorder())
+
+    backend_main._note_frame("frame", {"ts": 1234.5, "tracks": []})
+
+    assert seen == [1234.5]
+
+
+def test_startup_registers_the_heartbeat_with_perception(backend_main, monkeypatch):
+    import asyncio
+
+    from backend import perception
+
+    registered = []
+    monkeypatch.setattr(perception, "PERCEPTION_ENABLED", True)
+    monkeypatch.setattr(perception, "on_frame", registered.append)
+    monkeypatch.setattr(perception, "on_face", lambda cb: None)
+    monkeypatch.setattr(perception, "run", lambda *a, **k: None)
+    monkeypatch.setattr(perception, "_camera_frames", lambda: iter(()))
+
+    async def start():
+        await backend_main._start_perception()
+        for task in asyncio.all_tasks() - {asyncio.current_task()}:
+            task.cancel()  # the matcher resolve loop the hook starts
+
+    asyncio.run(start())
+
+    assert backend_main._note_frame in registered
+
+
+# --- /stream.mjpeg: the live camera image is locked with the rest of the API ---------
+
+
+@pytest.fixture
+def locked(backend_main, monkeypatch):
+    """OPERATOR_TOKEN set, no tickets outstanding."""
+    monkeypatch.setattr(backend_main, "OPERATOR_TOKEN", "s3cret")
+    monkeypatch.setattr(backend_main, "_stream_tickets", {})
+    return backend_main
+
+
+def test_stream_is_refused_without_a_ticket_or_token(client, locked, monkeypatch):
+    from fastapi.responses import PlainTextResponse
+
+    # The real response never ends. If the guard were ever removed, this stand-in turns
+    # what would be a hung test run into a plain 200 and a failed assertion.
+    monkeypatch.setattr(locked, "StreamingResponse", lambda *a, **k: PlainTextResponse("frames"))
+
+    assert client.get("/stream.mjpeg").status_code == 401
+    assert client.get("/stream.mjpeg?ticket=made-up").status_code == 401
+    assert client.get("/stream.mjpeg", headers={"X-Operator-Token": "wrong"}).status_code == 401
+
+
+def test_the_operator_token_is_not_accepted_from_the_url(client, locked, monkeypatch):
+    from fastapi.responses import PlainTextResponse
+
+    monkeypatch.setattr(locked, "StreamingResponse", lambda *a, **k: PlainTextResponse("frames"))
+
+    # A token in a URL ends up in access logs and browser history.
+    assert client.get("/stream.mjpeg?token=s3cret").status_code == 401
+    assert client.get("/stream.mjpeg?ticket=s3cret").status_code == 401
+
+
+def test_a_ticket_is_only_issued_to_a_caller_with_the_token(client, locked):
+    assert client.post("/api/stream-ticket").status_code == 401
+    assert locked._stream_tickets == {}
+
+    response = client.post("/api/stream-ticket", headers={"X-Operator-Token": "s3cret"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["expires_in"] == 30
+    assert body["ticket"] != "s3cret" and len(body["ticket"]) >= 32
+    assert list(locked._stream_tickets) == [body["ticket"]]
+
+
+def test_an_issued_ticket_opens_the_stream_and_the_token_header_still_works(client, locked, monkeypatch):
+    from fastapi.responses import PlainTextResponse
+
+    monkeypatch.setattr(locked, "StreamingResponse", lambda *a, **k: PlainTextResponse("frames"))
+    ticket = client.post("/api/stream-ticket", headers={"X-Operator-Token": "s3cret"}).json()["ticket"]
+
+    assert client.get(f"/stream.mjpeg?ticket={ticket}").status_code == 200
+    assert client.get("/stream.mjpeg", headers={"Authorization": "Bearer s3cret"}).status_code == 200
+
+
+def test_a_ticket_opens_one_stream_only(client, locked, monkeypatch):
+    from fastapi.responses import PlainTextResponse
+
+    monkeypatch.setattr(locked, "StreamingResponse", lambda *a, **k: PlainTextResponse("frames"))
+    ticket = client.post("/api/stream-ticket", headers={"X-Operator-Token": "s3cret"}).json()["ticket"]
+
+    assert client.get(f"/stream.mjpeg?ticket={ticket}").status_code == 200
+    # The URL is now in an access log and a browser history. Replaying it must fail.
+    assert client.get(f"/stream.mjpeg?ticket={ticket}").status_code == 401
+    assert ticket not in locked._stream_tickets
+
+
+def test_a_ticket_stops_working_when_it_expires(locked, monkeypatch):
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(locked.time, "monotonic", lambda: clock["now"])
+    guard = locked.require_stream_access
+
+    in_time = locked._issue_stream_ticket()
+    clock["now"] += locked.STREAM_TICKET_TTL - 0.001
+    assert guard(ticket=in_time, authorization=None, x_operator_token=None) is None
+
+    too_late = locked._issue_stream_ticket()
+    clock["now"] += locked.STREAM_TICKET_TTL  # exactly at expiry: no longer valid
+    with pytest.raises(Exception) as denied:
+        guard(ticket=too_late, authorization=None, x_operator_token=None)
+    assert getattr(denied.value, "status_code", None) == 401
+    assert too_late not in locked._stream_tickets, "an expired ticket is spent by the attempt too"
+
+
+def test_a_bad_ticket_is_not_rescued_by_a_valid_header(locked):
+    # Otherwise "?ticket=anything" plus a stolen page would behave differently from
+    # no ticket at all; one credential, one verdict.
+    with pytest.raises(Exception) as denied:
+        locked.require_stream_access(ticket="made-up", authorization="Bearer s3cret", x_operator_token=None)
+    assert getattr(denied.value, "status_code", None) == 401
+
+
+def test_expired_tickets_are_dropped_and_the_store_is_bounded(locked, monkeypatch):
+    clock = {"now": 0.0}
+    monkeypatch.setattr(locked.time, "monotonic", lambda: clock["now"])
+
+    old = locked._issue_stream_ticket()
+    clock["now"] = locked.STREAM_TICKET_TTL + 1
+    fresh = locked._issue_stream_ticket()
+    assert old not in locked._stream_tickets and fresh in locked._stream_tickets
+
+    for _ in range(locked._STREAM_TICKET_LIMIT + 50):
+        locked._issue_stream_ticket()
+    assert len(locked._stream_tickets) <= locked._STREAM_TICKET_LIMIT
+
+
+def test_stream_is_open_when_no_token_is_configured(backend_main, monkeypatch):
+    monkeypatch.setattr(backend_main, "OPERATOR_TOKEN", "")
+    guard = backend_main.require_stream_access
+
+    assert guard(ticket=None, authorization=None, x_operator_token=None) is None
+    assert guard(ticket="anything", authorization=None, x_operator_token=None) is None
+
+
+def test_stream_route_carries_the_guard(backend_main):
+    route = next(r for r in backend_main.app.routes if getattr(r, "path", "") == "/stream.mjpeg")
+
+    assert backend_main.require_stream_access in [d.call for d in route.dependant.dependencies]

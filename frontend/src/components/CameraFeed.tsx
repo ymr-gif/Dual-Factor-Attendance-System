@@ -1,9 +1,11 @@
 // CameraFeed (Step 35 precursor) — live MJPEG stream from /stream.mjpeg.
 
 import { useState } from 'react'
+import { useStreamUrl } from '../useStreamUrl'
 
 export default function CameraFeed() {
   const [failed, setFailed] = useState(false)
+  const src = useStreamUrl()
 
   return (
     <div>
@@ -23,9 +25,9 @@ export default function CameraFeed() {
         >
           Camera unavailable
         </div>
-      ) : (
+      ) : src && (
         <img
-          src="/stream.mjpeg"
+          src={src}
           style={{ width: '100%', borderRadius: 4, display: 'block' }}
           onError={() => setFailed(true)}
           onLoad={() => setFailed(false)}

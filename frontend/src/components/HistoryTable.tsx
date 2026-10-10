@@ -1,7 +1,7 @@
 // History table (Step 13) — filterable, paginated attendance log.
 
 import { useEffect, useState } from 'react'
-import { getAttendance, type TapLog } from '../api'
+import { getAttendance, localToday, type TapLog } from '../api'
 
 const STATUS_COLORS: Record<string, string> = {
   accepted: '#1f5c2a',
@@ -22,7 +22,7 @@ const ALL_STATUSES = [
 
 export default function HistoryTable({ refreshKey }: { refreshKey?: number }) {
   const [logs, setLogs] = useState<TapLog[]>([])
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(localToday)
   const [status, setStatus] = useState('')
   const [limit, setLimit] = useState(25)
   const [loading, setLoading] = useState(false)

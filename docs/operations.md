@@ -214,7 +214,51 @@ enrolled face, model error) never causes a rejection.
 
 This switch is read by the direct path only (`PERCEPTION_ENABLED=false`, where `/tap`
 calls `decision.decide()`). With perception on, the matcher writes `accepted`, `mismatch`,
-`spoof` or `no_face` itself and `ENFORCE_2FA` has no effect.
+`spoof`, `no_face` or `unverified` itself and `ENFORCE_2FA` has no effect: `mismatch` and
+`spoof` never count as present either way.
+
+**What counts as present, and the review queue**
+
+`accepted`, `flagged` and `unverified` count toward attendance. `rejected`, `no_face`,
+`mismatch`, `spoof` and `tailgating` do not. The summary, the late flag and the
+`attendance_sessions` view all apply the same rule (`decision.counts_as_present()`).
+
+Every tap that failed a check is added to the review queue (Review page, `GET /api/review`)
+with the reason. The three resolutions:
+
+- `override`: the operator vouches for the student. That tap now counts.
+- `confirmed`: the flag was right. Nothing changes; the tap stays as its status says.
+- `dismiss`: drop it from the queue without a judgement. Nothing changes.
+
+A tap the camera never watched is the one `unverified` case that is also queued. The matcher
+counts the camera frames that arrive inside each tap's own window. No frame at all means the
+camera was down for that tap, so it is logged `unverified` (still counted, per the fail-open
+rule), an `[ALERT]` line goes to the backend log, and the review entry carries the reason
+`camera delivered no frame during the tap; card-only`.
+
+**Attendance clock**
+
+```bash
+# ATTENDANCE_TZ=Asia/Manila    # unset: the zone of the machine the backend runs on
+LATE_CUTOFF=08:00
+```
+
+Days and clock times are worked out in SQL, in the database session's time zone, and
+Postgres in Docker runs on UTC. The backend therefore switches each session to
+`ATTENDANCE_TZ`, or to its own machine's zone when that is unset. Without this, a 07:30 tap
+in a UTC+8 school is filed under the previous day and compared with `LATE_CUTOFF` as 23:30.
+Set `ATTENDANCE_TZ` when the backend's own clock is not the school's, which is the case under
+Docker Compose (`make up`), where the backend container is on UTC as well. A zone name
+Postgres does not know is reported once in the log and the session stays on UTC.
+
+**Camera stream access**
+
+`/stream.mjpeg` is the live camera image. When `OPERATOR_TOKEN` is set it needs either the
+token in a header, or a ticket: `POST /api/stream-ticket` (token in a header) returns a
+random ticket that opens the stream once, within 30 seconds, as `/stream.mjpeg?ticket=...`.
+The pages do this themselves. The operator token is never accepted from the URL, because URLs
+end up in access logs and browser history; a ticket found there has already been spent. A
+stream that is already open keeps running; the ticket only gates the connection.
 
 GPU setup (`USE_GPU`) is in
 [`face-verification.md`](face-verification.md#performance--gpu). Consent and retention

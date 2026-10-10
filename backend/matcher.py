@@ -8,6 +8,7 @@ emits one outcome (an attendance status) per resolved tap or unclaimed face:
   tap + matching face ≥ threshold        -> accepted (present, verified)
   tap + face below threshold             -> mismatch  (review)
   tap + no face in window                -> no_face   (review)
+  tap + no face, camera delivered no frame -> unverified (card-only, review)
   matched face, liveness not-live        -> spoof     (review)
   recognized face, no tap claims it      -> tailgating (cardless 1:N name lookup)
 
@@ -17,8 +18,17 @@ of taps and faces is matched globally, not greedily. Buffers are bounded (drop
 oldest faces) so backpressure never grows memory unbounded.
 
 Decoupled from I/O for testing: `outcome_sink` (writes the log / notify / broadcast),
-`face_search` (cardless 1:N), and `clock` are all injected. `resolve(now)` is pure
+`face_search` (cardless 1:N) and `clock` are all injected. `resolve(now)` is pure
 w.r.t. the clock so tests drive time explicitly.
+
+`camera_heartbeat` keeps the no_face verdict honest. no_face means "the camera was
+watching and nobody showed their face", and it does not count as present. With the
+heartbeat on, perception reports every frame through note_frame() and each tap counts
+the frames that fell inside its own association window. A tap that saw none was never
+watched, so it cannot be called no_face: it is logged `unverified` (card-only) and
+sent to the review queue, the camera-dead rule in docs/design-notes.md. The camera is
+judged over the tap's own window, never by its state at the moment of resolving, so
+unplugging it after the fact changes nothing.
 """
 
 import os
@@ -48,15 +58,16 @@ _BIG = 10.0  # cost sentinel for time-invalid tap/face pairs
 
 
 class PendingTap:
-    __slots__ = ("id", "uid", "student_id", "student", "embedding", "ts")
+    __slots__ = ("id", "uid", "student_id", "student", "embedding", "ts", "frames")
 
-    def __init__(self, tid, uid, student_id, student, embedding, ts):
+    def __init__(self, tid, uid, student_id, student, embedding, ts, frames=0):
         self.id = tid
         self.uid = uid
         self.student_id = student_id
         self.student = student
         self.embedding = np.asarray(embedding, dtype=np.float32)
         self.ts = ts
+        self.frames = frames  # camera frames seen inside this tap's window
 
 
 class PendingFace:
@@ -85,6 +96,7 @@ class Matcher:
         clock=None,
         max_face_buffer=MAX_FACE_BUFFER,
         max_tailgated_tracks=MAX_TAILGATED_TRACKS,
+        camera_heartbeat=False,
     ):
         import time as _time
 
@@ -95,6 +107,9 @@ class Matcher:
         self.resolve_interval = RESOLVE_INTERVAL_SEC
         self.outcome_sink = outcome_sink
         self.face_search = face_search
+        # True when the caller feeds note_frame() for every camera frame. False (tests,
+        # offline runs) means nobody reports frames, so a missing frame proves nothing.
+        self.camera_heartbeat = camera_heartbeat
         self.clock = clock or _time.time
         self.max_face_buffer = max_face_buffer
         self.max_tailgated_tracks = max_tailgated_tracks
@@ -109,6 +124,7 @@ class Matcher:
         self._taps: list[PendingTap] = []
         self._faces: list[PendingFace] = []
         self._last_tap: dict[str, float] = {}
+        self._last_frame_ts: float | None = None
         self._next_id = 1
 
     # --- ingest ---
@@ -120,14 +136,27 @@ class Matcher:
         last = self._last_tap.get(uid)
         if last is not None and now - last < self.cooldown:
             return None
+        # The window reaches back as well as forward (face-then-tap), so a frame that
+        # arrived just before the tap already shows the camera was watching it.
+        last = self._last_frame_ts
+        watched = last is not None and 0 <= now - last <= self.window
         # Construct before recording the debounce timestamp: if this raises, the
         # tap never entered the buffer, and the caller (the /tap 500) should see
         # the same failure on retry rather than a misleading 'debounced' success.
-        t = PendingTap(self._next_id, uid, student_id, student, embedding, now)
+        t = PendingTap(self._next_id, uid, student_id, student, embedding, now, frames=int(watched))
         self._next_id += 1
         self._last_tap[uid] = now
         self._taps.append(t)
         return t.id
+
+    def note_frame(self, ts=None):
+        """The camera delivered a frame (register via perception.on_frame). Credits it
+        to every pending tap whose association window it falls in."""
+        now = self.clock() if ts is None else ts
+        self._last_frame_ts = now
+        for t in self._taps:
+            if abs(now - t.ts) <= self.window:
+                t.frames += 1
 
     def on_face(self, ev):
         """Sink for perception face events (register via perception.on_face)."""
@@ -161,7 +190,10 @@ class Matcher:
                 j = assignment.get(i)
                 if j is None:
                     # No time-valid face left for this tap (none, or all taken).
-                    outcomes.append(self._no_face(t))
+                    if self.camera_heartbeat and t.frames == 0:
+                        outcomes.append(self._unwatched(t))
+                    else:
+                        outcomes.append(self._no_face(t))
                     continue
                 # An assigned face is time-valid; it is accounted for by this tap's
                 # verdict (accepted / spoof / mismatch), so consume it either way —
@@ -250,6 +282,7 @@ class Matcher:
             "liveness_pass": None,
             "track_id": None,
             "reason": None,
+            "camera_down": False,
         }
 
     def _present(self, t, f, sim):
@@ -276,6 +309,11 @@ class Matcher:
     def _no_face(self, t):
         o = self._base(t.uid, t.student_id, t.student, decision.NO_FACE)
         o.update(reason="no face in association window")
+        return o
+
+    def _unwatched(self, t):
+        o = self._base(t.uid, t.student_id, t.student, decision.UNVERIFIED)
+        o.update(reason="camera delivered no frame during the tap; card-only", camera_down=True)
         return o
 
     def _tailgating(self, f):

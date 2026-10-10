@@ -34,7 +34,7 @@ python -m backend.enroll S001 --images a.jpg b.jpg c.jpg   # from files
 python -m backend.enroll S001 --capture 5                  # from the webcam (prompts per shot)
 ```
 
-> ✅ **`--capture` was fixed in Step 33** — `enroll.py._from_capture` now uses `probe.embedding`
+> Note: **`--capture` was fixed in Step 33** — `enroll.py._from_capture` now uses `probe.embedding`
 > (it was treating the `Probe(frame, bbox, embedding)` tuple as a bare embedding). Both `--images`
 > and `--capture` work.
 
@@ -55,8 +55,8 @@ warning; it aborts if zero usable shots remain and warns if fewer than 3.
 4. Both values written to `attendance_logs` (`face_score REAL`, `face_match BOOLEAN`).
 
 **Fail-open.** No camera, no detected face, or no enrolled reference → `face_score`/`face_match`
-stay NULL and attendance is still logged; `notify` prints a warning (`⚠ FACE MISMATCH` on a
-false match, `⚠ face unverified` when an enrolled student produced no usable probe). A strict
+stay NULL and attendance is still logged; `notify` prints a warning (`WARNING: FACE MISMATCH` on a
+false match, `WARNING: face unverified` when an enrolled student produced no usable probe). A strict
 cutoff catches impostors while false rejects only raise a flag — never block attendance.
 
 ## Threshold & calibration
@@ -157,6 +157,6 @@ Verified live on **2026-07-10** with the attached USB webcam:
 | Schema migration | `vector` ext + `face_embedding vector(512)`, `face_score`, `face_match` applied on restart |
 | Enroll S001 (3 live shots) | stored, read back as numpy `(512,)` via `register_vector` |
 | Genuine match | score **0.86**, `face_match=true`, no warning |
-| Impostor (different reference) | score **0.018**, `face_match=false`, `⚠ FACE MISMATCH`, still logged (fail-open) |
+| Impostor (different reference) | score **0.018**, `face_match=false`, `WARNING: FACE MISMATCH`, still logged (fail-open) |
 | No reference / no camera | scores NULL, attendance still logged, no crash |
 | `calibrate.py` | genuine ~0.80–0.86 vs impostor 0.018 — 0.5 threshold sits cleanly in the gap |

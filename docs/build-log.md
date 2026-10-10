@@ -80,6 +80,66 @@ liveness work started until tap, log and notify ran end to end.
 
 **Success status + method labelling + uncalibrated-liveness fix (built)** — the "fully verified" role is `accepted` (green pill, `reason="verified"`). (1) **`method` reflects the factors used** — matcher outcomes with a card **and** a compared face write `method="nfc+face"` (`_present`/`_spoof`/`_mismatch`); cardless faces stay `face` (tailgating); card-only paths (`no_face`/`unregistered`/`unverified`) stay `nfc`. `LiveFeed.tsx` shows a method chip. (2) **Uncalibrated liveness no longer rejects genuine matches as `spoof`** — the matcher's spoof branch is gated on `liveness.calibrated()` (`LIVENESS_THRESHOLD` set). Until calibrated, the argmax liveness verdict is **advisory**: a matched card+face resolves to `accepted` (score still logged for later calibration) instead of `spoof`. (This is why a live person scoring face 0.51/0.72 with live 0.02 was mislabelled `spoof`; now `accepted | nfc+face`.) Setting `LIVENESS_THRESHOLD` reactivates real spoof-blocking. Verified deterministically (uncalibrated+not-live→accepted; calibrated+not-live→spoof; calibrated+live→accepted; all `nfc+face`). **Open follow-up (track churn):** one person can spawn multiple short-lived tracks → the matched face consumes its tap while leftover phantom tracks of the same person surface as extra `tailgating` rows; a held card read past `TAP_COOLDOWN_SEC` doubles the tap. Tune `TRACK_MAX_MISSES`/`TRACK_IOU_THRESH` + cooldown.
 
+## Status wiring, stream access, attendance clock (10 Oct 2026)
+
+Four things that were built earlier but not connected, plus one bug found while checking them.
+Earlier entries in this file still describe the old behaviour; where they disagree, this one wins.
+
+**The per-tap status now decides attendance.** `decision.counts_as_present()` had no callers, so
+`db.get_summary`, `db._is_late` and the `attendance_sessions` view counted every tap of a known
+card: a `rejected`, `mismatch`, `spoof`, `no_face` or `tailgating` tap still marked the student
+present. All three now share one SQL rule (`db._COUNTED_SQL`; the view spells the same list out,
+and `tests/test_decision.py` fails if the two drift). A tap counts when its status counts, or when
+an operator resolved its review as `override`.
+
+**The review queue is filled.** `db.insert_review` had no callers, so the Review page (Step 34)
+was always empty. `main._queue_review` now adds every tap that failed a check
+(`decision.needs_review`: `flagged`, `rejected`, `no_face`, `mismatch`, `spoof`, `tailgating`),
+from the matcher's outcome writer and from the per-tap path. A failed insert is printed and the
+tap still notifies and broadcasts.
+
+**A camera that delivers nothing no longer reads as `no_face`.** Whether a card-only tap during
+a camera outage should count at all is still an open decision (design-notes section 10, item 6);
+what follows keeps the outcome such a tap had before, and makes it visible.
+Before, a camera that delivered nothing made every queued tap `no_face`. With the count wired to
+the status that would have marked the whole school absent. The matcher now takes a heartbeat:
+`perception.on_frame` feeds `Matcher.note_frame`, and each pending tap counts the frames inside its
+own association window (which reaches back, so a frame just before the tap counts too). No frame
+at all means the tap was never watched: status `unverified` (counted), an `[ALERT]` line, and a
+review entry even though `unverified` is otherwise not reviewed. The camera is judged over the
+tap's window, not at resolve time. `Matcher(camera_heartbeat=False)`, the default used by tests
+and offline runs, keeps the old behaviour.
+
+**`ENFORCE_2FA` is unchanged**: read only when perception is off. With perception on, `mismatch`
+and `spoof` never count regardless, and a camera outage still fails open.
+
+**The camera stream needs the operator token.** `GET /stream.mjpeg` was open to anyone who could
+reach the port, even with `OPERATOR_TOKEN` set. It is guarded by `main.require_stream_access`: the
+token in a header, or a ticket. An `<img>` cannot send a header, and a credential in a URL ends up
+in access logs, so `POST /api/stream-ticket` trades the token for a random ticket that opens the
+stream only, once, within 30 seconds (`frontend/src/useStreamUrl.ts`). The token is never accepted from
+the URL. `/ws/taps` still takes it as `?token=`; that is unchanged and still open to the same
+objection. The Viewer page was called "public, boxes-only" above. It shows this stream and always
+did, so with a token set it now needs the token.
+
+**Attendance clock (bug fix).** Every "which day" and "what time" is computed in SQL
+(`ts::date`, `ts::time`, `CURRENT_DATE`) in the session's time zone, and the Postgres container
+runs on UTC. On a UTC+8 host a 07:30 tap was filed under the previous day and compared with
+`LATE_CUTOFF` as 23:30, while `get_summary` took "today" from Python's local date. `db.get_conn`
+now runs `SET TIME ZONE` on each session: `ATTENDANCE_TZ` if set, else the backend machine's zone
+(the IANA name behind `/etc/localtime`, else the UTC offset). `get_summary` asks the database for
+today. The Summary and History pages used `toISOString()`, the UTC date, as their default day;
+they use the local date now. An unknown zone name is reported once and the session stays on UTC.
+Stored timestamps are `timestamptz` and did not change; only how they are bucketed did.
+
+**Verification.** `make test` (no database or camera). Against a throwaway Postgres 16
+with the previous schema loaded first: the count rule, lateness, sessions, override, and a second
+`init_db`. From a UTC+8 host against that UTC server: 9 of 9 clock checks, 0 of 9 with the
+session forced to UTC. A real backend process with perception on and no camera: tap queued,
+resolved `unverified`, review entry present, stream refused without a ticket and opened with one.
+Not checked: a real camera, so the "camera was watching, nobody showed a face" path has only its
+unit tests.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

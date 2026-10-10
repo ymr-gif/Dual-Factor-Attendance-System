@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getSummary, downloadAttendanceCsv, type AttendanceSummary } from '../api'
+import { getSummary, downloadAttendanceCsv, localToday, type AttendanceSummary } from '../api'
 
 const is: React.CSSProperties = {
   background: '#12141a', color: '#e6e8ee', border: '1px solid #333', borderRadius: 4,
@@ -7,7 +7,7 @@ const is: React.CSSProperties = {
 }
 
 export default function Summary() {
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(localToday)
   const [data, setData] = useState<AttendanceSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)

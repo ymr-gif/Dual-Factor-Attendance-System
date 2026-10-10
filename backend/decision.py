@@ -32,6 +32,10 @@ TAILGATING = "tailgating"  # a recognized face with no tap to claim it (cardless
 # Statuses that do NOT count as attendance-present.
 _NOT_PRESENT = {REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING}
 
+# Statuses that go to the operator review queue: an explicit failed check. `unverified`
+# is left out on purpose — nothing failed there, a factor just could not run.
+_NEEDS_REVIEW = {FLAGGED, REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING}
+
 
 def enforcing() -> bool:
     return ENFORCE_2FA
@@ -62,3 +66,16 @@ def counts_as_present(status: str) -> bool:
     states (no_face/mismatch/spoof/tailgating) do not; accepted/flagged/unverified/
     unregistered keep their prior fail-open behavior."""
     return status not in _NOT_PRESENT
+
+
+def not_counted_statuses() -> list[str]:
+    """The statuses the attendance queries leave out (backend/db.py): everything
+    counts_as_present() refuses, plus `unregistered`, which has no student to count.
+    The attendance_sessions view in schema.sql spells the same list out in SQL;
+    tests/test_decision.py fails if the two drift apart."""
+    return sorted(_NOT_PRESENT | {UNREGISTERED})
+
+
+def needs_review(status: str) -> bool:
+    """True when a tap with this status belongs in the operator review queue."""
+    return status in _NEEDS_REVIEW

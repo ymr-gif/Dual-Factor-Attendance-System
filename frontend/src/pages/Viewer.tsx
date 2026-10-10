@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useStreamUrl } from '../useStreamUrl'
 
 export default function Viewer() {
   const [failed, setFailed] = useState(false)
+  const src = useStreamUrl()
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#12141a' }}>
@@ -11,9 +13,9 @@ export default function Viewer() {
           <div style={{ fontSize: 24, opacity: 0.6 }}>Camera offline</div>
           <div style={{ fontSize: 14, opacity: 0.3, marginTop: 8 }}>Perception not enabled or no camera detected</div>
         </div>
-      ) : (
+      ) : src && (
         <img
-          src="/stream.mjpeg"
+          src={src}
           onError={() => setFailed(true)}
           onLoad={() => setFailed(false)}
           style={{ maxWidth: '100%', maxHeight: '100vh', display: 'block' }}

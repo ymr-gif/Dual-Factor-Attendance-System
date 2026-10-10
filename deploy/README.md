@@ -48,8 +48,9 @@ cp deploy/kiosk/nfc-scan-kiosk.desktop ~/.config/autostart/
 ```
 
 `deploy/kiosk/start-kiosk.sh` waits for the backend, then opens Chromium `--kiosk` at the
-public **Viewer**, which shows the live camera image with face boxes drawn on it (no names or
-scores). Set `KIOSK_URL=http://localhost:8001/app/kiosk` for the verdict screen, or `/app/` for
+**Viewer**, which shows the live camera image with face boxes drawn on it (no names or
+scores). With `OPERATOR_TOKEN` set the Viewer needs the token like every other page: open
+`/app/setup` in the kiosk browser once and save it. Set `KIOSK_URL=http://localhost:8001/app/kiosk` for the verdict screen, or `/app/` for
 the operator dashboard.
 
 ## Updates, backup & recovery (Step 43)

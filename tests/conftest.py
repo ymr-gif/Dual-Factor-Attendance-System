@@ -113,6 +113,8 @@ class FakeDB:
         self.students = {}  # uid -> students row (dict)
         self.lookups = []  # every uid passed to find_student_by_uid
         self.logs = []  # every row "inserted" into attendance_logs
+        self.reviews = []  # every row "inserted" into review_queue
+        self.review_error = None
         self.init_calls = 0
         self.reachable = True
 
@@ -158,6 +160,13 @@ class FakeDB:
         }
         self.logs.append(row)
         return row
+
+    def insert_review(self, log_id, student_id, status, reason=None):
+        if self.review_error is not None:
+            raise self.review_error
+        row = {"log_id": log_id, "student_id": student_id, "status": status, "reason": reason}
+        self.reviews.append(row)
+        return {"id": len(self.reviews)}
 
     def get_students(self):
         # The real query never selects face_embedding; mirror that.
@@ -270,11 +279,13 @@ def client(backend_main, monkeypatch, fake_db, camera, fake_matcher, sinks):
 
     from backend import db, decision, events, face, liveness, perception, privacy
 
-    # Database: startup migration, /health probe, /tap lookup + insert, roster.
+    # Database: startup migration, /health probe, /tap lookup + insert, review queue,
+    # roster.
     monkeypatch.setattr(db, "init_db", fake_db.init_db)
     monkeypatch.setattr(db, "get_conn", fake_db.get_conn)
     monkeypatch.setattr(db, "find_student_by_uid", fake_db.find_student_by_uid)
     monkeypatch.setattr(db, "insert_log", fake_db.insert_log)
+    monkeypatch.setattr(db, "insert_review", fake_db.insert_review)
     monkeypatch.setattr(db, "get_students", fake_db.get_students)
 
     # Behaviour switches are read from the environment at import. Pin them to the
