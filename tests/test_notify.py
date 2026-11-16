@@ -404,6 +404,13 @@ def test_one_channel_failing_does_not_stop_the_other(outbox, fake_db, monkeypatc
     assert [n["channel"] for n in fake_db.notifications] == ["sms"]
 
 
+def test_an_entry_whose_face_was_not_checked_sends_nothing(outbox, fake_db):
+    # PC-027: card only is not attendance, so the guardian is not told of it.
+    notify.notify(student(), log(status=decision.UNVERIFIED))
+
+    assert outbox == [] and fake_db.notifications == []
+
+
 def test_a_tap_that_does_not_count_leaves_no_row(outbox, fake_db):
     for status in decision.not_counted_statuses():
         notify.notify(student(), log(status=status))

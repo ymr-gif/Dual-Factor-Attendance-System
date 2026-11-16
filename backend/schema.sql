@@ -118,7 +118,8 @@ WITH ordered AS (
       AND (
         l.status IS NULL
         OR l.status NOT IN (
-            'mismatch', 'no_face', 'rejected', 'spoof', 'tailgating', 'unregistered'
+            'mismatch', 'no_face', 'rejected', 'spoof', 'tailgating', 'unregistered',
+            'unverified'
         )
         OR EXISTS (
             SELECT 1 FROM review_queue r

@@ -6,9 +6,11 @@ really them. This module collapses the raw per-factor verdicts into one attendan
 (the buddy-punch / photo-spoof case: someone taps a friend's card, or presents a
 printed photo of the enrolled student).
 
-Fail-open is preserved: a factor that could not run (no camera, no enrolled
-reference, model error) is None, never a failure. Enforcement rejects only on an
-*explicit* False, so a missing webcam still logs attendance exactly as before.
+A factor that could not run (no camera, no enrolled reference, no consent, model
+error) is None, never a failure: the tap is still logged, as `unverified`. Both factors
+are required for attendance (PC-027), so `unverified` does not count as present, sends
+the guardian nothing and goes to the review queue; the guard writes the entry in the
+logbook. Enforcement rejects only on an *explicit* False.
 """
 
 import os
@@ -19,7 +21,7 @@ ENFORCE_2FA = os.environ.get("ENFORCE_2FA", "false").lower() in ("1", "true", "y
 UNREGISTERED = "unregistered"  # no student row for this uid
 REJECTED = "rejected"  # enforcing and a factor explicitly failed -> not counted present
 FLAGGED = "flagged"  # a factor failed but enforcement off -> logged present, warned
-UNVERIFIED = "unverified"  # student known, no verdict available (fail-open)
+UNVERIFIED = "unverified"  # student known, face not checked -> not counted, review
 ACCEPTED = "accepted"  # every available factor passed
 
 # Continuous-flow / matcher statuses (Step 31). All are review states — none count
@@ -29,12 +31,13 @@ MISMATCH = "mismatch"  # tap + a face in window, but below the match threshold
 SPOOF = "spoof"  # matched face, but liveness said not-live
 TAILGATING = "tailgating"  # a recognized face with no tap to claim it (cardless)
 
-# Statuses that do NOT count as attendance-present.
-_NOT_PRESENT = {REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING}
+# Statuses that do NOT count as attendance-present. `unverified` is here because the
+# card alone is one factor and the study requires both (PC-027).
+_NOT_PRESENT = {REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING, UNVERIFIED}
 
-# Statuses that go to the operator review queue: an explicit failed check. `unverified`
-# is left out on purpose — nothing failed there, a factor just could not run.
-_NEEDS_REVIEW = {FLAGGED, REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING}
+# Statuses that go to the operator review queue: a failed check, or a face that could
+# not be checked at all (`unverified`), so an operator can clear the tap.
+_NEEDS_REVIEW = {FLAGGED, REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING, UNVERIFIED}
 
 
 def enforcing() -> bool:
@@ -62,9 +65,9 @@ def decide(student, face_match, liveness_pass, enforce=None) -> str:
 
 
 def counts_as_present(status: str) -> bool:
-    """True when the tap should count as attendance. Rejected + the matcher review
-    states (no_face/mismatch/spoof/tailgating) do not; accepted/flagged/unverified/
-    unregistered keep their prior fail-open behavior."""
+    """True when the tap should count as attendance. Rejected, unverified and the
+    matcher review states (no_face/mismatch/spoof/tailgating) do not; accepted and
+    flagged do. `unregistered` has no student; not_counted_statuses() leaves it out."""
     return status not in _NOT_PRESENT
 
 

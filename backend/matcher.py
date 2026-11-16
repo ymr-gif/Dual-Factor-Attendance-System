@@ -8,7 +8,7 @@ emits one outcome (an attendance status) per resolved tap or unclaimed face:
   tap + matching face ≥ threshold        -> accepted (present, verified)
   tap + face below threshold             -> mismatch  (review)
   tap + no face in window                -> no_face   (review)
-  tap + no face, camera delivered no frame -> unverified (card-only, review)
+  tap + no face, camera delivered no frame -> unverified (card-only, not counted, review)
   matched face, liveness not-live        -> spoof     (review)
   recognized face, no tap claims it      -> tailgating (cardless 1:N name lookup)
 

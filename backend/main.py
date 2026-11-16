@@ -901,9 +901,11 @@ def tap(req: TapRequest):
             _post_log(student, log)
             return {"status": "logged", "student": None, "log": log}
         ref = student.get("face_embedding")
-        # No reference, or consent not granted (Step 20) -> fail-open, card-only NFC log.
+        # No reference, or consent not granted (Step 20) -> card-only log. Not counted
+        # and reviewed (PC-027): the face was never checked.
         if ref is None or not privacy.consent_ok(student):
             log = db.insert_log(uid=uid, student_id=student_id, method=req.method, status=decision.UNVERIFIED)
+            _queue_review(log, "no face reference" if ref is None else "no face consent")
             _post_log(student, log)
             return {"status": "logged", "student": student_out, "log": log}
         tap_id = matcher.add_tap(uid, student_id, ref, student=student)
@@ -944,6 +946,8 @@ def tap(req: TapRequest):
         failed.append("face below match threshold")
     if liveness_pass is False:
         failed.append("liveness fail")
+    if status == decision.UNVERIFIED:
+        failed.append("face not checked")
     _queue_review(log, "; ".join(failed) or None)
     _post_log(student, log)
     return {"student": student_out, "log": log}

@@ -48,15 +48,16 @@ window), `mismatch` (a face scored below the threshold), `spoof` (the face match
 liveness check said not live) and `tailgating` (a face with no tap to claim it). Every status name
 is a constant in `backend/decision.py`.
 
-**What counts as present.** `accepted`, `flagged` and `unverified` count. `rejected`, `no_face`,
+**What counts as present.** `accepted` and `flagged` count. `rejected`, `unverified`, `no_face`,
 `mismatch`, `spoof` and `tailgating` do not. Every tap that failed a check goes to the review queue
 (the Review page), and a tap an operator overrides there counts. The summary, the late flag and
 the check-in/check-out sessions all apply this one rule, `decision.counts_as_present()`.
 
-The checks fail open. A factor that cannot run is stored as NULL, not as a failure, and the tap is
-logged `unverified`, which still counts. That includes a camera that is down: when no frame
-arrived during a tap's window, the tap is `unverified`, the backend prints an `[ALERT]` line, and
-the tap is put in the review queue so the outage cannot pass unseen.
+Both factors are required (PC-027, 16 Nov 2026). A factor that cannot run is stored as NULL, not
+as a failure, and the tap is logged `unverified`: recorded, not counted, no guardian message, and
+put in the review queue, where an operator override counts it. The guard writes the entry in the
+logbook. That includes a camera that is down: when no frame arrived during a tap's window, the
+tap is `unverified` and the backend also prints an `[ALERT]` line.
 
 ## Install
 

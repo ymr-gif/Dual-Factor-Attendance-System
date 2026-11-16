@@ -179,7 +179,9 @@ Security: embedding theft · stream auth/TLS · token rotation · audit tamper.
 4. Accuracy target (FAR/FRR operating point) for this population?
 5. Consent/legal jurisdiction + is the school use "commercial" for the model license?
 6. Camera-dead degraded mode: log as `unverified` (recommended) vs block taps entirely?
-   **Still open as of 10 Oct 2026. It is the owner's call; do not settle it in passing.**
+   **Settled 16 Nov 2026 (PC-027, option b): `unverified` does not count.** It sends the
+   guardian nothing and goes to the review queue; an operator override counts it, and the
+   guard writes the entry in the logbook. The notes below are the state before that.
    - *What the code does now.* A tap whose window saw no camera frame is logged `unverified`,
      an `[ALERT]` line is printed and the tap is queued for review. `unverified` counts as
      present (`decision.counts_as_present`), so the student is counted on the card alone. This

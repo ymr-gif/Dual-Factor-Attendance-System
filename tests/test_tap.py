@@ -124,7 +124,7 @@ def test_uid_is_stripped_and_uppercased_before_lookup(client, fake_db, raw):
     assert fake_db.logs[0]["uid"] == UID
 
 
-def test_no_usable_face_fails_open_as_unverified(client, fake_db, camera):
+def test_no_usable_face_is_logged_unverified_and_reviewed(client, fake_db, camera, sinks):
     fake_db.add_student(enrolled_student())
 
     body = post_tap(client).json()
@@ -135,6 +135,9 @@ def test_no_usable_face_fails_open_as_unverified(client, fake_db, camera):
     assert body["log"]["face_match"] is None
     assert body["log"]["liveness_score"] is None
     assert body["log"]["liveness_pass"] is None
+    assert [(r["status"], r["reason"]) for r in fake_db.reviews] == [
+        (decision.UNVERIFIED, "face not checked")]
+    assert not decision.counts_as_present(body["log"]["status"])
 
 
 def test_matching_live_face_is_accepted(client, fake_db, camera):
@@ -315,6 +318,8 @@ def test_perception_student_without_reference_is_logged_unverified(
     assert body["status"] == "logged"
     assert body["log"]["status"] == decision.UNVERIFIED
     assert fake_matcher.taps == []
+    assert [(r["status"], r["reason"]) for r in fake_db.reviews] == [
+        (decision.UNVERIFIED, "no face reference")]
 
 
 def test_perception_consent_gate_logs_card_only(perception_on, fake_db, fake_matcher, monkeypatch):
@@ -328,6 +333,8 @@ def test_perception_consent_gate_logs_card_only(perception_on, fake_db, fake_mat
     assert body["status"] == "logged"
     assert body["log"]["status"] == decision.UNVERIFIED
     assert fake_matcher.taps == []
+    assert [(r["status"], r["reason"]) for r in fake_db.reviews] == [
+        (decision.UNVERIFIED, "no face consent")]
 
 
 # --- operator token -----------------------------------------------------------
@@ -388,16 +395,14 @@ def test_rejected_tap_is_queued_for_review(client, fake_db, camera, monkeypatch)
     ]
 
 
-def test_taps_that_passed_or_could_not_be_checked_are_not_queued(client, fake_db, camera):
+def test_taps_that_passed_or_have_no_student_are_not_queued(client, fake_db, camera):
     fake_db.add_student(enrolled_student())
 
-    post_tap(client)  # no usable face -> unverified
     camera.sees(score=0.86, live_score=0.97, is_live=True)
     post_tap(client)  # accepted
     post_tap(client, uid="DEADBEEF")  # unregistered
 
     assert [row["status"] for row in fake_db.logs] == [
-        decision.UNVERIFIED,
         decision.ACCEPTED,
         decision.UNREGISTERED,
     ]
@@ -451,13 +456,12 @@ def test_matcher_review_states_are_logged_and_queued(client, backend_main, fake_
     assert "face_embedding" not in sinks.published[0]["student"]
 
 
-@pytest.mark.parametrize("status", [decision.ACCEPTED, decision.UNVERIFIED])
-def test_matcher_outcomes_that_count_are_logged_but_not_queued(
-    client, backend_main, fake_db, sinks, status
+def test_a_matcher_outcome_that_counts_is_logged_but_not_queued(
+    client, backend_main, fake_db, sinks
 ):
-    backend_main._write_outcome(matcher_outcome(status, reason="verified"))
+    backend_main._write_outcome(matcher_outcome(decision.ACCEPTED, reason="verified"))
 
-    assert [row["status"] for row in fake_db.logs] == [status]
+    assert [row["status"] for row in fake_db.logs] == [decision.ACCEPTED]
     assert fake_db.reviews == []
     assert len(sinks.notified) == 1
 
@@ -474,7 +478,7 @@ def test_matcher_outcome_survives_a_review_queue_failure(client, backend_main, f
 # --- camera heartbeat: what lets the matcher tell `no_face` from an unwatched tap -----
 
 
-def test_a_tap_the_camera_never_watched_is_reviewed_although_it_counts(
+def test_a_tap_the_camera_never_watched_is_reviewed_and_not_counted(
     client, backend_main, fake_db, sinks, capsys
 ):
     outcome = matcher_outcome(
@@ -487,7 +491,7 @@ def test_a_tap_the_camera_never_watched_is_reviewed_although_it_counts(
     backend_main._write_outcome(outcome)
 
     assert [row["status"] for row in fake_db.logs] == [decision.UNVERIFIED]
-    # `unverified` alone is never queued; this one is, so the outage cannot pass unseen.
+    assert not decision.counts_as_present(decision.UNVERIFIED)  # PC-027
     assert fake_db.reviews == [
         {
             "log_id": 1,

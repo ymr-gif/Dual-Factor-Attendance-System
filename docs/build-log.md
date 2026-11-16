@@ -297,6 +297,16 @@ Limits: Semaphore's `Pending` status means queued, not delivered to the handset;
 `Failed` is not read back.
 `pytest tests`: 391 passed, 9 skipped (new `tests/test_sms.py`).
 
+**PC-027: both factors required.** `unverified` (the face could not be checked: camera down,
+no reference, no consent) no longer counts as present: it is in `decision._NOT_PRESENT`, in the
+`attendance_sessions` view's list and so in every attendance query, and the guardian is sent
+nothing. It now goes to the review queue with the reason (`face not checked`,
+`no face reference`, `no face consent`, or the camera alert), where an operator override counts
+it. This settles open question 6 in `docs/design-notes.md` as option (b). Not changed:
+`docs/operations.md` still says `unverified` counts; that file has edits in progress that are
+not part of this build.
+`pytest tests`: 391 passed, 9 skipped.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

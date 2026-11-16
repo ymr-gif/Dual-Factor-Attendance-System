@@ -41,7 +41,7 @@ KNOWN_STUDENT_TABLE = {
 PRESENT_TABLE = {
     ACCEPTED: True,
     FLAGGED: True,
-    UNVERIFIED: True,
+    UNVERIFIED: False,  # PC-027: the card alone is one factor
     UNREGISTERED: True,
     REJECTED: False,
     NO_FACE: False,
@@ -127,7 +127,7 @@ def test_decide_only_returns_known_statuses():
 # status -> does a tap with it go to the operator review queue?
 REVIEW_TABLE = {
     ACCEPTED: False,
-    UNVERIFIED: False,
+    UNVERIFIED: True,
     UNREGISTERED: False,
     FLAGGED: True,
     REJECTED: True,
@@ -152,11 +152,12 @@ def test_every_status_constant_has_a_review_ruling():
     assert constants == set(REVIEW_TABLE)
 
 
-def test_unverified_counts_and_is_not_reviewed():
-    # Fail-open: a factor that could not run (dead camera, no reference, no consent)
-    # must neither cost the student their attendance nor fill the review queue.
-    assert decision.counts_as_present(UNVERIFIED) is True
-    assert decision.needs_review(UNVERIFIED) is False
+def test_unverified_does_not_count_and_is_reviewed():
+    # PC-027, both factors required: a tap whose face could not be checked (dead
+    # camera, no reference, no consent) is logged but not counted, and an operator
+    # sees it in the review queue, where an override can still count it.
+    assert decision.counts_as_present(UNVERIFIED) is False
+    assert decision.needs_review(UNVERIFIED) is True
 
 
 def test_everything_that_does_not_count_is_reviewed():
@@ -173,6 +174,7 @@ def test_not_counted_statuses_is_the_list_the_attendance_queries_leave_out():
         "spoof",
         "tailgating",
         "unregistered",
+        "unverified",
     ]
 
 
