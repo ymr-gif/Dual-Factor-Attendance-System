@@ -15,9 +15,10 @@ Schedule via cron (use the interpreter the backend runs under):
 import argparse
 import os
 from datetime import date, timedelta
+from email.message import EmailMessage
 
 from . import db
-from .notify import _build_email, _send, EMAIL_ENABLED, SMTP_HOST
+from .notify import _send, EMAIL_ENABLED, SMTP_FROM, SMTP_HOST
 
 
 def _digest_body(student_name: str, student_id: str, sessions: list[dict],
@@ -99,15 +100,11 @@ def run(target_date: date | None = None, dry_run: bool = False):
             continue
 
         student_name = s["name"] or s["student_id"]
-        msg = _build_email(
-            {"name": student_name, "guardian_email": guardian,
-             "student_id": s["student_id"]},
-            {"ts": target_str, "method": "digest", "status": ""},
-            [],
-        )
-        msg.set_content(body)
-        msg.replace_header("Subject", f"Attendance Summary for {student_name} on {target_str}")
+        msg = EmailMessage()
+        msg["Subject"] = f"Attendance Summary for {student_name} on {target_str}"
+        msg["From"] = SMTP_FROM
         msg["To"] = guardian
+        msg.set_content(body)
 
         if dry_run:
             print(f"[digest] DRY-RUN: would send to {guardian}")

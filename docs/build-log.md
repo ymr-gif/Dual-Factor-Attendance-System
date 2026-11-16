@@ -170,6 +170,27 @@ cannot be cleared from the Roster page yet.
 change and the three roster queries were run against a scratch Postgres database, twice through
 `init_db`. `npm run build` passes. Not checked: a real SMTP send of the contact test.
 
+**PC-022: only an entry that counts is sent.** `notify.notify` still prints the operator
+console line for every tap, with the status and the warnings. A guardian message goes out only
+when the card belongs to a student on the roster and the status is one that counts as
+attendance: the gate reads `decision.not_counted_statuses()`, the same list the attendance
+queries use, so the two cannot drift. Before this, every tap with a guardian email on file sent,
+including "Attendance was DENIED".
+
+**PC-023: what the message says.** One sentence, the same for SMS and email:
+`<name> entered the Hua Siong College of Iloilo <entry point> on <Mon D, YYYY> at <H:MM AM/PM>.`
+The SMS puts the sender name in front (`SEMAPHORE_SENDER`, default `SAFEHSCI`), so the default
+text is the sample the sender name was applied for. `ENTRY_POINT` (default `main guardpost`)
+names the place. The date and time are written in `ATTENDANCE_TZ`, or in the machine's own zone
+when that is unset or unknown. The SMS is kept to 160 characters by shortening the name only:
+first the given name and surname, then a cut ending in "..."; the date and time are never cut. A
+student with no name on file is written as "Your student". The email no longer carries the
+student ID, method, status, scores or warnings, and a failed send prints the kind of error, not
+the exception text. `backend/digest.py` builds its own message now; the daily digest itself is
+unchanged. Limit: the 160 count assumes plain GSM characters; a name with other characters
+makes the provider send a shorter-part message. Nothing sends an SMS yet (PC-018).
+`pytest tests`: 253 passed.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.
