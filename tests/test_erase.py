@@ -14,35 +14,41 @@ SID, UID = "S-2026-0042", "04A1B2C3"
 OTHER_SID, OTHER_UID = "S-2026-0420", "04A1B2C399"
 
 
-# --- finding an ID in free text ---
+# --- which lines name a student ---
 
 
 @pytest.mark.parametrize(
     "text",
     [
-        "S-2026-0042",
         "3 shot(s), buffalo_l; dup?~S-2026-0042@0.912",
+        "tailgating; nearest=S-2026-0042",
         "uid=04A1B2C3",
-        "tailgating; nearest=s-2026-0042",
+        "uid=04a1b2c3",
     ],
 )
-def test_an_id_is_found_where_the_code_writes_it(text):
-    assert db.mentions(text, SID) or db.mentions(text, UID)
+def test_a_student_is_found_in_the_forms_the_code_writes(text):
+    assert db.names_student(text, SID, UID)
 
 
 @pytest.mark.parametrize(
-    "text, token",
+    "text, sid, uid",
     [
-        ("dup?~S-2026-00421@0.912", SID),  # a longer ID that starts the same
-        ("uid=04A1B2C399", UID),
-        ("3 shot(s), buffalo_l", "3SHOT"),
-        (None, SID),
-        ("anything", None),
-        ("anything", ""),
+        ("3 shot(s), buffalo_l; dup?~S-2026-00421@0.912", SID, UID),  # a longer ID
+        ("3 shot(s), buffalo_l; dup?~XS-2026-0042@0.912", SID, UID),
+        ("tailgating; nearest=S-2026-00421", SID, UID),
+        ("uid=04A1B2C399", SID, UID),
+        # An ID that is also a word or a number the system writes elsewhere.
+        ("email test sent; SMS test skipped", "TEST", "04A1B2C3"),
+        ("3 shot(s), buffalo_l", "3", "04A1B2C3"),
+        ("logs=3 students=1 notifications=0 audit_rows=2", "3", "04A1B2C3"),
+        ("granted", "GRANTED", None),
+        ("uid=04A1B2C3", SID, None),
+        (None, SID, UID),
+        ("anything", "", UID),
     ],
 )
-def test_an_id_is_not_found_inside_a_longer_one(text, token):
-    assert not db.mentions(text, token)
+def test_nothing_else_counts_as_naming_the_student(text, sid, uid):
+    assert not db.names_student(text, sid, uid)
 
 
 # --- the failed-tap queue ---
@@ -94,8 +100,8 @@ def test_a_queue_with_no_hit_is_left_untouched(tmp_path):
 def test_a_queue_that_cannot_be_cleaned_is_reported_not_hidden(monkeypatch):
     monkeypatch.setattr(
         db, "delete_student",
-        lambda student_id: {"logs": 1, "students": 1, "notifications": 0,
-                            "audit_rows": 0, "uid": UID},
+        lambda student_id, actor=None: {"logs": 1, "students": 1, "notifications": 0,
+                                        "audit_rows": 0, "uid": UID},
     )
 
     def locked(uid, path=None):
@@ -167,8 +173,7 @@ def test_erase_removes_the_student_everywhere_and_names_nobody(client, fake_db, 
     # The record that an erase happened: who did it and how much, not whom.
     erase = fake_db.audits[-1]
     assert (erase["action"], erase["target"]) == ("erase", None)
-    assert erase["detail"] == (
-        "logs=2 students=1 notifications=1 audit_rows=3 queued_taps=1")
+    assert erase["detail"] == "logs=2 students=1 notifications=1 audit_rows=3"
 
 
 def test_erasing_someone_unknown_is_a_404_and_writes_no_audit_row(client, fake_db):
@@ -186,6 +191,38 @@ def test_erase_can_be_run_again_to_clean_rows_left_by_an_older_erase(client, fak
 
     assert r.status_code == 200
     assert SID not in repr(fake_db.audits)
+
+
+def audit_rows_of_others(fake_db):
+    add(fake_db, OTHER_SID, OTHER_UID)
+    fake_db.insert_audit("op", "contact_test", OTHER_SID, "email test sent; SMS test skipped")
+    fake_db.insert_audit("op", "enroll", OTHER_SID, "3 shot(s), buffalo_l")
+    fake_db.insert_audit("op", "review_resolve", "review#12", "dismiss")
+    fake_db.insert_audit("op", "erase", None, "logs=3 students=1 notifications=0 audit_rows=2")
+    return [dict(a) for a in fake_db.audits]
+
+
+@pytest.mark.parametrize("made_up", ["test", "3", "review%2312", "logs", "dismiss", " "])
+def test_erasing_a_made_up_id_cannot_blank_the_audit_log(client, fake_db, made_up):
+    before = audit_rows_of_others(fake_db)
+
+    r = client.delete(f"/api/students/{made_up}")
+
+    assert r.status_code == 404
+    assert fake_db.audits == before
+
+
+@pytest.mark.parametrize("sid", ["TEST", "3", "REVIEW#12"])
+def test_a_student_whose_id_is_a_common_word_takes_only_their_own_rows(client, fake_db, sid):
+    before = audit_rows_of_others(fake_db)
+    add(fake_db, sid, "0499AABB")
+    fake_db.insert_audit("op", "create", sid, None)
+
+    r = client.delete(f"/api/students/{sid.replace('#', '%23')}")
+
+    assert r.status_code == 200
+    assert r.json()["audit_rows"] == 1
+    assert fake_db.audits[: len(before)] == before
 
 
 # --- the real statements ---
@@ -242,16 +279,28 @@ def test_after_erase_a_dump_of_every_table_has_no_hit(monkeypatch):
         db.insert_audit("pc044-test", "enroll", other_sid,
                         f"3 shot(s), buffalo_l; dup?~{sid}@0.912")
         db.insert_audit("pc044-test", "create", other_sid, f"uid={other_uid}")
+        db.insert_audit("pc044-test", "contact_test", other_sid, "email test sent")
+        db.insert_audit("pc044-test", "review_resolve", "review#999999", "dismiss")
+        before = dump()
 
-        counts = db.delete_student(sid)
+        # An ID nobody has changes nothing, whatever word it is.
+        nothing = {"logs": 0, "students": 0, "notifications": 0, "audit_rows": 0, "uid": None}
+        for made_up in ("test", "3", "review#999999", "dismiss", "pc044-s1", ""):
+            assert db.delete_student(made_up, "pc044-test") == nothing
+        assert dump() == before
+
+        counts = db.delete_student(sid, "pc044-test")
 
         assert counts == {"logs": 2, "students": 1, "notifications": 2, "audit_rows": 4,
                           "uid": uid}
         tables = dump()
+        assert any('"action":"erase","target":null,'
+                   '"detail":"logs=2 students=1 notifications=2 audit_rows=4"' in line
+                   for line in tables["audit_log"])
         for table, lines in tables.items():
             for line in lines:
-                assert not db.mentions(line, sid), (table, line)
-                assert not db.mentions(line, uid), (table, line)
+                assert sid + '"' not in line and sid + "@" not in line, (table, line)
+                assert uid + '"' not in line, (table, line)
                 assert "erased@example.com" not in line and "09170000001" not in line
                 assert "Erased Student" not in line
 
@@ -262,7 +311,7 @@ def test_after_erase_a_dump_of_every_table_has_no_hit(monkeypatch):
         assert any(n["id"] == kept_note["id"] for n in db.get_notifications())
         assert any(f'"id":{kept_review["id"]},' in line and '"reason":null' in line
                    for line in tables["review_queue"])
-        assert db.delete_student(sid) == {"logs": 0, "students": 0, "notifications": 0,
-                                          "audit_rows": 0, "uid": None}
+        assert "email test sent" in everything and '"detail":"dismiss"' in everything
+        assert db.delete_student(sid, "pc044-test") == nothing
     finally:
         cleanup()

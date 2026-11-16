@@ -272,42 +272,42 @@ class FakeDB:
                      "finish_notification", "get_notifications"):
             monkeypatch.setattr(db, name, getattr(self, name))
 
-    def delete_student(self, student_id):
-        """The counts the real erase returns, over the rows held here."""
-        from backend.db import mentions
+    def delete_student(self, student_id, actor=None):
+        """What the real erase does, over the rows held here."""
+        from backend.db import STUDENT_AUDIT_ACTIONS, erase_detail, names_student
 
+        student_id = (student_id or "").strip()
+        counts = {"logs": 0, "students": 0, "notifications": 0, "audit_rows": 0, "uid": None}
         uid = next(
             (u for u, s in self.students.items() if s["student_id"] == student_id), None
         )
 
-        def named(text):
-            return mentions(text, student_id) or mentions(text, uid)
+        def about(a):
+            return a["target"] == student_id and a["action"] in STUDENT_AUDIT_ACTIONS
 
-        gone = [
-            l for l in self.logs
+        if not student_id or (uid is None and not any(about(a) for a in self.audits)):
+            return counts
+        gone = {
+            l["id"] for l in self.logs
             if l["student_id"] == student_id or (l["student_id"] is None and l["uid"] == uid)
-        ]
-        gone_ids = {l["id"] for l in gone}
-        self.logs = [l for l in self.logs if l["id"] not in gone_ids]
-        notifications = [n for n in self.notifications if n["log_id"] in gone_ids]
-        self.notifications = [n for n in self.notifications if n["log_id"] not in gone_ids]
-        self.reviews = [r for r in self.reviews if r["log_id"] not in gone_ids]
-        students = 1 if self.students.pop(uid, None) else 0
-        scrubbed = 0
-        for a in self.audits:
-            if named(a["target"]):
-                a.update(target=None, detail=None)
-                scrubbed += 1
-            elif named(a["detail"]):
-                a["detail"] = None
-                scrubbed += 1
-        return {
-            "logs": len(gone),
-            "students": students,
-            "notifications": len(notifications),
-            "audit_rows": scrubbed,
-            "uid": uid,
         }
+        counts["logs"] = len(gone)
+        counts["notifications"] = sum(n["log_id"] in gone for n in self.notifications)
+        counts["students"] = 1 if self.students.pop(uid, None) else 0
+        self.logs = [l for l in self.logs if l["id"] not in gone]
+        self.notifications = [n for n in self.notifications if n["log_id"] not in gone]
+        self.reviews = [r for r in self.reviews if r["log_id"] not in gone]
+        for a in self.audits:
+            if about(a):
+                a.update(target=None, detail=None)
+                counts["audit_rows"] += 1
+            elif names_student(a["detail"], student_id, uid):
+                a["detail"] = None
+                counts["audit_rows"] += 1
+        if actor is not None:
+            self.insert_audit(actor, "erase", None, erase_detail(counts))
+        counts["uid"] = uid
+        return counts
 
     def get_students(self):
         # The real query never selects face_embedding; mirror that.

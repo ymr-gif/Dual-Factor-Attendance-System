@@ -755,16 +755,11 @@ async def api_enroll_student(student_id: str, images: list[UploadFile] = File(..
 def api_delete_student(student_id: str, actor: str = Depends(_actor)):
     # Right-to-erasure (Step 20, PC-044): the roster row with its face template, the
     # logs, and the student ID and card UID wherever else they were written. The audit
-    # entry that records the erase holds counts only, so it names nobody.
-    counts = privacy.erase_student(student_id)
+    # entry that records the erase holds counts only, so it names nobody; it is written
+    # in the same transaction as the erase.
+    counts = privacy.erase_student(student_id, actor)
     if not (counts["students"] or counts["logs"] or counts["audit_rows"]):
         raise HTTPException(status_code=404, detail=f"no such student {student_id}")
-    try:
-        db.insert_audit(
-            actor, "erase", None, detail=" ".join(f"{k}={v}" for k, v in counts.items())
-        )
-    except Exception as e:
-        print(f"erase audit failed: {type(e).__name__}")
     return {"erased": student_id, **counts}
 
 

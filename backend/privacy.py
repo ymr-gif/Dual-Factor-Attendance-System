@@ -85,11 +85,12 @@ def scrub_failed_taps(uid: str | None, path: str | None = None) -> int:
     return dropped
 
 
-def erase_student(student_id: str) -> dict:
-    """Right-to-erasure (PC-044): the database rows, then the failed-tap queue.
-    Returns counts only; nothing in them identifies the student. `queued_taps` is None
-    when the queue file could not be cleaned, which the operator has to see."""
-    counts = db.delete_student(student_id)
+def erase_student(student_id: str, actor: str | None = None) -> dict:
+    """Right-to-erasure (PC-044): the database rows and the audit row that records the
+    erase, then the failed-tap queue. Returns counts only; nothing in them identifies
+    the student. `queued_taps` is None when the queue file could not be cleaned, which
+    the operator has to see."""
+    counts = db.delete_student(student_id, actor)
     uid = counts.pop("uid", None)
     try:
         counts["queued_taps"] = scrub_failed_taps(uid)
