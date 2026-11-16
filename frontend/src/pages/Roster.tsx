@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { getStudents, createStudent, updateStudent, deleteStudent, setConsent, type Student } from '../api'
 
-interface FormState { student_id: string; uid: string; name: string; guardian_email: string }
-const empty = (): FormState => ({ student_id: '', uid: '', name: '', guardian_email: '' })
+interface FormState { student_id: string; uid: string; name: string; guardian_email: string; guardian_mobile: string }
+const empty = (): FormState => ({ student_id: '', uid: '', name: '', guardian_email: '', guardian_mobile: '' })
+
+// What the server reported about the test message to a contact just saved.
+const contactNote = (s: Student) => Object.values(s.contact_test ?? {}).join('; ')
 
 const is: React.CSSProperties = {
   background: '#12141a', color: '#e6e8ee', border: '1px solid #333', borderRadius: 4,
@@ -16,7 +19,8 @@ export default function Roster() {
   const [showAdd, setShowAdd] = useState(false)
   const [add, setAdd] = useState<FormState>(empty)
   const [editId, setEditId] = useState<string | null>(null)
-  const [edit, setEdit] = useState({ uid: '', name: '', guardian_email: '' })
+  const [edit, setEdit] = useState({ uid: '', name: '', guardian_email: '', guardian_mobile: '' })
+  const [note, setNote] = useState('')
 
   const fetch = () => {
     setLoading(true); setErr(null)
@@ -27,19 +31,19 @@ export default function Roster() {
 
   const handleAdd = async () => {
     try {
-      await createStudent({ student_id: add.student_id.trim().toUpperCase(), uid: add.uid.trim().toUpperCase(), name: add.name.trim() || undefined, guardian_email: add.guardian_email.trim() || undefined })
-      setShowAdd(false); setAdd(empty()); fetch()
+      const s = await createStudent({ student_id: add.student_id.trim().toUpperCase(), uid: add.uid.trim().toUpperCase(), name: add.name.trim() || undefined, guardian_email: add.guardian_email.trim() || undefined, guardian_mobile: add.guardian_mobile.trim() || undefined })
+      setShowAdd(false); setAdd(empty()); setNote(contactNote(s)); fetch()
     } catch (e) { setErr(String(e)) }
   }
 
   const startEdit = (s: Student) => {
-    setEditId(s.student_id); setEdit({ uid: s.uid, name: s.name || '', guardian_email: s.guardian_email || '' })
+    setEditId(s.student_id); setEdit({ uid: s.uid, name: s.name || '', guardian_email: s.guardian_email || '', guardian_mobile: s.guardian_mobile || '' })
   }
 
   const handleUpdate = async (id: string) => {
     try {
-      await updateStudent(id, { uid: edit.uid.trim().toUpperCase() || undefined, name: edit.name.trim() || undefined, guardian_email: edit.guardian_email.trim() || undefined })
-      setEditId(null); fetch()
+      const s = await updateStudent(id, { uid: edit.uid.trim().toUpperCase() || undefined, name: edit.name.trim() || undefined, guardian_email: edit.guardian_email.trim() || undefined, guardian_mobile: edit.guardian_mobile.trim() || undefined })
+      setEditId(null); setNote(contactNote(s)); fetch()
     } catch (e) { setErr(String(e)) }
   }
 
@@ -61,6 +65,7 @@ export default function Roster() {
         <button className="btn" onClick={() => setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : '+ Add Student'}</button>
       </div>
       {err && <p style={{ color: '#e53e3e', marginBottom: 8 }}>{err} <button className="btn btn-sm btn-ghost" onClick={fetch}>retry</button></p>}
+      {note && <p style={{ opacity: 0.7, fontSize: 12, marginBottom: 8 }}>Contact check: {note}</p>}
 
       {showAdd && (
         <div className="card" style={{ marginBottom: 12 }}>
@@ -69,6 +74,7 @@ export default function Roster() {
             <input placeholder="UID *" value={add.uid} onChange={e => setAdd(f => ({ ...f, uid: e.target.value }))} style={is} />
             <input placeholder="Name" value={add.name} onChange={e => setAdd(f => ({ ...f, name: e.target.value }))} style={is} />
             <input placeholder="Guardian email" value={add.guardian_email} onChange={e => setAdd(f => ({ ...f, guardian_email: e.target.value }))} style={is} />
+            <input placeholder="Guardian mobile (09XXXXXXXXX)" value={add.guardian_mobile} onChange={e => setAdd(f => ({ ...f, guardian_mobile: e.target.value }))} style={is} />
             <button className="btn" onClick={handleAdd} disabled={!add.student_id || !add.uid}>Save</button>
           </div>
         </div>
@@ -82,7 +88,8 @@ export default function Roster() {
             <thead>
               <tr style={{ borderBottom: '1px solid #333', textAlign: 'left' }}>
                 <th style={{ padding: '6px 8px' }}>ID</th><th style={{ padding: '6px 8px' }}>UID</th>
-                <th style={{ padding: '6px 8px' }}>Name</th><th style={{ padding: '6px 8px' }}>Guardian</th>
+                <th style={{ padding: '6px 8px' }}>Name</th><th style={{ padding: '6px 8px' }}>Guardian email</th>
+                <th style={{ padding: '6px 8px' }}>Guardian mobile</th>
                 <th style={{ padding: '6px 8px' }}>Enrolled</th><th style={{ padding: '6px 8px' }}>Consent</th>
                 <th style={{ padding: '6px 8px' }}>Actions</th>
               </tr>
@@ -96,6 +103,7 @@ export default function Roster() {
                       <td style={{ padding: '6px 8px' }}><input value={edit.uid} onChange={e => setEdit(f => ({ ...f, uid: e.target.value }))} style={is} /></td>
                       <td style={{ padding: '6px 8px' }}><input value={edit.name} onChange={e => setEdit(f => ({ ...f, name: e.target.value }))} style={is} /></td>
                       <td style={{ padding: '6px 8px' }}><input value={edit.guardian_email} onChange={e => setEdit(f => ({ ...f, guardian_email: e.target.value }))} style={is} /></td>
+                      <td style={{ padding: '6px 8px' }}><input placeholder="09XXXXXXXXX" value={edit.guardian_mobile} onChange={e => setEdit(f => ({ ...f, guardian_mobile: e.target.value }))} style={is} /></td>
                       <td style={{ padding: '6px 8px' }}>{s.enrolled ? '\u2713' : '\u2014'}</td>
                       <td style={{ padding: '6px 8px' }}>{s.face_consent ? '\u2713' : '\u2014'}</td>
                       <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
@@ -109,6 +117,7 @@ export default function Roster() {
                       <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: 12 }}>{s.uid}</td>
                       <td style={{ padding: '6px 8px' }}>{s.name || '\u2014'}</td>
                       <td style={{ padding: '6px 8px', fontSize: 12 }}>{s.guardian_email || '\u2014'}</td>
+                      <td style={{ padding: '6px 8px', fontSize: 12 }}>{s.guardian_mobile || '\u2014'}</td>
                       <td style={{ padding: '6px 8px' }}>{s.enrolled ? <span className="pill" style={{ background: '#1f5c2a' }}>yes</span> : <span className="pill" style={{ background: '#333' }}>no</span>}</td>
                       <td style={{ padding: '6px 8px' }}>
                         <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>

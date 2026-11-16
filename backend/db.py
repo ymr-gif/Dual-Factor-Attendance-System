@@ -126,18 +126,18 @@ def init_db():
 
 
 def insert_student(student_id: str, uid: str, name: str | None = None,
-                   guardian_email: str | None = None):
+                   guardian_email: str | None = None, guardian_mobile: str | None = None):
     """Create a new student. Raises ValueError on duplicate student_id or uid."""
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             try:
                 cur.execute(
                     """
-                    INSERT INTO students (student_id, uid, name, guardian_email)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING student_id, uid, name, guardian_email
+                    INSERT INTO students (student_id, uid, name, guardian_email, guardian_mobile)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING student_id, uid, name, guardian_email, guardian_mobile
                     """,
-                    (student_id, uid, name, guardian_email),
+                    (student_id, uid, name, guardian_email, guardian_mobile),
                 )
                 return cur.fetchone()
             except psycopg2.errors.UniqueViolation as e:
@@ -145,7 +145,7 @@ def insert_student(student_id: str, uid: str, name: str | None = None,
 
 
 def update_student(student_id: str, uid: str | None = None, name: str | None = None,
-                   guardian_email: str | None = None):
+                   guardian_email: str | None = None, guardian_mobile: str | None = None):
     """Update student fields (only non-None values). Raises ValueError if not found."""
     sets, params = [], []
     if uid is not None:
@@ -157,6 +157,9 @@ def update_student(student_id: str, uid: str | None = None, name: str | None = N
     if guardian_email is not None:
         sets.append("guardian_email = %s")
         params.append(guardian_email)
+    if guardian_mobile is not None:
+        sets.append("guardian_mobile = %s")
+        params.append(guardian_mobile)
     if not sets:
         return get_student(student_id)
     params.append(student_id)
@@ -166,7 +169,7 @@ def update_student(student_id: str, uid: str | None = None, name: str | None = N
                 f"""
                 UPDATE students SET {", ".join(sets)}
                 WHERE student_id = %s
-                RETURNING student_id, uid, name, guardian_email
+                RETURNING student_id, uid, name, guardian_email, guardian_mobile
                 """,
                 params,
             )
@@ -458,7 +461,7 @@ def get_students():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT student_id, uid, name, guardian_email,
+                SELECT student_id, uid, name, guardian_email, guardian_mobile,
                        (face_embedding IS NOT NULL) AS enrolled,
                        face_consent, face_consent_at, embed_model, enrolled_at
                 FROM students

@@ -114,6 +114,7 @@ class FakeDB:
         self.lookups = []  # every uid passed to find_student_by_uid
         self.logs = []  # every row "inserted" into attendance_logs
         self.reviews = []  # every row "inserted" into review_queue
+        self.audits = []  # every row "inserted" into audit_log
         self.review_error = None
         self.init_calls = 0
         self.reachable = True
@@ -167,6 +168,47 @@ class FakeDB:
         row = {"log_id": log_id, "student_id": student_id, "status": status, "reason": reason}
         self.reviews.append(row)
         return {"id": len(self.reviews)}
+
+    def insert_student(self, student_id, uid, name=None, guardian_email=None,
+                       guardian_mobile=None):
+        if uid in self.students or any(
+            s["student_id"] == student_id for s in self.students.values()
+        ):
+            raise ValueError("duplicate student_id or uid: (simulated)")
+        row = {
+            "student_id": student_id,
+            "uid": uid,
+            "name": name,
+            "guardian_email": guardian_email,
+            "guardian_mobile": guardian_mobile,
+        }
+        self.students[uid] = dict(row)
+        return row
+
+    def update_student(self, student_id, uid=None, name=None, guardian_email=None,
+                       guardian_mobile=None):
+        # Like the real one: only a value that is not None is written.
+        for row in self.students.values():
+            if row["student_id"] == student_id:
+                break
+        else:
+            raise ValueError(f"no student with student_id={student_id}")
+        changes = {
+            "uid": uid,
+            "name": name,
+            "guardian_email": guardian_email,
+            "guardian_mobile": guardian_mobile,
+        }
+        row.update({k: v for k, v in changes.items() if v is not None})
+        return {
+            k: row.get(k)
+            for k in ("student_id", "uid", "name", "guardian_email", "guardian_mobile")
+        }
+
+    def insert_audit(self, actor, action, target=None, detail=None):
+        self.audits.append(
+            {"actor": actor, "action": action, "target": target, "detail": detail}
+        )
 
     def get_students(self):
         # The real query never selects face_embedding; mirror that.
@@ -278,6 +320,7 @@ def client(backend_main, monkeypatch, fake_db, camera, fake_matcher, sinks):
     from fastapi.testclient import TestClient
 
     from backend import db, decision, events, face, liveness, perception, privacy
+    from backend import notify as notify_mod
 
     # Database: startup migration, /health probe, /tap lookup + insert, review queue,
     # roster.
@@ -287,6 +330,9 @@ def client(backend_main, monkeypatch, fake_db, camera, fake_matcher, sinks):
     monkeypatch.setattr(db, "insert_log", fake_db.insert_log)
     monkeypatch.setattr(db, "insert_review", fake_db.insert_review)
     monkeypatch.setattr(db, "get_students", fake_db.get_students)
+    monkeypatch.setattr(db, "insert_student", fake_db.insert_student)
+    monkeypatch.setattr(db, "update_student", fake_db.update_student)
+    monkeypatch.setattr(db, "insert_audit", fake_db.insert_audit)
 
     # Behaviour switches are read from the environment at import. Pin them to the
     # code defaults so a developer's exported .env cannot change the results; a test
@@ -317,6 +363,9 @@ def client(backend_main, monkeypatch, fake_db, camera, fake_matcher, sinks):
     # Side channels: guardian notify (console + SMTP) and the WebSocket event bus.
     monkeypatch.setattr(backend_main, "notify", sinks.notify)
     monkeypatch.setattr(events, "publish", sinks.publish)
+    # The test message a saved contact gets: pinned off, so no test opens a socket.
+    monkeypatch.setattr(notify_mod, "EMAIL_ENABLED", False)
+    monkeypatch.setattr(notify_mod, "_send", _forbidden("notify._send (SMTP)"))
 
     with TestClient(backend_main.app) as test_client:
         yield test_client

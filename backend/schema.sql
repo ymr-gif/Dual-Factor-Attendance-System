@@ -78,6 +78,10 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT NOT NULL
 );
 
+-- PC-019 (guardian mobile): the number an entry SMS goes to. Nullable; stored in one
+-- form, 09XXXXXXXXX (backend/contacts.py refuses anything else before it gets here).
+ALTER TABLE students ADD COLUMN IF NOT EXISTS guardian_mobile TEXT;
+
 -- Step 21 (attendance sessions): pairs consecutive taps by a student within a day
 -- into check-in/check-out sessions. Odd-numbered taps = check-in, even = check-out.
 -- A lone odd tap with no partner (still present) has check_out = NULL.

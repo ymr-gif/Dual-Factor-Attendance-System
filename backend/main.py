@@ -22,10 +22,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import (
-    cameras, db, decision, events, face, liveness, matcher as matcher_mod,
+    cameras, contacts, db, decision, events, face, liveness, matcher as matcher_mod,
     perception, ports, privacy,
 )
-from .notify import notify
+from .notify import contact_test, notify
 
 # --- MJPEG live camera stream (perception.on_frame → browser) ---
 
@@ -125,10 +125,16 @@ def _on_frame_event(frame, ev):
 app = FastAPI()
 
 
-def _strip_embedding(student):
+# What a tap response and a live tap event never carry: the face template, and the
+# guardian's contacts. Both go to the guard's screen and the card reader, and the
+# contacts belong on the operator's roster only.
+_NOT_FOR_THE_GUARD = ("face_embedding", "guardian_email", "guardian_mobile")
+
+
+def _public_student(student):
     if not student:
         return None
-    return {k: v for k, v in student.items() if k != "face_embedding"}
+    return {k: v for k, v in student.items() if k not in _NOT_FOR_THE_GUARD}
 
 
 def _queue_review(log, reason=None, force=False):
@@ -173,7 +179,7 @@ def _write_outcome(o):
     try:
         events.publish(
             jsonable_encoder(
-                {"type": "tap", "student": _strip_embedding(student), "log": log, "reason": o.get("reason")}
+                {"type": "tap", "student": _public_student(student), "log": log, "reason": o.get("reason")}
             )
         )
     except Exception as e:
@@ -188,7 +194,7 @@ def _post_log(student, log):
         print(f"notify failed: {e}")
     try:
         events.publish(
-            jsonable_encoder({"type": "tap", "student": _strip_embedding(student), "log": log})
+            jsonable_encoder({"type": "tap", "student": _public_student(student), "log": log})
         )
     except Exception as e:
         print(f"tap event publish failed: {e}")
@@ -215,12 +221,14 @@ class StudentCreate(BaseModel):
     uid: str
     name: str | None = None
     guardian_email: str | None = None
+    guardian_mobile: str | None = None
 
 
 class StudentUpdate(BaseModel):
     uid: str | None = None
     name: str | None = None
     guardian_email: str | None = None
+    guardian_mobile: str | None = None
 
 
 class ResolveReview(BaseModel):
@@ -616,19 +624,50 @@ def api_set_consent(student_id: str, body: ConsentRequest, actor: str = Depends(
     return {"student_id": student_id, "face_consent": body.granted}
 
 
+def _guardian_contacts(body):
+    """The guardian email and mobile from a roster request, in their stored form
+    (PC-019). A contact that cannot be right is refused with 422 before anything is
+    saved; a blank one is None."""
+    try:
+        return (
+            contacts.normalize_email(body.guardian_email),
+            contacts.normalize_mobile(body.guardian_mobile),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+def _test_contacts(actor, student, email, sms):
+    """Send the test message for each contact this request saved and record the
+    outcome (PC-019). The audit row holds the outcome only, never the contact."""
+    if not (email or sms):
+        return {}
+    result = contact_test(student, email=email, sms=sms)
+    try:
+        db.insert_audit(
+            actor, "contact_test", student["student_id"], detail="; ".join(result.values())
+        )
+    except Exception as e:
+        print(f"contact test audit failed: {e}")
+    return result
+
+
 @app.post("/api/students", dependencies=[Depends(require_operator)])
 def api_create_student(body: StudentCreate, actor: str = Depends(_actor)):
+    guardian_email, guardian_mobile = _guardian_contacts(body)
     try:
         s = db.insert_student(
             student_id=body.student_id.strip().upper(),
             uid=body.uid.strip().upper(),
             name=body.name,
-            guardian_email=body.guardian_email,
+            guardian_email=guardian_email,
+            guardian_mobile=guardian_mobile,
         )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
     db.insert_audit(actor, "create", s["student_id"], detail=f"uid={s['uid']}")
-    return s
+    tested = _test_contacts(actor, s, email=bool(guardian_email), sms=bool(guardian_mobile))
+    return {**s, "contact_test": tested}
 
 
 @app.patch("/api/students/{student_id}", dependencies=[Depends(require_operator)])
@@ -637,17 +676,21 @@ def api_update_student(student_id: str, body: StudentUpdate, actor: str = Depend
         uid = body.uid.strip().upper() if body.uid else None
     except AttributeError:
         uid = None
+    guardian_email, guardian_mobile = _guardian_contacts(body)
     try:
         s = db.update_student(
             student_id=student_id,
             uid=uid,
             name=body.name,
-            guardian_email=body.guardian_email,
+            guardian_email=guardian_email,
+            guardian_mobile=guardian_mobile,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     db.insert_audit(actor, "update", student_id)
-    return s
+    # Only a contact this request sent is tested, not one that was already on file.
+    tested = _test_contacts(actor, s, email=bool(guardian_email), sms=bool(guardian_mobile))
+    return {**s, "contact_test": tested}
 
 
 @app.post("/api/students/{student_id}/enroll", dependencies=[Depends(require_operator)])
@@ -817,7 +860,7 @@ def tap(req: TapRequest):
     uid = req.uid.strip().upper()
     student = db.find_student_by_uid(uid)
     student_id = student["student_id"] if student else None
-    student_out = _strip_embedding(student)
+    student_out = _public_student(student)
 
     # Continuous flow (Step 31): perception owns the camera, so /tap enqueues the tap
     # and acks immediately; the matcher writes the verdict when the association window

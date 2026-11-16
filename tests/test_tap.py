@@ -23,6 +23,7 @@ def enrolled_student(**overrides):
         "uid": UID,
         "name": "Test Student",
         "guardian_email": "guardian@example.com",
+        "guardian_mobile": "09171234567",
         "face_embedding": EMBEDDING,
         "embed_model": "buffalo_l",
         "face_consent": False,
@@ -83,7 +84,6 @@ def test_known_card_returns_the_student_without_the_face_embedding(client, fake_
         "student_id": "S001",
         "uid": UID,
         "name": "Test Student",
-        "guardian_email": "guardian@example.com",
         "embed_model": "buffalo_l",
         "face_consent": False,
     }
@@ -95,6 +95,22 @@ def test_known_card_returns_the_student_without_the_face_embedding(client, fake_
     assert event["type"] == "tap"
     assert "face_embedding" not in event["student"]
     assert EMBEDDING not in event["student"].values()
+
+
+def test_guardian_contacts_never_reach_the_guard_screen(client, fake_db, sinks):
+    # PC-019 / PC-023: the tap response goes to the card reader and the event to the
+    # guard's live feed. Neither is the place for a guardian's address or number.
+    fake_db.add_student(enrolled_student())
+
+    response = post_tap(client)
+
+    assert "guardian@example.com" not in response.text
+    assert "09171234567" not in response.text
+    event = sinks.published[0]
+    assert "guardian_email" not in event["student"]
+    assert "guardian_mobile" not in event["student"]
+    # The sender still gets the full row: it is the one place that needs the contact.
+    assert sinks.notified[0][0]["guardian_email"] == "guardian@example.com"
 
 
 @pytest.mark.parametrize("raw", ["c3be343a", "  C3BE343A  ", "\tc3Be343A\n"])
@@ -263,7 +279,13 @@ def test_perception_enrolled_card_is_queued_not_logged(
     assert body == {
         "status": "queued",
         "uid": UID,
-        "student": {k: v for k, v in student.items() if k != "face_embedding"},
+        "student": {
+            "student_id": "S001",
+            "uid": UID,
+            "name": "Test Student",
+            "embed_model": "buffalo_l",
+            "face_consent": False,
+        },
     }
     assert fake_matcher.taps == [
         {"uid": UID, "student_id": "S001", "embedding": EMBEDDING, "student": student}

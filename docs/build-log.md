@@ -140,6 +140,36 @@ resolved `unverified`, review entry present, stream refused without a ticket and
 Not checked: a real camera, so the "camera was watching, nobody showed a face" path has only its
 unit tests.
 
+## Guardian notification, study build (16 Nov 2026)
+
+One entry per change, in the order they were built. The IDs (PC-019 and so on) are the
+research group's change queue.
+
+**PC-019: guardian mobile, checked on save.** `students.guardian_mobile` (nullable). A number
+is accepted as `09XXXXXXXXX` or `+639XXXXXXXXX`, with spaces, dashes, dots and brackets ignored,
+and stored as `09XXXXXXXXX`, the form Semaphore's API documentation uses (`backend/contacts.py`).
+Anything else is refused with 422 before the student is saved, on create and on update; the
+message describes the format and does not repeat what was typed. The guardian email gets the
+same treatment with a loose shape check. When a contact is saved, `notify.contact_test` sends
+one message to it and the reply carries the outcome per channel (`contact_test`), also written
+to `audit_log` as a `contact_test` row that holds the outcome and never the contact. Email: sent
+when `NOTIFY_EMAIL_ENABLED` and `SMTP_HOST` are set, otherwise reported as skipped; a failed
+send is reported and the student is still saved. SMS: always "SMS test skipped" for now, there
+is no sender yet. An update tests only the contact that request sent. The Roster and Register
+pages have the new field, and a refused save now shows the server's reason.
+
+**Guardian contacts no longer leave the roster.** The `/tap` response and the live tap event
+carried the whole student row minus the face template, so the guardian email went to the card
+reader's reply and to the guard's screen. `main._public_student` drops `guardian_email` and
+`guardian_mobile` as well. The Roster page (operator) still shows both.
+
+Not built here: a blank field in an update leaves the stored contact as it was, so a contact
+cannot be cleared from the Roster page yet.
+
+**Verification.** `pytest tests` (221 passed; no database, camera or SMTP server). The schema
+change and the three roster queries were run against a scratch Postgres database, twice through
+`init_db`. `npm run build` passes. Not checked: a real SMTP send of the contact test.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

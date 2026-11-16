@@ -35,7 +35,15 @@ async function reqJson<T>(path: string, method: string, body: unknown): Promise<
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['X-Operator-Token'] = token
   const res = await fetch(path, { method, headers, body: JSON.stringify(body) })
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status}`)
+  if (!res.ok) {
+    // The server says why in `detail` (a refused guardian number, a duplicate card).
+    let detail = ''
+    try {
+      const j = await res.json()
+      if (typeof j?.detail === 'string') detail = `: ${j.detail}`
+    } catch { /* no JSON body */ }
+    throw new Error(`${method} ${path} -> ${res.status}${detail}`)
+  }
   return res.json() as Promise<T>
 }
 
@@ -102,6 +110,9 @@ export interface Student {
   uid: string
   name: string | null
   guardian_email: string | null
+  guardian_mobile?: string | null
+  // Present on the reply to a create or an update that saved a guardian contact.
+  contact_test?: Record<string, string>
   enrolled?: boolean
   face_consent?: boolean | null
   face_consent_at?: string | null
@@ -249,10 +260,10 @@ export const getAttendance = (params: Record<string, string | number> = {}) => {
   return req<{ logs: TapLog[] }>(`/api/attendance${q ? `?${q}` : ''}`)
 }
 
-export const createStudent = (b: { student_id: string; uid: string; name?: string; guardian_email?: string }) =>
+export const createStudent = (b: { student_id: string; uid: string; name?: string; guardian_email?: string; guardian_mobile?: string }) =>
   reqJson<Student>('/api/students', 'POST', b)
 
-export const updateStudent = (id: string, b: { uid?: string; name?: string; guardian_email?: string }) =>
+export const updateStudent = (id: string, b: { uid?: string; name?: string; guardian_email?: string; guardian_mobile?: string }) =>
   reqJson<Student>(`/api/students/${encodeURIComponent(id)}`, 'PATCH', b)
 
 export const deleteStudent = (id: string) =>

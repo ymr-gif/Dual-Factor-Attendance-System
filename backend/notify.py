@@ -13,6 +13,10 @@ Env:
   SMTP_FROM             From: address (default SMTP_USER)
   SMTP_STARTTLS         use STARTTLS on non-465 ports (default true)
   SMTP_TIMEOUT          socket timeout seconds (default 10)
+  NOTIFY_SMS_ENABLED    send SMS (default false; the sender is not built yet, PC-018)
+
+When a guardian contact is saved, `contact_test` sends one message to it so a wrong
+address shows up at the roster desk and not on the first school day (PC-019).
 """
 
 import os
@@ -33,6 +37,9 @@ EMAIL_ENABLED = os.environ.get("NOTIFY_EMAIL_ENABLED", "false").lower() in (
     "yes",
     "on",
 )
+SMS_ENABLED = os.environ.get("NOTIFY_SMS_ENABLED", "false").lower() in ("1", "true", "yes", "on")
+
+SMS_TEST_SKIPPED = "SMS test skipped"
 
 
 def _flags(student: dict | None, log: dict) -> list[str]:
@@ -113,6 +120,54 @@ def _email(student: dict | None, log: dict, notes: list[str]) -> None:
         print("[notify] NOTIFY_EMAIL_ENABLED but SMTP_HOST unset — skipping email")
         return
     _send(_build_email(student, log, notes))
+
+
+def _error_text(e: Exception) -> str:
+    """What may be stored or shown about a failed send: the kind of error and the SMTP
+    reply code. Never the exception text, which can carry the recipient's address."""
+    code = getattr(e, "smtp_code", None)
+    return f"{type(e).__name__} {code}" if code else type(e).__name__
+
+
+def _email_test(address: str | None) -> str:
+    if not address:
+        return "no email on file"
+    if not EMAIL_ENABLED:
+        return "email test skipped (NOTIFY_EMAIL_ENABLED is off)"
+    if not SMTP_HOST:
+        return "email test skipped (SMTP_HOST is not set)"
+    msg = EmailMessage()
+    msg["Subject"] = "S.A.F.E. attendance: contact check"
+    msg["From"] = SMTP_FROM
+    msg["To"] = address
+    msg.set_content(
+        "This address was saved as a guardian contact in the S.A.F.E. attendance "
+        "system. This message only checks that it can be reached. No reply is needed."
+    )
+    try:
+        _send(msg)
+    except Exception as e:
+        return f"email test failed: {_error_text(e)}"
+    return "email test sent"
+
+
+def _sms_test(mobile: str | None) -> str:
+    if not mobile:
+        return "no mobile on file"
+    # NOTIFY_SMS_ENABLED=true has nothing to switch on until the sender exists (PC-018).
+    return SMS_TEST_SKIPPED
+
+
+def contact_test(student: dict, email: bool = True, sms: bool = True) -> dict:
+    """Send one message to each guardian contact just saved (PC-019). Returns a line
+    per channel for the operator and the audit log; the lines never hold the contact
+    itself. Never raises: a failed test is a result, not an error."""
+    result = {}
+    if email:
+        result["email"] = _email_test(student.get("guardian_email"))
+    if sms:
+        result["sms"] = _sms_test(student.get("guardian_mobile"))
+    return result
 
 
 def notify(student: dict | None, log: dict) -> None:

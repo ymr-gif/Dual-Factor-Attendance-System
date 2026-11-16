@@ -17,7 +17,7 @@ export default function Register() {
   const [students, setStudents] = useState<Student[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [creating, setCreating] = useState(false)
-  const [cf, setCf] = useState({ student_id: '', uid: '', name: '', guardian_email: '' })
+  const [cf, setCf] = useState({ student_id: '', uid: '', name: '', guardian_email: '', guardian_mobile: '' })
   const [shots, setShots] = useState<Blob[]>([])
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState<EnrollResult | null>(null)
@@ -102,6 +102,7 @@ export default function Register() {
       const s = await createStudent({
         student_id: cf.student_id.trim().toUpperCase(), uid: cf.uid.trim().toUpperCase(),
         name: cf.name.trim() || undefined, guardian_email: cf.guardian_email.trim() || undefined,
+        guardian_mobile: cf.guardian_mobile.trim() || undefined,
       })
       setSelectedId(s.student_id); setCreating(false); stopScan()
       setStudents(p => [...p, s])
@@ -153,6 +154,7 @@ export default function Register() {
             </div>
             <input placeholder="Name" value={cf.name} onChange={e => setCf(f => ({ ...f, name: e.target.value }))} style={is} />
             <input placeholder="Guardian email" value={cf.guardian_email} onChange={e => setCf(f => ({ ...f, guardian_email: e.target.value }))} style={is} />
+            <input placeholder="Guardian mobile (09XXXXXXXXX)" value={cf.guardian_mobile} onChange={e => setCf(f => ({ ...f, guardian_mobile: e.target.value }))} style={is} />
             <button className="btn btn-sm" onClick={createNew} disabled={!cf.student_id || !cf.uid}>Create</button>
           </div>
         )}
