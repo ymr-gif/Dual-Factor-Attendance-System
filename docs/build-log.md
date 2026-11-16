@@ -322,6 +322,13 @@ non-enrolled passers-by raises at the gate.
 `pytest tests`: 403 passed, 10 skipped. With `TEST_DB_DSN` the real-database test checks the
 foreign key, the tailgating-only rule and the erase.
 
+**Camera size setting.** `CAMERA_WIDTH` and `CAMERA_HEIGHT` ask a live camera (an index or
+a `/dev/` path, never a video file) for a capture size in `face.open_capture`, which both the
+tap capture and the perception service use. Unset, nothing is asked and the driver's default
+stays, as before. A size the camera does not give is printed with the one it gives. Not tried
+on the A4tech or the MacBook Air yet; the size to use is for the dry run to settle (PC-045).
+`pytest tests`: 409 passed, 10 skipped (new `tests/test_camera_size.py`).
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

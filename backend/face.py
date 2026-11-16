@@ -25,6 +25,10 @@ CAMERA_INDEX = int(os.environ.get("CAMERA_INDEX", "0"))  # explicit setting; pre
 FACE_THRESHOLD = float(os.environ.get("FACE_THRESHOLD", "0.5"))  # conservative; calibrate from logs
 CAMERA_WARMUP_FRAMES = int(os.environ.get("CAMERA_WARMUP_FRAMES", "5"))
 CAMERA_PROBE_FRAMES = int(os.environ.get("CAMERA_PROBE_FRAMES", "5"))
+# Capture size asked of a live camera, in pixels. Unset -> whatever the driver gives
+# (often 640x480). The A4tech FHD camera can do 1920x1080; more pixels cost CPU.
+CAMERA_WIDTH = int(os.environ.get("CAMERA_WIDTH", "0") or 0) or None
+CAMERA_HEIGHT = int(os.environ.get("CAMERA_HEIGHT", "0") or 0) or None
 MIN_FACE_PX = int(os.environ.get("MIN_FACE_PX", "80"))
 FACE_DET_SIZE = int(os.environ.get("FACE_DET_SIZE", "320"))  # kiosk close-face; raise for far/small faces
 # GPU on/off switch. Default CPU. Set USE_GPU=true once on a CUDA box (RTX 1050) —
@@ -147,7 +151,24 @@ def open_capture(source=None):
         source = camera_index()
     elif isinstance(source, str) and source.isdigit():
         source = int(source)
-    return cv2.VideoCapture(source)
+    cap = cv2.VideoCapture(source)
+    live = isinstance(source, int) or str(source).startswith("/dev/")
+    if live and (CAMERA_WIDTH or CAMERA_HEIGHT):
+        _ask_size(cap, cv2)
+    return cap
+
+
+def _ask_size(cap, cv2):
+    """Ask the camera for CAMERA_WIDTH x CAMERA_HEIGHT. A driver may round or refuse
+    the request, so the size it reports back is printed when it differs."""
+    if CAMERA_WIDTH:
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+    if CAMERA_HEIGHT:
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+    got = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+    wanted = (CAMERA_WIDTH or got[0], CAMERA_HEIGHT or got[1])
+    if got != wanted:
+        print(f"[camera] asked for {wanted[0]}x{wanted[1]}, the camera gives {got[0]}x{got[1]}")
 
 
 def capture_probe():
