@@ -32,7 +32,7 @@ it's decided or still open.
 ## 2. Non-goals (explicit — don't build these unless re-scoped)
 - Not a general access-control / door-lock system (attendance logging only; Arduino drives no relay lock).
 - Not multi-site / multi-tenant (single guardpost, single DB).
-- Not cardless *presence* — cardless 1:N exists **only** to name tailgaters (tailgater naming, see [`build-log.md`](build-log.md)).
+- Not cardless *presence* — cardless 1:N exists **only** to name tailgaters (tailgater naming, see [`build-log.md`](build-log.md)), and is off by default since PC-031 (`FACE_SEARCH_ENABLED=false`): the guard names the face instead.
 - No 3D-mask / high-end presentation-attack defense (passive liveness catches photo/replay, not masks).
 - No external SSO / identity provider — roles via a local `operators` table.
 
@@ -78,7 +78,7 @@ is `TAP_COOLDOWN_SEC`; recognition-backpressure bound is `MAX_FACE_BUFFER` drop-
 | Duplicate/held-card reads | Debounce within `TAP_COOLDOWN_SEC` | See `backend/matcher.py`. |
 | Tap, no matching face in window | `flagged: no-face` → review queue | Student pulled aside. |
 | Face below threshold for its tap | `flagged: mismatch` → review | Possible buddy-punch or bad capture. |
-| Face matching no tap | `tailgating` + cardless whole-DB name lookup → alert + review | Never marked present. |
+| Face matching no tap | `tailgating`, unnamed → alert + review; the guard picks the student or dismisses (PC-031). The whole-DB lookup runs only with `FACE_SEARCH_ENABLED=true` | Never marked present. |
 | Liveness fail on matched face | `flagged: spoof` → review | Photo/replay attempt. |
 | SMTP / webhook down | Caught, logged; tap unaffected | Existing fail-open (Step 8). |
 

@@ -114,6 +114,7 @@ class FakeDB:
         self.lookups = []  # every uid passed to find_student_by_uid
         self.logs = []  # every row "inserted" into attendance_logs
         self.reviews = []  # every row "inserted" into review_queue
+        self.resolutions = {}  # review id -> how it was resolved (resolve_review)
         self.audits = []  # every row "inserted" into audit_log
         self.notifications = []  # every row "inserted" into notification_log
         self.send_took = timedelta(seconds=2)  # t1 - t0 of a DELIVERED row
@@ -170,6 +171,27 @@ class FakeDB:
         row = {"log_id": log_id, "student_id": student_id, "status": status, "reason": reason}
         self.reviews.append(row)
         return {"id": len(self.reviews)}
+
+    def resolve_review(self, review_id, resolution, resolved_by="operator",
+                       identified_as=None):
+        if resolution != "identified":
+            identified_as = None
+        elif not identified_as:
+            raise LookupError("no student picked")
+        if not 1 <= review_id <= len(self.reviews) or review_id in self.resolutions:
+            raise ValueError(f"review {review_id} not found or already resolved")
+        review = self.reviews[review_id - 1]
+        if identified_as is not None and review["status"] != "tailgating":
+            raise ValueError(f"review {review_id} is not a face with no tap")
+        if identified_as is not None and not any(
+            s["student_id"] == identified_as for s in self.students.values()
+        ):
+            raise LookupError(f"no such student {identified_as}")
+        row = {"id": review_id, "log_id": review["log_id"], "status": review["status"],
+               "resolution": resolution, "resolved_by": resolved_by,
+               "identified_as": identified_as}
+        self.resolutions[review_id] = row
+        return row
 
     def insert_student(self, student_id, uid, name=None, guardian_email=None,
                        guardian_mobile=None):
@@ -316,6 +338,9 @@ class FakeDB:
         self.logs = [l for l in self.logs if l["id"] not in gone]
         self.notifications = [n for n in self.notifications if n["log_id"] not in gone]
         self.reviews = [r for r in self.reviews if r["log_id"] not in gone]
+        for r in self.resolutions.values():
+            if r["identified_as"] == student_id:
+                r["identified_as"] = None  # ON DELETE SET NULL
         for a in self.audits:
             if about(a):
                 a.update(target=None, detail=None)
@@ -453,6 +478,7 @@ def client(backend_main, monkeypatch, tmp_path, fake_db, camera, fake_matcher, s
     monkeypatch.setattr(db, "insert_audit", fake_db.insert_audit)
     fake_db.patch_notifications(monkeypatch, db)
     monkeypatch.setattr(db, "delete_student", fake_db.delete_student)
+    monkeypatch.setattr(db, "resolve_review", fake_db.resolve_review)
     # The erase also cleans the serial reader's queue file; keep it off the real one.
     monkeypatch.setattr(privacy, "FAILED_TAPS_QUEUE", str(tmp_path / "failed_taps.jsonl"))
 

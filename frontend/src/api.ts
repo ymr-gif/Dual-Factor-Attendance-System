@@ -278,9 +278,10 @@ export const enrollStudent = (id: string, data: FormData) =>
 export const getReviewQueue = (limit = 100) =>
   req<{ queue: ReviewQueueItem[] }>(`/api/review?limit=${limit}`)
 
-export const resolveReview = (id: number, resolution: string) =>
-  reqJson<{ id: number; log_id: number; student_id: string | null; status: string; resolved_at: string; resolved_by: string; resolution: string }>(
-    `/api/review/${id}/resolve`, 'POST', { resolution },
+// `studentId` only with 'identified': the guard's pick for a face with no tap (PC-031).
+export const resolveReview = (id: number, resolution: string, studentId?: string) =>
+  reqJson<{ id: number; log_id: number; student_id: string | null; status: string; resolved_at: string; resolved_by: string; resolution: string; identified_as: string | null }>(
+    `/api/review/${id}/resolve`, 'POST', studentId ? { resolution, student_id: studentId } : { resolution },
   )
 
 export const getSettings = () => req<SettingsResponse>('/api/settings')

@@ -307,6 +307,21 @@ it. This settles open question 6 in `docs/design-notes.md` as option (b). Not ch
 not part of this build.
 `pytest tests`: 391 passed, 9 skipped.
 
+**PC-031: a face with no tap is named by the guard, not the system.** The matcher is built
+without the one-to-many search (`FACE_SEARCH_ENABLED`, default false), so a face that no tap
+claims is logged `tailgating` with no student and the reason `face with no tap`, and the live
+feed highlights it as before. On the Review page such a row has a roster picker: the guard
+picks the student (`identified`) or dismisses it. The pick is stored on the review row
+(`review_queue.identified_as`, a foreign key to the roster with `ON DELETE SET NULL`, so an
+erase clears it) next to `resolved_by` and `resolved_at`; the audit row holds the word
+`identified` only. Only a `tailgating` row takes a pick, and the pick must be on the roster.
+`/api/search-face` (the Lookup page) answers 403 while the search is off.
+Not built: a grace window before a face is flagged (today it follows `ASSOC_WINDOW_SEC`, 4 s;
+Cabucos floated 60 s, untested and not in the paper). Not checked: how many alerts a stream of
+non-enrolled passers-by raises at the gate.
+`pytest tests`: 403 passed, 10 skipped. With `TEST_DB_DSN` the real-database test checks the
+foreign key, the tailgating-only rule and the erase.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

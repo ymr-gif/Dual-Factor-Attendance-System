@@ -154,3 +154,35 @@ def test_pending_rows_are_read_back_with_what_is_needed_to_send_them(db):
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM attendance_logs WHERE uid = %s", (UID,))
                 cur.execute("DELETE FROM students WHERE student_id = 'PC020-S1'")
+
+
+def test_a_guard_pick_is_kept_on_the_review_row_and_goes_with_an_erase(db):
+    """PC-031 on a real Postgres: only a tailgating row takes a pick, the pick must be
+    on the roster, and erasing that student clears it (ON DELETE SET NULL)."""
+    db.insert_student("PC031-S1", "PC031AA01", name="Picked Student")
+    try:
+        face = db.insert_log(uid=UID, student_id=None, method="face", status="tailgating")
+        other = db.insert_log(uid=UID, student_id=None, method="nfc", status="mismatch")
+        alert = db.insert_review(face["id"], None, "tailgating", "face with no tap")["id"]
+        wrong = db.insert_review(other["id"], None, "mismatch", None)["id"]
+
+        with pytest.raises(LookupError):
+            db.resolve_review(alert, "identified", "guard", identified_as="PC031-NOBODY")
+        with pytest.raises(ValueError):
+            db.resolve_review(wrong, "identified", "guard", identified_as="PC031-S1")
+
+        row = db.resolve_review(alert, "identified", "guard", identified_as="PC031-S1")
+        assert (row["identified_as"], row["resolved_by"]) == ("PC031-S1", "guard")
+        assert row["resolved_at"] is not None
+
+        db.delete_student("PC031-S1")
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT identified_as, resolution FROM review_queue WHERE id = %s",
+                            (alert,))
+                assert cur.fetchone() == (None, "identified")
+    finally:
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM attendance_logs WHERE uid = %s", (UID,))
+                cur.execute("DELETE FROM students WHERE student_id = 'PC031-S1'")

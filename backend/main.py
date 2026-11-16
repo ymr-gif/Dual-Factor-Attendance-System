@@ -200,9 +200,18 @@ def _post_log(student, log):
         print(f"tap event publish failed: {e}")
 
 
+# One-to-many face search (cardless lookup). Off for the study (PC-031): verification
+# is 1:1 against the tapped card, a face with no tap is left unnamed for the guard, and
+# /api/search-face answers 403.
+FACE_SEARCH_ENABLED = os.environ.get("FACE_SEARCH_ENABLED", "false").lower() in (
+    "1", "true", "yes", "on",
+)
+
 # The single in-process matcher (design-notes §3: one worker, shared buffers).
 matcher = matcher_mod.Matcher(
-    outcome_sink=_write_outcome, face_search=db.search_face, camera_heartbeat=True
+    outcome_sink=_write_outcome,
+    face_search=db.search_face if FACE_SEARCH_ENABLED else None,
+    camera_heartbeat=True,
 )
 
 # Single shared operator token (Step 11). Unset -> /api/* is open (dev default);
@@ -232,7 +241,8 @@ class StudentUpdate(BaseModel):
 
 
 class ResolveReview(BaseModel):
-    resolution: str  # 'confirmed' | 'override' | 'dismiss'
+    resolution: str  # 'confirmed' | 'override' | 'dismiss' | 'identified'
+    student_id: str | None = None  # 'identified' only: the guard's pick from the roster
 
 
 class SettingsUpdate(BaseModel):
@@ -599,12 +609,20 @@ def api_review(limit: int = Query(default=100, ge=1, le=1000)):
 
 @app.post("/api/review/{review_id}/resolve", dependencies=[Depends(require_operator)])
 def api_resolve_review(review_id: int, body: ResolveReview, actor: str = Depends(_actor)):
-    if body.resolution not in ("confirmed", "override", "dismiss"):
-        raise HTTPException(status_code=422, detail="resolution must be confirmed/override/dismiss")
+    if body.resolution not in ("confirmed", "override", "dismiss", "identified"):
+        raise HTTPException(
+            status_code=422, detail="resolution must be confirmed/override/dismiss/identified"
+        )
+    student_id = (body.student_id or "").strip().upper() or None
     try:
-        r = db.resolve_review(review_id, resolution=body.resolution, resolved_by=actor)
+        r = db.resolve_review(review_id, resolution=body.resolution, resolved_by=actor,
+                              identified_as=student_id)
+    except LookupError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    # The pick is kept on the review row, where an erase reaches it; the audit row holds
+    # the resolution word only.
     db.insert_audit(actor, "review_resolve", f"review#{review_id}", detail=body.resolution)
     return r
 
@@ -612,7 +630,11 @@ def api_resolve_review(review_id: int, body: ResolveReview, actor: str = Depends
 @app.post("/api/search-face", dependencies=[Depends(require_operator)])
 async def api_search_face(image: UploadFile = File(...), k: int = Query(default=5, ge=1, le=25)):
     # Cardless 1:N manual lookup (Step 33): operator uploads a face image -> encode ->
-    # nearest enrolled students. No image is stored.
+    # nearest enrolled students. No image is stored. Off unless FACE_SEARCH_ENABLED.
+    if not FACE_SEARCH_ENABLED:
+        raise HTTPException(
+            status_code=403, detail="face lookup is off for the study (FACE_SEARCH_ENABLED)"
+        )
     import cv2
     import numpy as np
 

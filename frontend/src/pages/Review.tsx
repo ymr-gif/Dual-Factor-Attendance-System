@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getReviewQueue, resolveReview, type ReviewQueueItem } from '../api'
+import { getReviewQueue, getStudents, resolveReview, type ReviewQueueItem, type Student } from '../api'
 
 const C: Record<string, string> = {
   accepted: '#1f5c2a', flagged: '#5c4a1f', rejected: '#5c1f22',
@@ -11,17 +11,22 @@ export default function Review() {
   const [queue, setQueue] = useState<ReviewQueueItem[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
+  // A face with no tap is named by nobody but the guard (PC-031): roster + pick per row.
+  const [roster, setRoster] = useState<Student[]>([])
+  const [pick, setPick] = useState<Record<number, string>>({})
 
   const fetch = () => {
     setLoading(true); setErr(null)
     getReviewQueue().then(d => setQueue(d.queue)).catch(e => setErr(String(e))).finally(() => setLoading(false))
+    getStudents().then(d => setRoster(d.students)).catch(() => setRoster([]))
   }
 
   useEffect(() => { fetch() }, [])
 
-  const handleResolve = async (id: number, resolution: string) => {
-    if (!confirm(`Resolve as "${resolution}"?`)) return
-    try { await resolveReview(id, resolution); setQueue(p => p.filter(r => r.id !== id)) }
+  const handleResolve = async (id: number, resolution: string, studentId?: string) => {
+    const what = studentId ? `${resolution} as ${studentId}` : resolution
+    if (!confirm(`Resolve as "${what}"?`)) return
+    try { await resolveReview(id, resolution, studentId); setQueue(p => p.filter(r => r.id !== id)) }
     catch (e) { setErr(String(e)) }
   }
 
@@ -71,10 +76,29 @@ export default function Review() {
                     {r.liveness_score != null ? `${r.liveness_score.toFixed(2)} ${r.liveness_pass ? '\u2713' : '\u2717'}` : '\u2014'}
                   </td>
                   <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                    <button className="btn btn-sm" style={{ background: '#1f5c2a', marginRight: 4 }}
-                      onClick={() => handleResolve(r.id, 'confirmed')}>Confirm</button>
-                    <button className="btn btn-sm" style={{ background: '#5c4a1f', marginRight: 4 }}
-                      onClick={() => handleResolve(r.id, 'override')}>Override</button>
+                    {r.status === 'tailgating' && !r.student_id ? (
+                      <>
+                        <select value={pick[r.id] ?? ''} style={{ marginRight: 4 }}
+                          onChange={e => setPick(p => ({ ...p, [r.id]: e.target.value }))}>
+                          <option value="">Pick student...</option>
+                          {roster.map(s => (
+                            <option key={s.student_id} value={s.student_id}>
+                              {s.name ? `${s.name} (${s.student_id})` : s.student_id}
+                            </option>
+                          ))}
+                        </select>
+                        <button className="btn btn-sm" style={{ background: '#1f5c2a', marginRight: 4 }}
+                          disabled={!pick[r.id]}
+                          onClick={() => handleResolve(r.id, 'identified', pick[r.id])}>Identify</button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="btn btn-sm" style={{ background: '#1f5c2a', marginRight: 4 }}
+                          onClick={() => handleResolve(r.id, 'confirmed')}>Confirm</button>
+                        <button className="btn btn-sm" style={{ background: '#5c4a1f', marginRight: 4 }}
+                          onClick={() => handleResolve(r.id, 'override')}>Override</button>
+                      </>
+                    )}
                     <button className="btn btn-sm btn-ghost"
                       onClick={() => handleResolve(r.id, 'dismiss')}>Dismiss</button>
                   </td>

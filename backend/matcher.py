@@ -10,7 +10,8 @@ emits one outcome (an attendance status) per resolved tap or unclaimed face:
   tap + no face in window                -> no_face   (review)
   tap + no face, camera delivered no frame -> unverified (card-only, not counted, review)
   matched face, liveness not-live        -> spoof     (review)
-  recognized face, no tap claims it      -> tailgating (cardless 1:N name lookup)
+  recognized face, no tap claims it      -> tailgating (unnamed; the guard identifies
+                                            it, PC-031; 1:N lookup only when injected)
 
 Design (design-notes §2/§3): single backend worker, in-process buffers, one shared
 host clock for tap + face timestamps. Assignment is optimal (Hungarian) so a burst
@@ -331,10 +332,15 @@ class Matcher:
         o = self._base(
             "", (ident or {}).get("student_id"), ident, decision.TAILGATING, method="face"
         )
+        if self.face_search is None:
+            # PC-031: no search of the enrolled faces; the system names nobody and the
+            # guard picks the student from the roster, or dismisses, on the Review page.
+            reason = "face with no tap"
+        else:
+            reason = f"tailgating; nearest={ident['student_id'] if ident else 'unknown'}"
         o.update(
             face_score=sim, liveness_score=f.live_score, liveness_pass=f.is_live,
-            track_id=f.track_id,
-            reason=f"tailgating; nearest={ident['student_id'] if ident else 'unknown'}",
+            track_id=f.track_id, reason=reason,
         )
         return o
 

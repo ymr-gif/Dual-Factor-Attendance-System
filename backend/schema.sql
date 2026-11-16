@@ -72,6 +72,11 @@ CREATE TABLE IF NOT EXISTS review_queue (
     resolution  TEXT
 );
 
+-- PC-031: the student a guard picked from the roster for a face with no tap. The
+-- system never fills this itself; resolved_by and resolved_at say who and when.
+ALTER TABLE review_queue
+    ADD COLUMN IF NOT EXISTS identified_as TEXT REFERENCES students(student_id) ON DELETE SET NULL;
+
 -- Step 50 (runtime settings): key/value store overrides env defaults at runtime.
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,

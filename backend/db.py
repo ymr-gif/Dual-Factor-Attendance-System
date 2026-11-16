@@ -221,22 +221,37 @@ def get_review_queue(limit: int = 100):
             return cur.fetchall()
 
 
-def resolve_review(review_id: int, resolution: str, resolved_by: str = "operator"):
-    """Resolve a review item. resolution is 'confirmed', 'override', or 'dismiss'."""
+def resolve_review(review_id: int, resolution: str, resolved_by: str = "operator",
+                   identified_as: str | None = None):
+    """Resolve a review item. resolution is 'confirmed', 'override', 'dismiss', or
+    'identified' (PC-031): a guard picked `identified_as` from the roster for a face
+    with no tap. Only a `tailgating` row takes 'identified'. Raises ValueError when the
+    row is not open, or LookupError when the student is not on the roster."""
+    if resolution != "identified":
+        identified_as = None
+    elif not identified_as:
+        raise LookupError("no student picked")
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """
-                UPDATE review_queue
-                SET resolved_at = now(), resolved_by = %s, resolution = %s
-                WHERE id = %s AND resolved_at IS NULL
-                RETURNING id, log_id, student_id, status, resolved_at, resolved_by, resolution
-                """,
-                (resolved_by, resolution, review_id),
-            )
+            try:
+                cur.execute(
+                    """
+                    UPDATE review_queue
+                    SET resolved_at = now(), resolved_by = %s, resolution = %s,
+                        identified_as = %s
+                    WHERE id = %s AND resolved_at IS NULL
+                      AND (%s::text IS NULL OR status = 'tailgating')
+                    RETURNING id, log_id, student_id, status, resolved_at, resolved_by,
+                              resolution, identified_as
+                    """,
+                    (resolved_by, resolution, identified_as, review_id, identified_as),
+                )
+            except psycopg2.errors.ForeignKeyViolation:
+                raise LookupError(f"no such student {identified_as}") from None
             row = cur.fetchone()
             if not row:
-                raise ValueError(f"review {review_id} not found or already resolved")
+                raise ValueError(f"review {review_id} not found, already resolved, "
+                                 "or not a face with no tap")
             return row
 
 
