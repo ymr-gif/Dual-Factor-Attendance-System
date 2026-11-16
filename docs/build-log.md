@@ -191,6 +191,32 @@ unchanged. Limit: the 160 count assumes plain GSM characters; a name with other 
 makes the provider send a shorter-part message. Nothing sends an SMS yet (PC-018).
 `pytest tests`: 253 passed.
 
+**PC-020: notification log.** New table `notification_log`, one row per entry and channel
+(`UNIQUE (log_id, channel)`). Columns: `t0` (the entry's own `attendance_logs.ts`), `t1` (when
+the mail server or the SMS provider accepted the message), `latency_ms`, `status`,
+`provider_message_id`, `error`, `attempts`, `claimed_at`. Status is `PENDING`, `DELIVERED`,
+`FAILED` or `DISABLED`. `t1` and the latency are stamped by Postgres (`clock_timestamp()`), so
+`t0` and `t1` come from one clock. The row holds no student ID and no recipient, the error is
+the kind of error only, and the row is deleted with its entry.
+
+`notify.notify` writes the row before it sends. A channel that is off, has no SMTP host or has
+no guardian contact on file gets a `DISABLED` row with the reason and sends nothing. Otherwise
+the row is opened `PENDING`, claimed, the message is sent, and the row is closed `DELIVERED` or
+`FAILED`. An entry that already has a row for the channel is not sent again, and when the row
+cannot be written nothing is sent. SMS rows are `DISABLED` until the sender exists (PC-018).
+The send still happens inside the tap (PC-021 moves it out).
+
+`backend/notify_report.py` turns the rows into the study's numbers: per channel, for all
+entries and for peak and off-peak, the counts by status, the delivery rate
+(`DELIVERED / (DELIVERED + FAILED)`; `DISABLED` and `PENDING` left out) and the latency in
+seconds (n, mean, sample SD, median, min, max over `DELIVERED` rows). Peak is `PEAK_START` to
+`PEAK_END` on the school clock (default 07:00 to 07:30, end not included). Served by
+`GET /api/notifications/summary` and `GET /api/notifications.csv`, both with optional
+`date_from` and `date_to`. Limits: `DELIVERED` means the server accepted the message, not that
+the guardian read it; an email that bounces later still counts as delivered.
+`pytest tests`: 292 passed, 7 skipped. The 7 are `tests/test_notification_db.py`, which runs the
+real statements and needs `TEST_DB_DSN` to name a scratch database; run that way, 7 passed.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

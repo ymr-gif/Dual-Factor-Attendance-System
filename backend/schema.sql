@@ -82,6 +82,27 @@ CREATE TABLE IF NOT EXISTS settings (
 -- form, 09XXXXXXXXX (backend/contacts.py refuses anything else before it gets here).
 ALTER TABLE students ADD COLUMN IF NOT EXISTS guardian_mobile TEXT;
 
+-- PC-020 (notification log): one row per entry and channel, which is what stops a
+-- retry from sending twice. t0 is the entry's own timestamp (attendance_logs.ts), t1
+-- the moment the mail server or the SMS provider accepted the message; both are read
+-- from this database's clock. status: PENDING (not sent yet), DELIVERED, FAILED, or
+-- DISABLED (the channel was off or had no recipient; left out of the delivery rate).
+-- The row holds no student ID and no recipient, and goes when its entry is deleted.
+CREATE TABLE IF NOT EXISTS notification_log (
+    id                  SERIAL PRIMARY KEY,
+    log_id              INTEGER NOT NULL REFERENCES attendance_logs(id) ON DELETE CASCADE,
+    channel             TEXT NOT NULL,
+    t0                  TIMESTAMPTZ NOT NULL,
+    t1                  TIMESTAMPTZ,
+    latency_ms          INTEGER,
+    status              TEXT NOT NULL,
+    provider_message_id TEXT,
+    error               TEXT,
+    attempts            INTEGER NOT NULL DEFAULT 0,
+    claimed_at          TIMESTAMPTZ,
+    UNIQUE (log_id, channel)
+);
+
 -- Step 21 (attendance sessions): pairs consecutive taps by a student within a day
 -- into check-in/check-out sessions. Odd-numbered taps = check-in, even = check-out.
 -- A lone odd tap with no partner (still present) has check_out = NULL.

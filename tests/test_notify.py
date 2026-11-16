@@ -1,12 +1,14 @@
-"""What a guardian is sent and when (PC-022, PC-023). No SMTP server is reached: every
-test that lets a message out replaces `notify._send` with a recorder.
+"""What a guardian is sent and when (PC-022, PC-023), and what the notification log
+keeps of it (PC-020). No SMTP server and no database are reached: every test that lets
+a message out replaces `notify._send` with a recorder, and the log is the in-memory
+fake.
 """
 
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from backend import decision, notify
+from backend import db, decision, notify
 
 MANILA = timezone(timedelta(hours=8))
 # 7:12 AM on Nov 24, 2026 in Manila, as the database hands it over (UTC).
@@ -18,8 +20,9 @@ APPROVED_SAMPLE = (
 
 
 @pytest.fixture(autouse=True)
-def school_settings(monkeypatch):
-    """Pin what the environment could change."""
+def school_settings(monkeypatch, fake_db):
+    """Pin what the environment could change, and keep the log in memory."""
+    fake_db.patch_notifications(monkeypatch, db)
     monkeypatch.setattr(notify, "SCHOOL_ZONE", MANILA)
     monkeypatch.setattr(notify, "ENTRY_POINT", "main guardpost")
     monkeypatch.setattr(notify, "SMS_SENDER", "SAFEHSCI")
@@ -253,3 +256,154 @@ def test_the_operator_console_still_reports_a_denied_tap(outbox, capsys):
     assert "[REJECTED]" in line
     assert "FACE MISMATCH" in line
     assert outbox == []
+
+
+# --- the notification log (PC-020) ---
+
+
+def rows(fake_db, channel=None):
+    return [n for n in fake_db.notifications if channel in (None, n["channel"])]
+
+
+def test_a_sent_email_is_logged_delivered_with_its_latency(outbox, fake_db):
+    notify.notify(student(), log())
+
+    (row,) = rows(fake_db, "email")
+    assert row["status"] == notify.DELIVERED
+    assert row["log_id"] == 7
+    assert row["t0"] == ENTRY_TS  # the entry's own time, not the send time
+    assert row["t1"] > row["t0"]
+    assert row["latency_ms"] == 2000
+    assert row["attempts"] == 1
+    assert row["error"] is None
+
+
+def test_every_entry_gets_one_row_per_channel(outbox, fake_db):
+    notify.notify(student(), log())
+
+    assert sorted(n["channel"] for n in fake_db.notifications) == ["email", "sms"]
+
+
+def test_a_failed_send_is_logged_failed_with_the_kind_of_error_only(
+    outbox, fake_db, monkeypatch
+):
+    def refuse(msg):
+        raise RuntimeError("550 no such user guardian@example.com")
+
+    monkeypatch.setattr(notify, "_send", refuse)
+
+    notify.notify(student(), log())
+
+    (row,) = rows(fake_db, "email")
+    assert row["status"] == notify.FAILED
+    assert row["error"] == "RuntimeError"
+    assert row["t1"] is None and row["latency_ms"] is None
+
+
+def test_the_same_entry_is_never_sent_twice(outbox, fake_db):
+    notify.notify(student(), log())
+    notify.notify(student(), log())  # a retry or a duplicate call for log 7
+
+    assert len(outbox) == 1
+    assert len(rows(fake_db, "email")) == 1
+
+
+def test_a_second_entry_by_the_same_student_gets_its_own_message(outbox, fake_db):
+    notify.notify(student(), log(id=7))
+    notify.notify(student(), log(id=8))
+
+    assert len(outbox) == 2
+    assert [n["log_id"] for n in rows(fake_db, "email")] == [7, 8]
+
+
+def test_a_row_someone_else_claimed_is_not_sent(outbox, fake_db, monkeypatch):
+    monkeypatch.setattr(db, "claim_notification", lambda notification_id: False)
+
+    notify.notify(student(), log())
+
+    assert outbox == []
+
+
+def test_nothing_is_sent_when_the_row_cannot_be_written(outbox, monkeypatch, capsys):
+    """No row, no message: a send the log does not know of could not be counted and
+    could be repeated."""
+    def down(*args, **kwargs):
+        raise ConnectionError("postgres is down for guardian@example.com")
+
+    monkeypatch.setattr(db, "insert_notification", down)
+
+    notify.notify(student(), log())  # must not raise
+
+    assert outbox == []
+    out = capsys.readouterr().out
+    assert "not recorded" in out
+    assert "guardian@example.com" not in out
+
+
+@pytest.mark.parametrize(
+    "setting, value, reason",
+    [
+        ("EMAIL_ENABLED", False, "NOTIFY_EMAIL_ENABLED is off"),
+        ("SMTP_HOST", "", "SMTP_HOST is not set"),
+    ],
+)
+def test_a_channel_that_is_off_is_logged_disabled(
+    outbox, fake_db, monkeypatch, setting, value, reason
+):
+    monkeypatch.setattr(notify, setting, value)
+
+    notify.notify(student(), log())
+
+    (row,) = rows(fake_db, "email")
+    assert (row["status"], row["error"]) == (notify.DISABLED, reason)
+    assert outbox == []
+
+
+def test_a_student_with_no_guardian_email_is_logged_disabled(outbox, fake_db):
+    notify.notify(student(guardian_email=None), log())
+
+    (row,) = rows(fake_db, "email")
+    assert (row["status"], row["error"]) == (notify.DISABLED, notify.NO_RECIPIENT)
+
+
+def test_sms_is_logged_disabled_until_the_sender_is_built(outbox, fake_db, monkeypatch):
+    notify.notify(student(), log(id=7))
+    monkeypatch.setattr(notify, "SMS_ENABLED", True)
+    notify.notify(student(), log(id=8))
+
+    first, second = rows(fake_db, "sms")
+    assert (first["status"], first["error"]) == (notify.DISABLED, "NOTIFY_SMS_ENABLED is off")
+    assert (second["status"], second["error"]) == (
+        notify.DISABLED, "the SMS sender is not built")
+
+
+def test_one_channel_failing_does_not_stop_the_other(outbox, fake_db, monkeypatch):
+    real = fake_db.insert_notification
+
+    def email_row_fails(log_id, channel, *args, **kwargs):
+        if channel == "email":
+            raise ConnectionError("simulated")
+        return real(log_id, channel, *args, **kwargs)
+
+    monkeypatch.setattr(db, "insert_notification", email_row_fails)
+
+    notify.notify(student(), log())
+
+    assert [n["channel"] for n in fake_db.notifications] == ["sms"]
+
+
+def test_a_tap_that_does_not_count_leaves_no_row(outbox, fake_db):
+    for status in decision.not_counted_statuses():
+        notify.notify(student(), log(status=status))
+
+    assert fake_db.notifications == []
+
+
+def test_the_log_holds_no_student_id_and_no_contact(outbox, fake_db):
+    notify.notify(student(), log())
+    notify.notify(student(guardian_email=None), log(id=8))
+
+    kept = repr(fake_db.notifications).lower()
+    for private in ("s-2026-0042", "04a1b2c3", "guardian@example.com", "09171234567",
+                    "juan"):
+        assert private not in kept

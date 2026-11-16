@@ -10,6 +10,11 @@ told four things: the student's name, the date, the time and the entry point
 (PC-023). The student ID, card UID, method, status, scores and warnings stay on the
 operator console line.
 
+Every such entry gets one `notification_log` row per channel (PC-020): DELIVERED with
+the time the message was accepted, FAILED with the kind of error, or DISABLED when the
+channel is off or has nobody to send to. The row is opened and claimed before the
+send, so an entry is never sent twice on one channel.
+
 Env:
   NOTIFY_EMAIL_ENABLED  send real email (default false -> console only)
   SMTP_HOST             mail server host (required to send)
@@ -35,7 +40,7 @@ from datetime import datetime
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
 
-from . import decision
+from . import db, decision
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
@@ -53,6 +58,14 @@ EMAIL_ENABLED = os.environ.get("NOTIFY_EMAIL_ENABLED", "false").lower() in (
 SMS_ENABLED = os.environ.get("NOTIFY_SMS_ENABLED", "false").lower() in ("1", "true", "yes", "on")
 
 SMS_TEST_SKIPPED = "SMS test skipped"
+
+# notification_log.status
+PENDING = "PENDING"
+DELIVERED = "DELIVERED"
+FAILED = "FAILED"
+DISABLED = "DISABLED"
+CHANNELS = ("email", "sms")
+NO_RECIPIENT = "no recipient on file"
 
 SCHOOL = "Hua Siong College of Iloilo"
 ENTRY_POINT = os.environ.get("ENTRY_POINT", "").strip() or "main guardpost"
@@ -186,15 +199,47 @@ def _send(msg: EmailMessage) -> None:
             s.send_message(msg)
 
 
-def _email(student: dict, log: dict) -> None:
-    if not EMAIL_ENABLED:
-        return
-    if not student.get("guardian_email"):
-        return  # no guardian email on file
-    if not SMTP_HOST:
-        print("[notify] NOTIFY_EMAIL_ENABLED but SMTP_HOST unset — skipping email")
-        return
+def _off_reason(channel: str, student: dict) -> str | None:
+    """Why this channel sends nothing for this student, or None when it can send. The
+    reason is stored on a DISABLED row; it never holds a contact."""
+    if channel == "email":
+        if not EMAIL_ENABLED:
+            return "NOTIFY_EMAIL_ENABLED is off"
+        if not SMTP_HOST:
+            return "SMTP_HOST is not set"
+        if not student.get("guardian_email"):
+            return NO_RECIPIENT
+        return None
+    if not SMS_ENABLED:
+        return "NOTIFY_SMS_ENABLED is off"
+    return "the SMS sender is not built"
+
+
+def _send_email(student: dict, log: dict) -> str | None:
+    """Hand the entry email to the mail server. Returning means it was accepted."""
     _send(_build_email(student, log))
+    return None  # SMTP gives no message ID worth keeping
+
+
+_SENDERS = {"email": _send_email}
+
+
+def _deliver(channel: str, student: dict, log: dict) -> None:
+    """Record one channel for one entry, and send when the channel can (PC-020)."""
+    reason = _off_reason(channel, student)
+    if reason:
+        db.insert_notification(log["id"], channel, log["ts"], DISABLED, reason)
+        return
+    row = db.insert_notification(log["id"], channel, log["ts"])
+    if row is None or not db.claim_notification(row["id"]):
+        return  # this entry already has its message on this channel
+    try:
+        message_id = _SENDERS[channel](student, log)
+    except Exception as e:
+        print(f"[notify] {channel} send failed: {_error_text(e)}")
+        db.finish_notification(row["id"], FAILED, error=_error_text(e))
+        return
+    db.finish_notification(row["id"], DELIVERED, provider_message_id=message_id)
 
 
 def _error_text(e: Exception) -> str:
@@ -250,7 +295,8 @@ def notify(student: dict | None, log: dict) -> None:
     _console(student, log, notes)
     if not guardian_is_told(student, log):
         return
-    try:
-        _email(student, log)
-    except Exception as e:  # fail-open: email trouble never breaks a tap
-        print(f"[notify] email send failed, continuing: {_error_text(e)}")
+    for channel in CHANNELS:
+        try:
+            _deliver(channel, student, log)
+        except Exception as e:  # fail-open: notification trouble never breaks a tap
+            print(f"[notify] {channel} not recorded, continuing: {_error_text(e)}")

@@ -369,6 +369,103 @@ def insert_audit(actor: str, action: str, target: str | None = None, detail: str
             return cur.fetchone()
 
 
+# --- Guardian notification log (PC-020) ---
+
+_NOTIFICATION_COLUMNS = (
+    "id, log_id, channel, t0, t1, latency_ms, status, provider_message_id, error, attempts"
+)
+
+
+def insert_notification(log_id: int, channel: str, t0, status: str = "PENDING",
+                        error: str | None = None):
+    """Open the row for one entry on one channel. Returns it, or None when that entry
+    already has a row for the channel, in which case nothing more may be sent."""
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                f"""
+                INSERT INTO notification_log (log_id, channel, t0, status, error)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (log_id, channel) DO NOTHING
+                RETURNING {_NOTIFICATION_COLUMNS}
+                """,
+                (log_id, channel, t0, status, error),
+            )
+            return cur.fetchone()
+
+
+def claim_notification(notification_id: int) -> bool:
+    """Take a PENDING row for one send attempt. False when it is not PENDING or another
+    attempt holds it, so two senders never both send it."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE notification_log
+                   SET claimed_at = clock_timestamp(), attempts = attempts + 1
+                 WHERE id = %s AND status = 'PENDING' AND claimed_at IS NULL
+                """,
+                (notification_id,),
+            )
+            return cur.rowcount == 1
+
+
+def release_notification(notification_id: int, error: str | None = None) -> None:
+    """Give a claimed row back after an attempt that will be tried again."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE notification_log SET claimed_at = NULL, error = %s
+                 WHERE id = %s AND status = 'PENDING'
+                """,
+                (error, notification_id),
+            )
+
+
+def finish_notification(notification_id: int, status: str,
+                        provider_message_id: str | None = None, error: str | None = None):
+    """Close a PENDING row. DELIVERED stamps t1 and the latency since t0; any other
+    status leaves both empty. Returns the row, or None when it was already closed."""
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                f"""
+                WITH c AS (SELECT clock_timestamp() AS at)
+                UPDATE notification_log n
+                   SET status = %s, provider_message_id = %s, error = %s, claimed_at = NULL,
+                       t1 = CASE WHEN %s = 'DELIVERED' THEN c.at END,
+                       latency_ms = CASE WHEN %s = 'DELIVERED'
+                           THEN ROUND(EXTRACT(EPOCH FROM (c.at - n.t0)) * 1000) END
+                  FROM c
+                 WHERE n.id = %s AND n.status = 'PENDING'
+                RETURNING {_NOTIFICATION_COLUMNS}
+                """,
+                (status, provider_message_id, error, status, status, notification_id),
+            )
+            return cur.fetchone()
+
+
+def get_notifications(date_from: str | None = None, date_to: str | None = None):
+    """The notification log, oldest first, for the report and the export. The dates
+    are YYYY-MM-DD, inclusive, on the attendance clock."""
+    clauses, params = [], []
+    if date_from:
+        clauses.append("t0::date >= %s")
+        params.append(date_from)
+    if date_to:
+        clauses.append("t0::date <= %s")
+        params.append(date_to)
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                f"SELECT {_NOTIFICATION_COLUMNS} FROM notification_log {where} ORDER BY t0, id",
+                params,
+            )
+            return cur.fetchall()
+
+
 def get_audit(limit: int = 100):
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:

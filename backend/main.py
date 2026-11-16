@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from . import (
     cameras, contacts, db, decision, events, face, liveness, matcher as matcher_mod,
-    perception, ports, privacy,
+    notify as notify_mod, notify_report, perception, ports, privacy,
 )
 from .notify import contact_test, notify
 
@@ -491,6 +491,30 @@ def api_attendance_csv(
         iter([buf.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=attendance.csv"},
+    )
+
+
+@app.get("/api/notifications/summary", dependencies=[Depends(require_operator)])
+def api_notifications_summary(date_from: str | None = None, date_to: str | None = None):
+    """Delivery rate and latency per channel (PC-020). Dates are YYYY-MM-DD, inclusive."""
+    rows = db.get_notifications(date_from=date_from, date_to=date_to)
+    return notify_report.summarize(rows, zone=notify_mod.SCHOOL_ZONE)
+
+
+@app.get("/api/notifications.csv", dependencies=[Depends(require_operator)])
+def api_notifications_csv(date_from: str | None = None, date_to: str | None = None):
+    import csv
+    import io
+
+    rows = db.get_notifications(date_from=date_from, date_to=date_to)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(notify_report.CSV_COLUMNS)
+    w.writerows(notify_report.csv_rows(rows, zone=notify_mod.SCHOOL_ZONE))
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=notifications.csv"},
     )
 
 

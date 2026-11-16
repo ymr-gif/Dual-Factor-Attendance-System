@@ -17,7 +17,7 @@ import importlib.util
 import os
 import sys
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
@@ -115,6 +115,8 @@ class FakeDB:
         self.logs = []  # every row "inserted" into attendance_logs
         self.reviews = []  # every row "inserted" into review_queue
         self.audits = []  # every row "inserted" into audit_log
+        self.notifications = []  # every row "inserted" into notification_log
+        self.send_took = timedelta(seconds=2)  # t1 - t0 of a DELIVERED row
         self.review_error = None
         self.init_calls = 0
         self.reachable = True
@@ -209,6 +211,66 @@ class FakeDB:
         self.audits.append(
             {"actor": actor, "action": action, "target": target, "detail": detail}
         )
+
+    # notification_log, with the rules the real statements enforce: one row per
+    # (log_id, channel), a claim only on an unclaimed PENDING row, a finish only on
+    # a PENDING row.
+
+    def insert_notification(self, log_id, channel, t0, status="PENDING", error=None):
+        if any(n["log_id"] == log_id and n["channel"] == channel
+               for n in self.notifications):
+            return None
+        row = {
+            "id": len(self.notifications) + 1,
+            "log_id": log_id,
+            "channel": channel,
+            "t0": t0,
+            "t1": None,
+            "latency_ms": None,
+            "status": status,
+            "provider_message_id": None,
+            "error": error,
+            "attempts": 0,
+            "claimed": False,
+        }
+        self.notifications.append(row)
+        return dict(row)
+
+    def _notification(self, notification_id):
+        return next(n for n in self.notifications if n["id"] == notification_id)
+
+    def claim_notification(self, notification_id):
+        row = self._notification(notification_id)
+        if row["status"] != "PENDING" or row["claimed"]:
+            return False
+        row["claimed"] = True
+        row["attempts"] += 1
+        return True
+
+    def release_notification(self, notification_id, error=None):
+        row = self._notification(notification_id)
+        if row["status"] == "PENDING":
+            row.update(claimed=False, error=error)
+
+    def finish_notification(self, notification_id, status, provider_message_id=None,
+                            error=None):
+        row = self._notification(notification_id)
+        if row["status"] != "PENDING":
+            return None
+        row.update(status=status, provider_message_id=provider_message_id, error=error,
+                   claimed=False)
+        if status == "DELIVERED":
+            row["t1"] = row["t0"] + self.send_took
+            row["latency_ms"] = round(self.send_took.total_seconds() * 1000)
+        return dict(row)
+
+    def get_notifications(self, date_from=None, date_to=None):
+        return [dict(n) for n in self.notifications]
+
+    def patch_notifications(self, monkeypatch, db):
+        for name in ("insert_notification", "claim_notification", "release_notification",
+                     "finish_notification", "get_notifications"):
+            monkeypatch.setattr(db, name, getattr(self, name))
 
     def get_students(self):
         # The real query never selects face_embedding; mirror that.
@@ -333,6 +395,7 @@ def client(backend_main, monkeypatch, fake_db, camera, fake_matcher, sinks):
     monkeypatch.setattr(db, "insert_student", fake_db.insert_student)
     monkeypatch.setattr(db, "update_student", fake_db.update_student)
     monkeypatch.setattr(db, "insert_audit", fake_db.insert_audit)
+    fake_db.patch_notifications(monkeypatch, db)
 
     # Behaviour switches are read from the environment at import. Pin them to the
     # code defaults so a developer's exported .env cannot change the results; a test
