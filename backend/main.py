@@ -310,6 +310,9 @@ def on_startup():
             time.sleep(3)
     else:
         raise RuntimeError("could not reach Postgres after 10 attempts")
+    # Guardian messages go out from a background thread (PC-021); it first takes up
+    # the ones the last run left unsent.
+    notify_mod.start_sender()
     if not OPERATOR_TOKEN:
         print("WARNING: OPERATOR_TOKEN unset — /api/* is unauthenticated (dev mode)")
 

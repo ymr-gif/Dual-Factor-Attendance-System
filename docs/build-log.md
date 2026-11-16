@@ -252,6 +252,33 @@ case).
 student on a real Postgres, searches every row of every table for the student ID and the
 card UID, and first checks that made-up IDs change no row.
 
+**PC-021: guardian messages go out in the background, with retries, inside 60 s.** The tap
+no longer waits for the mail server. `notify` writes the `PENDING` row and hands the message to
+`backend/sender.py`, which only appends it to a list; one thread started in `on_startup`
+sends it. A try that certainly did not go out (`sender.Retryable`: no connection, TLS or a
+login that is not a flat refusal, or a 4xx "try later") is repeated after 2, 4, 8 and then
+every 16 s. Anything else ends the message as `FAILED` at once: a 5xx refusal will not change,
+and after a timeout or a dropped connection during the hand-over nobody knows whether the
+message left, so a second try could send it twice. The deadline is 60 s after the entry
+(`t0`); a try that would start at or after it is not made (`not sent within 60 s; last error:
+...`), and each try gets only the seconds that are left (SMTP takes the smaller of that and
+`SMTP_TIMEOUT`). An error from closing the connection after the server accepted the message
+no longer turns a sent message into `FAILED`.
+
+On start, `sender.recover` reads back the `PENDING` rows (`db.pending_notifications`). A row
+that was never claimed and is younger than 60 s is queued again with its own deadline; a
+claimed row is `FAILED` as `interrupted during send` (it may have left); an older row is
+`FAILED`; a row whose channel is now off or whose contact is gone is `FAILED`.
+
+Limits. One thread, so messages go one at a time: a server that is slow to answer holds
+back the ones behind it, and they fail at their own deadlines. A row whose result could not
+be written (the database went away mid-send) stays `PENDING` and claimed until the next start
+fails it. `DELIVERED` still means the server accepted the message.
+`pytest tests`: 363 passed, 9 skipped (new `tests/test_sender.py`: queueing, backoff
+schedule, deadline, time per try, which SMTP errors are retried, restart cases, the thread).
+With `TEST_DB_DSN` set, `tests/test_notification_db.py` also reads pending rows back from a
+real Postgres.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

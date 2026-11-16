@@ -1,4 +1,4 @@
-"""The notification_log statements against a real Postgres (PC-020).
+"""The notification_log statements against a real Postgres (PC-020, PC-021).
 
 Skipped unless TEST_DB_DSN names a scratch database, for example:
 
@@ -123,3 +123,34 @@ def test_the_export_can_be_cut_by_date(db):
 
     assert row["id"] not in [n["id"] for n in db.get_notifications(date_from=far)]
     assert row["id"] in [n["id"] for n in db.get_notifications(date_to=far)]
+
+
+def test_pending_rows_are_read_back_with_what_is_needed_to_send_them(db):
+    db.insert_student("PC020-S1", UID, name="Queued Student",
+                      guardian_email="queued@example.com", guardian_mobile="09170000002")
+    try:
+        log = db.insert_log(uid=UID, student_id="PC020-S1", method="nfc", status="accepted")
+        other = entry(db)  # a card with no roster row
+        waiting = db.insert_notification(log["id"], "email", log["ts"])
+        in_flight = db.insert_notification(log["id"], "sms", log["ts"])
+        db.claim_notification(in_flight["id"])
+        done = db.insert_notification(other["id"], "email", other["ts"])
+        db.claim_notification(done["id"])
+        db.finish_notification(done["id"], "DELIVERED")
+        db.insert_notification(other["id"], "sms", other["ts"], "DISABLED", "channel off")
+
+        mine = {r["id"]: r for r in db.pending_notifications() if r["log_id"] == log["id"]}
+        ids = {r["id"] for r in db.pending_notifications()}
+
+        assert set(mine) == {waiting["id"], in_flight["id"]}
+        assert done["id"] not in ids
+        row = mine[waiting["id"]]
+        assert (row["channel"], row["t0"], row["claimed_at"]) == ("email", log["ts"], None)
+        assert (row["name"], row["guardian_email"], row["guardian_mobile"]) == (
+            "Queued Student", "queued@example.com", "09170000002")
+        assert mine[in_flight["id"]]["claimed_at"] is not None
+    finally:
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM attendance_logs WHERE uid = %s", (UID,))
+                cur.execute("DELETE FROM students WHERE student_id = 'PC020-S1'")

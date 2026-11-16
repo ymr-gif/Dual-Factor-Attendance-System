@@ -447,6 +447,26 @@ def finish_notification(notification_id: int, status: str,
             return cur.fetchone()
 
 
+def pending_notifications():
+    """Every message still PENDING, oldest first, with what is needed to send it again:
+    the entry time and the guardian's contacts. Read once when the backend starts
+    (PC-021); `claimed_at` tells whether a send was under way when it stopped."""
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT n.id, n.log_id, n.channel, n.t0, n.claimed_at, n.attempts,
+                       s.name, s.guardian_email, s.guardian_mobile
+                  FROM notification_log n
+                  JOIN attendance_logs l ON l.id = n.log_id
+                  LEFT JOIN students s ON s.student_id = l.student_id
+                 WHERE n.status = 'PENDING'
+                 ORDER BY n.t0, n.id
+                """
+            )
+            return cur.fetchall()
+
+
 def get_notifications(date_from: str | None = None, date_to: str | None = None):
     """The notification log, oldest first, for the report and the export. The dates
     are YYYY-MM-DD, inclusive, on the attendance clock."""

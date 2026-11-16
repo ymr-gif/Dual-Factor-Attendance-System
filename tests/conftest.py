@@ -267,9 +267,28 @@ class FakeDB:
     def get_notifications(self, date_from=None, date_to=None):
         return [dict(n) for n in self.notifications]
 
+    def pending_notifications(self):
+        out = []
+        for n in self.notifications:
+            if n["status"] != "PENDING":
+                continue
+            log = next((l for l in self.logs if l["id"] == n["log_id"]), {})
+            student = next(
+                (s for s in self.students.values()
+                 if s["student_id"] == log.get("student_id")), {})
+            out.append({
+                "id": n["id"], "log_id": n["log_id"], "channel": n["channel"],
+                "t0": n["t0"], "attempts": n["attempts"],
+                "claimed_at": n["t0"] if n["claimed"] else None,
+                "name": student.get("name"),
+                "guardian_email": student.get("guardian_email"),
+                "guardian_mobile": student.get("guardian_mobile"),
+            })
+        return out
+
     def patch_notifications(self, monkeypatch, db):
         for name in ("insert_notification", "claim_notification", "release_notification",
-                     "finish_notification", "get_notifications"):
+                     "finish_notification", "get_notifications", "pending_notifications"):
             monkeypatch.setattr(db, name, getattr(self, name))
 
     def delete_student(self, student_id, actor=None):
@@ -469,6 +488,8 @@ def client(backend_main, monkeypatch, tmp_path, fake_db, camera, fake_matcher, s
     # The test message a saved contact gets: pinned off, so no test opens a socket.
     monkeypatch.setattr(notify_mod, "EMAIL_ENABLED", False)
     monkeypatch.setattr(notify_mod, "_send", _forbidden("notify._send (SMTP)"))
+    # No sender thread under test; tests/test_sender.py drives it by hand.
+    monkeypatch.setattr(notify_mod, "start_sender", lambda: None)
 
     with TestClient(backend_main.app) as test_client:
         yield test_client

@@ -3,7 +3,9 @@
 Always prints an operator console line (the original stub behavior). When SMTP is
 configured (NOTIFY_EMAIL_ENABLED=true + SMTP_HOST set), also emails the student's
 guardian. Fail-open: an SMTP error is logged and swallowed — attendance still
-stands, the tap never fails because email was down.
+stands, the tap never fails because email was down. The tap does not wait for the
+send either: `notify` writes the log rows and queues the message, and the thread in
+backend/sender.py sends it, with retries, inside 60 s of the entry (PC-021).
 
 A guardian is told only about an entry that counts as attendance (PC-022), and is
 told four things: the student's name, the date, the time and the entry point
@@ -12,8 +14,8 @@ operator console line.
 
 Every such entry gets one `notification_log` row per channel (PC-020): DELIVERED with
 the time the message was accepted, FAILED with the kind of error, or DISABLED when the
-channel is off or has nobody to send to. The row is opened and claimed before the
-send, so an entry is never sent twice on one channel.
+channel is off or has nobody to send to. The row is opened before the message is
+queued and claimed before it is sent, so an entry is never sent twice on one channel.
 
 Env:
   NOTIFY_EMAIL_ENABLED  send real email (default false -> console only)
@@ -22,7 +24,8 @@ Env:
   SMTP_USER/SMTP_PASSWORD  login (omit for an open relay / debug server)
   SMTP_FROM             From: address (default SMTP_USER)
   SMTP_STARTTLS         use STARTTLS on non-465 ports (default true)
-  SMTP_TIMEOUT          socket timeout seconds (default 10)
+  SMTP_TIMEOUT          socket timeout seconds (default 10); a try for an entry gets
+                        less when less is left of its 60 s
   NOTIFY_SMS_ENABLED    send SMS (default false; the sender is not built yet, PC-018)
   ENTRY_POINT           where the reader stands, as the message words it
                         (default "main guardpost")
@@ -40,7 +43,8 @@ from datetime import datetime
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
 
-from . import db, decision
+from . import db, decision, sender
+from .sender import DELIVERED, FAILED, PENDING, Retryable  # noqa: F401  (statuses are read from here)
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
@@ -59,10 +63,7 @@ SMS_ENABLED = os.environ.get("NOTIFY_SMS_ENABLED", "false").lower() in ("1", "tr
 
 SMS_TEST_SKIPPED = "SMS test skipped"
 
-# notification_log.status
-PENDING = "PENDING"
-DELIVERED = "DELIVERED"
-FAILED = "FAILED"
+# notification_log.status for a channel that sends nothing; the others are sender's
 DISABLED = "DISABLED"
 CHANNELS = ("email", "sms")
 NO_RECIPIENT = "no recipient on file"
@@ -182,21 +183,56 @@ def _build_email(student: dict, log: dict) -> EmailMessage:
     return msg
 
 
-def _send(msg: EmailMessage) -> None:
-    """Send via SSL (465) or STARTTLS (others). Login only if SMTP_USER is set."""
+def _temporary(code) -> bool:
+    return isinstance(code, int) and 400 <= code < 500
+
+
+def _send(msg: EmailMessage, timeout: float | None = None) -> None:
+    """Send via SSL (465) or STARTTLS (others). Login only if SMTP_USER is set.
+    Returning means the server accepted the message.
+
+    Raises `Retryable` when the message certainly did not go out and a later try may
+    work: nothing was handed over yet (no connection, TLS or login trouble that is not
+    a flat refusal), or the server answered the message itself with a 4xx "try later".
+    Everything else is raised as it is and must not be retried: a 5xx refusal will not
+    change, and after a timeout or a dropped connection during the hand-over it is not
+    known whether the message left."""
+    timeout = min(SMTP_TIMEOUT, timeout) if timeout else SMTP_TIMEOUT
     ctx = ssl.create_default_context()
-    if SMTP_PORT == 465:
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=SMTP_TIMEOUT, context=ctx) as s:
+    s = None
+    try:
+        try:
+            if SMTP_PORT == 465:
+                s = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=timeout, context=ctx)
+            else:
+                s = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=timeout)
+                if SMTP_STARTTLS:
+                    s.starttls(context=ctx)
             if SMTP_USER:
                 s.login(SMTP_USER, SMTP_PASSWORD)
+        except smtplib.SMTPResponseException as e:
+            if _temporary(e.smtp_code):
+                raise Retryable(e) from e
+            raise
+        except Exception as e:
+            raise Retryable(e) from e
+        try:
             s.send_message(msg)
-    else:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=SMTP_TIMEOUT) as s:
-            if SMTP_STARTTLS:
-                s.starttls(context=ctx)
-            if SMTP_USER:
-                s.login(SMTP_USER, SMTP_PASSWORD)
-            s.send_message(msg)
+        except smtplib.SMTPRecipientsRefused as e:
+            codes = [reply[0] for reply in e.recipients.values()]
+            if codes and all(_temporary(c) for c in codes):
+                raise Retryable(e) from e
+            raise
+        except smtplib.SMTPResponseException as e:
+            if _temporary(e.smtp_code):
+                raise Retryable(e) from e
+            raise
+    finally:
+        if s is not None:
+            try:
+                s.quit()  # an error here must not undo a message the server accepted
+            except Exception:
+                s.close()
 
 
 def _off_reason(channel: str, student: dict) -> str | None:
@@ -215,38 +251,50 @@ def _off_reason(channel: str, student: dict) -> str | None:
     return "the SMS sender is not built"
 
 
-def _send_email(student: dict, log: dict) -> str | None:
+def _send_email(student: dict, log: dict, timeout: float | None = None) -> str | None:
     """Hand the entry email to the mail server. Returning means it was accepted."""
-    _send(_build_email(student, log))
+    _send(_build_email(student, log), timeout=timeout)
     return None  # SMTP gives no message ID worth keeping
 
 
 _SENDERS = {"email": _send_email}
 
 
-def _deliver(channel: str, student: dict, log: dict) -> None:
-    """Record one channel for one entry, and send when the channel can (PC-020)."""
+def _job(channel: str, student: dict, log: dict):
+    """What the sender thread calls for one message: it is given the seconds it may
+    take and returns the provider's message ID or None."""
+    send = _SENDERS[channel]
+    return lambda timeout: send(student, log, timeout)
+
+
+def _queue(channel: str, student: dict, log: dict) -> None:
+    """Record one channel for one entry (PC-020) and hand the message to the
+    background sender (PC-021). Nothing is sent from here."""
     reason = _off_reason(channel, student)
     if reason:
         db.insert_notification(log["id"], channel, log["ts"], DISABLED, reason)
         return
     row = db.insert_notification(log["id"], channel, log["ts"])
-    if row is None or not db.claim_notification(row["id"]):
+    if row is None:
         return  # this entry already has its message on this channel
-    try:
-        message_id = _SENDERS[channel](student, log)
-    except Exception as e:
-        print(f"[notify] {channel} send failed: {_error_text(e)}")
-        db.finish_notification(row["id"], FAILED, error=_error_text(e))
-        return
-    db.finish_notification(row["id"], DELIVERED, provider_message_id=message_id)
+    sender.submit(row["id"], log["ts"], _job(channel, student, log))
 
 
-def _error_text(e: Exception) -> str:
-    """What may be stored or shown about a failed send: the kind of error and the SMTP
-    reply code. Never the exception text, which can carry the recipient's address."""
-    code = getattr(e, "smtp_code", None)
-    return f"{type(e).__name__} {code}" if code else type(e).__name__
+def _rebuild(row: dict):
+    """The send call for a message read back from the log after a restart, or None
+    when it can no longer be sent."""
+    student = {k: row.get(k) for k in ("name", "guardian_email", "guardian_mobile")}
+    if row["channel"] not in _SENDERS or _off_reason(row["channel"], student):
+        return None
+    return _job(row["channel"], student, {"id": row["log_id"], "ts": row["t0"]})
+
+
+def start_sender() -> None:
+    """Called once when the backend starts."""
+    sender.start(_rebuild)
+
+
+_error_text = sender.error_text
 
 
 def _email_test(address: str | None) -> str:
@@ -297,6 +345,6 @@ def notify(student: dict | None, log: dict) -> None:
         return
     for channel in CHANNELS:
         try:
-            _deliver(channel, student, log)
+            _queue(channel, student, log)
         except Exception as e:  # fail-open: notification trouble never breaks a tap
             print(f"[notify] {channel} not recorded, continuing: {_error_text(e)}")

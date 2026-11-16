@@ -1,14 +1,15 @@
 """What a guardian is sent and when (PC-022, PC-023), and what the notification log
 keeps of it (PC-020). No SMTP server and no database are reached: every test that lets
 a message out replaces `notify._send` with a recorder, and the log is the in-memory
-fake.
+fake. The background sender (PC-021) is run by hand right after each message is
+queued, with its clock held at the entry; its own rules are in tests/test_sender.py.
 """
 
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from backend import db, decision, notify
+from backend import db, decision, notify, sender
 
 MANILA = timezone(timedelta(hours=8))
 # 7:12 AM on Nov 24, 2026 in Manila, as the database hands it over (UTC).
@@ -23,6 +24,15 @@ APPROVED_SAMPLE = (
 def school_settings(monkeypatch, fake_db):
     """Pin what the environment could change, and keep the log in memory."""
     fake_db.patch_notifications(monkeypatch, db)
+    monkeypatch.setattr(sender, "_jobs", [])
+    monkeypatch.setattr(sender, "_now", lambda: ENTRY_TS)
+    queue = sender.submit
+
+    def queue_and_send(*args):
+        queue(*args)
+        sender.run_due()
+
+    monkeypatch.setattr(sender, "submit", queue_and_send)
     monkeypatch.setattr(notify, "SCHOOL_ZONE", MANILA)
     monkeypatch.setattr(notify, "ENTRY_POINT", "main guardpost")
     monkeypatch.setattr(notify, "SMS_SENDER", "SAFEHSCI")
@@ -63,7 +73,7 @@ def outbox(monkeypatch):
     monkeypatch.setattr(notify, "EMAIL_ENABLED", True)
     monkeypatch.setattr(notify, "SMTP_HOST", "smtp.example.com")
     monkeypatch.setattr(notify, "SMTP_FROM", "safe@example.com")
-    monkeypatch.setattr(notify, "_send", sent.append)
+    monkeypatch.setattr(notify, "_send", lambda msg, timeout=None: sent.append(msg))
     return sent
 
 
@@ -239,7 +249,7 @@ def test_email_switched_off_sends_nothing(outbox, monkeypatch):
 def test_a_failed_send_is_swallowed_and_does_not_print_the_address(
     outbox, monkeypatch, capsys
 ):
-    def refuse(msg):
+    def refuse(msg, timeout=None):
         raise RuntimeError("550 no such user guardian@example.com")
 
     monkeypatch.setattr(notify, "_send", refuse)
@@ -287,7 +297,7 @@ def test_every_entry_gets_one_row_per_channel(outbox, fake_db):
 def test_a_failed_send_is_logged_failed_with_the_kind_of_error_only(
     outbox, fake_db, monkeypatch
 ):
-    def refuse(msg):
+    def refuse(msg, timeout=None):
         raise RuntimeError("550 no such user guardian@example.com")
 
     monkeypatch.setattr(notify, "_send", refuse)
