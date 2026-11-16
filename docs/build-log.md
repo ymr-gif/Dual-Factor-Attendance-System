@@ -279,6 +279,24 @@ schedule, deadline, time per try, which SMTP errors are retried, restart cases, 
 With `TEST_DB_DSN` set, `tests/test_notification_db.py` also reads pending rows back from a
 real Postgres.
 
+**PC-018: guardian SMS through Semaphore, off by default.** The `sms` channel now sends:
+`notify._send_sms` posts the entry SMS (`sms_text`, PC-023) to Semaphore's
+`/api/v4/messages` with the key, the number, the text and the sender name in the request
+body, and stores the returned message ID on the `DELIVERED` row. It goes through the PC-021
+sender, so the tap does not wait. Retried only when Semaphore certainly did not take the
+message: no connection, `429` or `503`. A read timeout, a dropped connection, another `5xx`,
+a `4xx`, a reply that is not a message list, or a message Semaphore marks `Failed` ends the
+row as `FAILED` with the HTTP status only. Saving a guardian mobile sends one check SMS and
+records `SMS test sent` or `SMS test failed: SmsRefused <status>`.
+
+Off unless `NOTIFY_SMS_ENABLED=true` and `SEMAPHORE_API_KEY` is set; otherwise the row is
+`DISABLED` with the reason. Not tried against the live API: Semaphore has no sender name for
+this account yet (`SAFEHSCI` waits on the telcos), and a live send costs credits. Every test
+replaces `requests.post`; the test fixtures switch SMS off so no other test can reach it.
+Limits: Semaphore's `Pending` status means queued, not delivered to the handset; a later
+`Failed` is not read back.
+`pytest tests`: 391 passed, 9 skipped (new `tests/test_sms.py`).
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

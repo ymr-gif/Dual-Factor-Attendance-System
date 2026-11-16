@@ -488,6 +488,10 @@ def client(backend_main, monkeypatch, tmp_path, fake_db, camera, fake_matcher, s
     # The test message a saved contact gets: pinned off, so no test opens a socket.
     monkeypatch.setattr(notify_mod, "EMAIL_ENABLED", False)
     monkeypatch.setattr(notify_mod, "_send", _forbidden("notify._send (SMTP)"))
+    # No SMS either: the Semaphore call is replaced in tests/test_sms.py only.
+    monkeypatch.setattr(notify_mod, "SMS_ENABLED", False)
+    monkeypatch.setattr(notify_mod, "SEMAPHORE_API_KEY", "")
+    monkeypatch.setattr(notify_mod.requests, "post", _forbidden("requests.post (Semaphore)"))
     # No sender thread under test; tests/test_sender.py drives it by hand.
     monkeypatch.setattr(notify_mod, "start_sender", lambda: None)
 

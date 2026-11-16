@@ -36,6 +36,8 @@ def school_settings(monkeypatch, fake_db):
     monkeypatch.setattr(notify, "SCHOOL_ZONE", MANILA)
     monkeypatch.setattr(notify, "ENTRY_POINT", "main guardpost")
     monkeypatch.setattr(notify, "SMS_SENDER", "SAFEHSCI")
+    monkeypatch.setattr(notify, "SMS_ENABLED", False)
+    monkeypatch.setattr(notify, "SEMAPHORE_API_KEY", "")
 
 
 def student(**over):
@@ -376,7 +378,7 @@ def test_a_student_with_no_guardian_email_is_logged_disabled(outbox, fake_db):
     assert (row["status"], row["error"]) == (notify.DISABLED, notify.NO_RECIPIENT)
 
 
-def test_sms_is_logged_disabled_until_the_sender_is_built(outbox, fake_db, monkeypatch):
+def test_sms_is_logged_disabled_while_it_is_off_or_has_no_key(outbox, fake_db, monkeypatch):
     notify.notify(student(), log(id=7))
     monkeypatch.setattr(notify, "SMS_ENABLED", True)
     notify.notify(student(), log(id=8))
@@ -384,7 +386,7 @@ def test_sms_is_logged_disabled_until_the_sender_is_built(outbox, fake_db, monke
     first, second = rows(fake_db, "sms")
     assert (first["status"], first["error"]) == (notify.DISABLED, "NOTIFY_SMS_ENABLED is off")
     assert (second["status"], second["error"]) == (
-        notify.DISABLED, "the SMS sender is not built")
+        notify.DISABLED, "SEMAPHORE_API_KEY is not set")
 
 
 def test_one_channel_failing_does_not_stop_the_other(outbox, fake_db, monkeypatch):

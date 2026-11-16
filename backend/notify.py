@@ -26,7 +26,9 @@ Env:
   SMTP_STARTTLS         use STARTTLS on non-465 ports (default true)
   SMTP_TIMEOUT          socket timeout seconds (default 10); a try for an entry gets
                         less when less is left of its 60 s
-  NOTIFY_SMS_ENABLED    send SMS (default false; the sender is not built yet, PC-018)
+  NOTIFY_SMS_ENABLED    send SMS through Semaphore (default false, PC-018)
+  SEMAPHORE_API_KEY     the Semaphore account key; a secret, kept in .env only
+  SEMAPHORE_TIMEOUT     seconds per SMS try (default 10), less when less is left
   ENTRY_POINT           where the reader stands, as the message words it
                         (default "main guardpost")
   SEMAPHORE_SENDER      sender name every SMS starts with (default SAFEHSCI)
@@ -42,6 +44,9 @@ import ssl
 from datetime import datetime
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
+
+import requests
+from urllib3.exceptions import MaxRetryError, NewConnectionError
 
 from . import db, decision, sender
 from .sender import DELIVERED, FAILED, PENDING, Retryable  # noqa: F401  (statuses are read from here)
@@ -60,6 +65,9 @@ EMAIL_ENABLED = os.environ.get("NOTIFY_EMAIL_ENABLED", "false").lower() in (
     "on",
 )
 SMS_ENABLED = os.environ.get("NOTIFY_SMS_ENABLED", "false").lower() in ("1", "true", "yes", "on")
+SEMAPHORE_API_KEY = os.environ.get("SEMAPHORE_API_KEY", "").strip()
+SEMAPHORE_URL = "https://api.semaphore.co/api/v4/messages"
+SEMAPHORE_TIMEOUT = float(os.environ.get("SEMAPHORE_TIMEOUT", "10"))
 
 SMS_TEST_SKIPPED = "SMS test skipped"
 
@@ -248,7 +256,11 @@ def _off_reason(channel: str, student: dict) -> str | None:
         return None
     if not SMS_ENABLED:
         return "NOTIFY_SMS_ENABLED is off"
-    return "the SMS sender is not built"
+    if not SEMAPHORE_API_KEY:
+        return "SEMAPHORE_API_KEY is not set"
+    if not student.get("guardian_mobile"):
+        return NO_RECIPIENT
+    return None
 
 
 def _send_email(student: dict, log: dict, timeout: float | None = None) -> str | None:
@@ -257,7 +269,67 @@ def _send_email(student: dict, log: dict, timeout: float | None = None) -> str |
     return None  # SMTP gives no message ID worth keeping
 
 
-_SENDERS = {"email": _send_email}
+class SmsRefused(Exception):
+    """Semaphore answered and did not take the message. Its text is the HTTP status
+    only; the reply body can repeat the number."""
+
+    def __init__(self, status_code, what="refused"):
+        super().__init__(f"SMS {what} ({status_code})")
+        self.status_code = status_code
+
+
+def _never_connected(e: requests.RequestException) -> bool:
+    """True when the request certainly never reached Semaphore: the connection was
+    not made at all. A timeout or a drop after that may follow a message it took."""
+    if isinstance(e, requests.exceptions.ConnectTimeout):
+        return True
+    if not isinstance(e, requests.exceptions.ConnectionError):
+        return False
+    reason = e.args[0] if e.args else None
+    if isinstance(reason, MaxRetryError):
+        reason = reason.reason
+    return isinstance(reason, NewConnectionError)
+
+
+def _post_sms(number: str, text: str, timeout: float | None = None) -> str | None:
+    """Hand one SMS to Semaphore. Returns its message ID.
+
+    Raises `Retryable` when Semaphore certainly did not take it and a later try may
+    work: no connection, or 429 / 503 ("too many requests", "unavailable"). Anything
+    else is raised as it is and is not retried: a 4xx will not change, and after a
+    read timeout or another 5xx it is not known whether the message was queued. The
+    key goes in the request body, never in a URL, log line or error text."""
+    timeout = min(SEMAPHORE_TIMEOUT, timeout) if timeout else SEMAPHORE_TIMEOUT
+    data = {"apikey": SEMAPHORE_API_KEY, "number": number, "message": text,
+            "sendername": SMS_SENDER}
+    try:
+        reply = requests.post(SEMAPHORE_URL, data=data, timeout=timeout)
+    except requests.RequestException as e:
+        if _never_connected(e):
+            raise Retryable(e) from None
+        raise
+    if reply.status_code in (429, 503):
+        raise Retryable(SmsRefused(reply.status_code))
+    if reply.status_code != 200:
+        raise SmsRefused(reply.status_code)
+    try:
+        (sent,) = reply.json()[:1]
+        message_id = sent["message_id"]
+        status = str(sent.get("status", "")).lower()
+    except Exception:
+        raise SmsRefused(reply.status_code, "reply not understood") from None
+    if status in ("failed", "refunded"):
+        raise SmsRefused(reply.status_code, status)
+    return str(message_id)
+
+
+def _send_sms(student: dict, log: dict, timeout: float | None = None) -> str | None:
+    """Hand the entry SMS to Semaphore. Returning means it was accepted."""
+    return _post_sms(student["guardian_mobile"], sms_text(student.get("name"), log["ts"]),
+                     timeout)
+
+
+_SENDERS = {"email": _send_email, "sms": _send_sms}
 
 
 def _job(channel: str, student: dict, log: dict):
@@ -319,11 +391,22 @@ def _email_test(address: str | None) -> str:
     return "email test sent"
 
 
+SMS_CHECK = ("This number was saved as a guardian contact in the S.A.F.E. attendance "
+             f"system of {SCHOOL}. No reply is needed.")
+
+
 def _sms_test(mobile: str | None) -> str:
     if not mobile:
         return "no mobile on file"
-    # NOTIFY_SMS_ENABLED=true has nothing to switch on until the sender exists (PC-018).
-    return SMS_TEST_SKIPPED
+    if not SMS_ENABLED:
+        return SMS_TEST_SKIPPED
+    if not SEMAPHORE_API_KEY:
+        return f"{SMS_TEST_SKIPPED} (SEMAPHORE_API_KEY is not set)"
+    try:
+        _post_sms(mobile, f"{SMS_SENDER}: {SMS_CHECK}")
+    except Exception as e:
+        return f"SMS test failed: {_error_text(e)}"
+    return "SMS test sent"
 
 
 def contact_test(student: dict, email: bool = True, sms: bool = True) -> dict:
