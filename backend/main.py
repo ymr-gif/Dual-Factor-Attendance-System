@@ -689,7 +689,7 @@ def api_create_student(body: StudentCreate, actor: str = Depends(_actor)):
         )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
-    db.insert_audit(actor, "create", s["student_id"], detail=f"uid={s['uid']}")
+    db.insert_audit(actor, "create", s["student_id"])  # no card UID in the audit log
     tested = _test_contacts(actor, s, email=bool(guardian_email), sms=bool(guardian_mobile))
     return {**s, "contact_test": tested}
 
@@ -753,11 +753,18 @@ async def api_enroll_student(student_id: str, images: list[UploadFile] = File(..
 
 @app.delete("/api/students/{student_id}", dependencies=[Depends(require_operator)])
 def api_delete_student(student_id: str, actor: str = Depends(_actor)):
-    # Right-to-erasure (Step 20): drop embedding + logs, record an audit entry.
-    counts = db.delete_student(student_id)
-    if counts["students"] == 0 and counts["logs"] == 0:
+    # Right-to-erasure (Step 20, PC-044): the roster row with its face template, the
+    # logs, and the student ID and card UID wherever else they were written. The audit
+    # entry that records the erase holds counts only, so it names nobody.
+    counts = privacy.erase_student(student_id)
+    if not (counts["students"] or counts["logs"] or counts["audit_rows"]):
         raise HTTPException(status_code=404, detail=f"no such student {student_id}")
-    db.insert_audit(actor, "erase", student_id, detail=f"logs={counts['logs']} students={counts['students']}")
+    try:
+        db.insert_audit(
+            actor, "erase", None, detail=" ".join(f"{k}={v}" for k, v in counts.items())
+        )
+    except Exception as e:
+        print(f"erase audit failed: {type(e).__name__}")
     return {"erased": student_id, **counts}
 
 

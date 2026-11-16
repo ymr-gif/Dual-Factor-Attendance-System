@@ -272,6 +272,43 @@ class FakeDB:
                      "finish_notification", "get_notifications"):
             monkeypatch.setattr(db, name, getattr(self, name))
 
+    def delete_student(self, student_id):
+        """The counts the real erase returns, over the rows held here."""
+        from backend.db import mentions
+
+        uid = next(
+            (u for u, s in self.students.items() if s["student_id"] == student_id), None
+        )
+
+        def named(text):
+            return mentions(text, student_id) or mentions(text, uid)
+
+        gone = [
+            l for l in self.logs
+            if l["student_id"] == student_id or (l["student_id"] is None and l["uid"] == uid)
+        ]
+        gone_ids = {l["id"] for l in gone}
+        self.logs = [l for l in self.logs if l["id"] not in gone_ids]
+        notifications = [n for n in self.notifications if n["log_id"] in gone_ids]
+        self.notifications = [n for n in self.notifications if n["log_id"] not in gone_ids]
+        self.reviews = [r for r in self.reviews if r["log_id"] not in gone_ids]
+        students = 1 if self.students.pop(uid, None) else 0
+        scrubbed = 0
+        for a in self.audits:
+            if named(a["target"]):
+                a.update(target=None, detail=None)
+                scrubbed += 1
+            elif named(a["detail"]):
+                a["detail"] = None
+                scrubbed += 1
+        return {
+            "logs": len(gone),
+            "students": students,
+            "notifications": len(notifications),
+            "audit_rows": scrubbed,
+            "uid": uid,
+        }
+
     def get_students(self):
         # The real query never selects face_embedding; mirror that.
         return [
@@ -377,7 +414,7 @@ def sinks():
 
 
 @pytest.fixture
-def client(backend_main, monkeypatch, fake_db, camera, fake_matcher, sinks):
+def client(backend_main, monkeypatch, tmp_path, fake_db, camera, fake_matcher, sinks):
     """A TestClient with startup run and every external dependency replaced."""
     from fastapi.testclient import TestClient
 
@@ -396,6 +433,9 @@ def client(backend_main, monkeypatch, fake_db, camera, fake_matcher, sinks):
     monkeypatch.setattr(db, "update_student", fake_db.update_student)
     monkeypatch.setattr(db, "insert_audit", fake_db.insert_audit)
     fake_db.patch_notifications(monkeypatch, db)
+    monkeypatch.setattr(db, "delete_student", fake_db.delete_student)
+    # The erase also cleans the serial reader's queue file; keep it off the real one.
+    monkeypatch.setattr(privacy, "FAILED_TAPS_QUEUE", str(tmp_path / "failed_taps.jsonl"))
 
     # Behaviour switches are read from the environment at import. Pin them to the
     # code defaults so a developer's exported .env cannot change the results; a test

@@ -217,6 +217,31 @@ the guardian read it; an email that bounces later still counts as delivered.
 `pytest tests`: 292 passed, 7 skipped. The 7 are `tests/test_notification_db.py`, which runs the
 real statements and needs `TEST_DB_DSN` to name a scratch database; run that way, 7 passed.
 
+**PC-044: erase leaves no trace of the student.** `DELETE /api/students/{id}` already removed
+the roster row (with the face template and the guardian contacts) and the logs under the
+student ID. It now also removes, in the same transaction: the taps the card made before it was
+on the roster (logs with that UID and no student), the notification and review rows of all
+those logs, the target and detail of every audit row about the student, the detail of an audit
+row about someone else that mentions the student (the duplicate-face note `dup?~<id>@<score>`),
+and a review reason that names the student. After the database, `privacy.erase_student` drops
+the card's lines from the serial reader's failed-tap queue (`FAILED_TAPS_QUEUE`), rewriting the
+file beside itself and swapping it in.
+
+The audit row that records the erase has no target and holds counts only
+(`logs=2 students=1 notifications=1 audit_rows=3 queued_taps=1`). A new student's `create` row
+no longer holds `uid=<card UID>`. IDs are matched whole, so erasing `S1` does not touch `S10`.
+Running the erase again for an ID that is already gone cleans rows an older build left (its
+`erase` row held the student ID) and returns 404 only when nothing at all was found.
+
+Limits. Not reached: backup files (`make backup`), a queue file kept on another machine, and
+the operator console output. `queued_taps` comes back `null` when the queue file could not be
+rewritten, and the operator then has to clean it by hand. Deleted rows stay in Postgres' own
+files until they are vacuumed; they are in no query result and no dump.
+`pytest tests`: 311 passed, 8 skipped. With `TEST_DB_DSN` set the 8 run too, among them
+`tests/test_erase.py::test_after_erase_a_dump_of_every_table_has_no_hit`, which erases one
+student on a real Postgres and searches every row of every table for the student ID and the
+card UID.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

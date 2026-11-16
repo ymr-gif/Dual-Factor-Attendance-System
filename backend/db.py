@@ -1,4 +1,5 @@
 import os
+import re
 from contextlib import contextmanager
 from datetime import datetime, time
 
@@ -476,16 +477,77 @@ def get_audit(limit: int = 100):
             return cur.fetchall()
 
 
+def mentions(text: str | None, token: str | None) -> bool:
+    """Whether `text` holds `token` as a whole ID: S1 is found in "dup?~S1@0.91" and
+    in "uid=S1", not inside S10."""
+    if not text or not token:
+        return False
+    pattern = rf"(?<![A-Za-z0-9]){re.escape(token)}(?![A-Za-z0-9])"
+    return re.search(pattern, text, re.IGNORECASE) is not None
+
+
 def delete_student(student_id: str):
-    """Right-to-erasure (Step 20): drop the student's attendance logs and roster row
-    (which erases the embedding). Returns {logs, students} counts."""
+    """Right-to-erasure (Step 20, PC-044). In one transaction:
+
+    - the attendance logs under the student ID, and the taps the card made before it
+      was put on the roster; their review and notification rows go with them
+    - the roster row, and with it the face template and the guardian contacts
+    - the student ID and the card UID wherever the audit log or a review reason wrote
+      them: a row about the student loses its target and detail, a row about someone
+      else that mentions the student (a duplicate-face note) loses its detail
+
+    Returns the counts, and the card UID so the caller can clean what is not in the
+    database. The UID is not for the API response or the audit log."""
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM attendance_logs WHERE student_id = %s", (student_id,))
+            cur.execute("SELECT uid FROM students WHERE student_id = %s", (student_id,))
+            found = cur.fetchone()
+            uid = found[0] if found else None
+
+            own = "student_id = %s OR (student_id IS NULL AND uid = %s)"
+            cur.execute(
+                f"""SELECT count(*) FROM notification_log
+                     WHERE log_id IN (SELECT id FROM attendance_logs WHERE {own})""",
+                (student_id, uid),
+            )
+            notification_count = cur.fetchone()[0]
+            cur.execute(f"DELETE FROM attendance_logs WHERE {own}", (student_id, uid))
             log_count = cur.rowcount
             cur.execute("DELETE FROM students WHERE student_id = %s", (student_id,))
             student_count = cur.rowcount
-    return {"logs": log_count, "students": student_count}
+
+            def named(text):
+                return mentions(text, student_id) or mentions(text, uid)
+
+            cur.execute(
+                "SELECT id, target, detail FROM audit_log "
+                "WHERE target IS NOT NULL OR detail IS NOT NULL"
+            )
+            about, mention = [], []
+            for audit_id, target, detail in cur.fetchall():
+                if named(target):
+                    about.append(audit_id)
+                elif named(detail):
+                    mention.append(audit_id)
+            if about:
+                cur.execute(
+                    "UPDATE audit_log SET target = NULL, detail = NULL WHERE id = ANY(%s)",
+                    (about,),
+                )
+            if mention:
+                cur.execute("UPDATE audit_log SET detail = NULL WHERE id = ANY(%s)", (mention,))
+
+            cur.execute("SELECT id, reason FROM review_queue WHERE reason IS NOT NULL")
+            reasons = [review_id for review_id, reason in cur.fetchall() if named(reason)]
+            if reasons:
+                cur.execute("UPDATE review_queue SET reason = NULL WHERE id = ANY(%s)", (reasons,))
+    return {
+        "logs": log_count,
+        "students": student_count,
+        "notifications": notification_count,
+        "audit_rows": len(about) + len(mention) + len(reasons),
+        "uid": uid,
+    }
 
 
 def purge_old_logs(cutoff):

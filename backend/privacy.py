@@ -11,8 +11,13 @@ from logging NFC-only.
   - Retention: ATTENDANCE_RETENTION_DAYS deletes whole logs; SCORE_RETENTION_DAYS
     nulls just the raw biometric scores (keeps the row + status for counts). 0/unset
     = keep forever. Run via `make purge` (or a cron).
+  - Erasure (PC-044): `erase_student` removes a student from the database and from
+    the serial reader's queue of taps it could not post (FAILED_TAPS_QUEUE). Not
+    reached from here: backups (`make backup` files) and a queue file kept on
+    another machine.
 """
 
+import json
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -33,6 +38,10 @@ def _int(name: str, default: int) -> int:
 FACE_CONSENT_REQUIRED = _bool("FACE_CONSENT_REQUIRED", "false")
 ATTENDANCE_RETENTION_DAYS = _int("ATTENDANCE_RETENTION_DAYS", 0)  # 0 = keep forever
 SCORE_RETENTION_DAYS = _int("SCORE_RETENTION_DAYS", 0)  # 0 = keep forever
+# The same file backend/serial_reader.py appends to, read from the same variable.
+FAILED_TAPS_QUEUE = os.environ.get(
+    "FAILED_TAPS_QUEUE", os.path.join(os.path.dirname(__file__), "failed_taps.jsonl")
+)
 
 
 def consent_ok(student) -> bool:
@@ -46,6 +55,48 @@ def consent_ok(student) -> bool:
 def enroll_allowed(student) -> bool:
     """Enrollment consent gate (same policy as matching)."""
     return consent_ok(student)
+
+
+def scrub_failed_taps(uid: str | None, path: str | None = None) -> int:
+    """Drop one card's lines from the queue of taps the serial reader could not post.
+    Returns how many were dropped. The file is rewritten beside itself and swapped in,
+    so a crash leaves the old file or the new one, never half of one."""
+    path = path or FAILED_TAPS_QUEUE
+    uid = (uid or "").strip().upper()
+    if not uid or not os.path.exists(path):
+        return 0
+    kept, dropped = [], 0
+    with open(path) as f:
+        for line in f:
+            try:
+                queued = str(json.loads(line).get("uid", "")).strip().upper()
+                hit = queued == uid
+            except (ValueError, AttributeError):
+                hit = uid in line.upper()  # a line that cannot be read is not trusted
+            if hit:
+                dropped += 1
+            else:
+                kept.append(line)
+    if dropped:
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            f.writelines(kept)
+        os.replace(tmp, path)
+    return dropped
+
+
+def erase_student(student_id: str) -> dict:
+    """Right-to-erasure (PC-044): the database rows, then the failed-tap queue.
+    Returns counts only; nothing in them identifies the student. `queued_taps` is None
+    when the queue file could not be cleaned, which the operator has to see."""
+    counts = db.delete_student(student_id)
+    uid = counts.pop("uid", None)
+    try:
+        counts["queued_taps"] = scrub_failed_taps(uid)
+    except OSError as e:
+        print(f"erase: failed-tap queue not cleaned: {type(e).__name__}")
+        counts["queued_taps"] = None
+    return counts
 
 
 def purge(now=None) -> dict:
