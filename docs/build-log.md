@@ -355,6 +355,9 @@ once per outage. A pipeline error no longer ends the thread. A video file still 
 A `/dev/` path now counts as a live camera here too (it already did for the capture size).
 Not tried on the A4tech or the Mac yet: dry-run B21. Not covered: a read that hangs instead
 of failing. `pytest tests`: 418 passed, 10 skipped (new `tests/test_camera_reopen.py`).
+Follow-up: each reopen starts a fresh tracker whose track IDs carry on from the last one, since
+the matcher skips IDs it has already judged and a reused ID would let a new face pass unchecked
+(found by a security review). `pytest tests`: 419 passed, 10 skipped.
 
 ## Design-only stubs (not built)
 

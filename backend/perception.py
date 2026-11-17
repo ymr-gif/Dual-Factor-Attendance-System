@@ -298,16 +298,22 @@ def run_forever(sleep=time.sleep, max_rounds: int | None = None):
     live = _is_live_source()
     rounds = 0
     waiting = False
+    next_id = 1
     while True:
+        # A fresh tracker per round drops the faces from before the outage, but its IDs
+        # carry on from the last round: the matcher remembers judged track IDs, so a
+        # reused ID would let a new face pass as one already handled.
+        tracker = FaceTracker()
+        tracker._next = next_id
         try:
-            tracker = run(_camera_frames())
+            run(_camera_frames(), tracker=tracker)
         except Exception as e:
             print(f"[perception] pipeline error: {e}")
-            tracker = None
+        next_id = tracker._next
         rounds += 1
         if not live or (max_rounds is not None and rounds >= max_rounds):
             return
-        if tracker is not None and tracker.last_done_ts:
+        if tracker.last_done_ts:
             waiting = False  # frames came through this round: announce the next outage
         if not waiting:
             print(f"[perception] no camera — trying again every {CAMERA_RETRY_SEC:g} s")

@@ -40,13 +40,30 @@ def test_a_pipeline_error_does_not_end_the_loop(monkeypatch):
     monkeypatch.setattr(perception, "PERCEPTION_SOURCE", None)
     calls = []
 
-    def run(frames):
+    def run(frames, tracker=None):
         calls.append(1)
         if len(calls) == 1:
             raise RuntimeError("model crashed")
-        return perception.FaceTracker()
+        return tracker
 
     monkeypatch.setattr(perception, "run", run)
     monkeypatch.setattr(perception, "_camera_frames", lambda: iter(()))
     perception.run_forever(sleep=lambda s: None, max_rounds=2)
     assert len(calls) == 2
+
+
+def test_track_ids_are_not_reused_after_a_reopen(monkeypatch):
+    # The matcher skips track IDs it has already judged; a new face after a reopen
+    # must get a new ID, not track 1 again.
+    monkeypatch.setattr(perception, "PERCEPTION_SOURCE", None)
+    seen = []
+
+    def run(frames, tracker=None):
+        seen.append(tracker._next)
+        tracker._next += 2  # two faces tracked this round
+        return tracker
+
+    monkeypatch.setattr(perception, "run", run)
+    monkeypatch.setattr(perception, "_camera_frames", lambda: iter(()))
+    perception.run_forever(sleep=lambda s: None, max_rounds=3)
+    assert seen == [1, 3, 5]
