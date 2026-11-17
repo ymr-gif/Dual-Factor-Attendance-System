@@ -9,7 +9,7 @@ from . import ports
 
 PORT = os.environ.get("SERIAL_PORT", ports.DEFAULT_PORT)
 BAUD = int(os.environ.get("SERIAL_BAUD", "9600"))
-TAP_URL = os.environ.get("TAP_URL", "http://localhost:8000/tap")
+TAP_URL = os.environ.get("TAP_URL", "http://localhost:8001/tap")
 QUEUE_PATH = os.environ.get(
     "FAILED_TAPS_QUEUE",
     os.path.join(os.path.dirname(__file__), "failed_taps.jsonl"),

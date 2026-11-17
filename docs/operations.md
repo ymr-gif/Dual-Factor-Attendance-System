@@ -121,7 +121,7 @@ TAP_URL=http://localhost:8001/tap .venv/bin/python -m backend.serial_reader
   so it runs on the code defaults, which include `PERCEPTION_ENABLED=false`. Pass settings
   inline (`ENFORCE_2FA=true make dev`) or export the file first with
   `set -a; . ./.env; set +a` (see [Editing `.env`](#editing-env) above).
-- The reader's built-in `TAP_URL` default is port 8000, so set it as shown. `SERIAL_PORT`
+- The reader's built-in `TAP_URL` default is port 8001, the backend's port. `SERIAL_PORT`
   defaults to `/dev/ttyACM0` and `SERIAL_BAUD` to 9600. When that path does not exist the
   reader opens the most likely board it can find instead, and looks again on every
   reconnect; `make ports` lists the candidates and the one it would open. Set

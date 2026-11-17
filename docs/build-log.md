@@ -359,6 +359,15 @@ Follow-up: each reopen starts a fresh tracker whose track IDs carry on from the 
 the matcher skips IDs it has already judged and a reused ID would let a new face pass unchecked
 (found by a security review). `pytest tests`: 419 passed, 10 skipped.
 
+**Liveness input scale (findings 4, 17 Nov).** `liveness.assess` divided pixels by 255
+before the MiniFASNet models, which were trained on raw 0-255 values. Every face then
+scored p_live 0.01-0.02 and the argmax verdict was always spoof (the Mac bring-up saw the
+same band on live, matched people). Checked on three faces in a real photo (insightface
+`t1.jpg`): scaled, p_live 0.016-0.017; raw, 0.83-0.89. The blob is now raw BGR. The
+threshold still needs calibrating on the study camera (PC-025). The serial reader's
+`TAP_URL` default is now port 8001, the backend's port (findings 2).
+`pytest tests`: 420 passed, 10 skipped (new `tests/test_liveness.py`).
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

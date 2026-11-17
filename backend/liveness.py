@@ -34,7 +34,7 @@ MODELS = [
     ("4_0_0_80x80_MiniFASNetV1SE.onnx", 4.0),
 ]
 _INPUT_SIZE = 80
-_LIVE_IDX = 1  # output softmax classes: [live, print, replay]
+_LIVE_IDX = 1  # output softmax classes: [spoof, live, spoof], as in Silent-Face's test.py
 
 _sessions = None
 
@@ -132,7 +132,9 @@ def assess(frame, bbox):
         combined = np.zeros(3, dtype=np.float64)
         for sess, scale in get_sessions():
             img = _crop(frame, bbox_xywh, scale)
-            blob = (img.astype(np.float32) / 255.0).transpose(2, 0, 1)[None, ...]  # NCHW
+            # Raw 0-255 BGR, not scaled to 0-1: Silent-Face trained on unscaled pixels.
+            # Scaling put every face, live or not, at p_live ~0.01-0.02 (17 Nov).
+            blob = img.astype(np.float32).transpose(2, 0, 1)[None, ...]  # NCHW
             out = sess.run(None, {sess.get_inputs()[0].name: blob})[0][0]
             combined += _softmax(out)
         combined /= len(MODELS)
