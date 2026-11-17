@@ -542,9 +542,10 @@ def fake_matcher():
 def settings_store(monkeypatch):
     """The runtime settings table, in memory. decision.enforcing() reads it on every
     decide(), so without this a test would open a connection to the real database."""
-    from backend import db
+    from backend import db, liveness
 
     store = {}
+    monkeypatch.setattr(liveness, "_saved", (None, -1e9))  # no cached read across tests
     monkeypatch.setattr(db, "get_setting", lambda key, default=None: store.get(key, default))
     monkeypatch.setattr(db, "set_setting", lambda key, value: store.__setitem__(key, value))
     monkeypatch.setattr(db, "get_all_settings", lambda: dict(sorted(store.items())))

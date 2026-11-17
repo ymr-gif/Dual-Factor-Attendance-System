@@ -32,10 +32,13 @@ export default function Roster() {
 
   useEffect(() => { fetch() }, [])
 
-  // While a New card field is open, the next unknown card tapped fills it.
+  // While a New card field is open and empty, the next unknown card tapped fills it.
+  // A later tap never replaces it (someone else at the reader); the operator checks
+  // the UID and presses Link, or clears the field to take the next tap.
   useTapStream(e => {
     if (!cardFor || e.log?.status !== 'unregistered' || !e.log.uid) return
-    setNewUid(e.log.uid)
+    const uid = e.log.uid
+    setNewUid(cur => cur.trim() ? cur : uid)
   })
 
   const handleAdd = async () => {

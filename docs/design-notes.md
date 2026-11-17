@@ -54,6 +54,8 @@ it's decided or still open.
   `MIN_FACE_PX`, probe/frame-skip, `ASSOC_WINDOW_SEC`) is DB-overridable and admin-toggleable **live**
   (hot-reload). Infra/secrets (DB DSN, SMTP creds, `OPERATOR_TOKEN`) stay **env-only**. `.env.example`
   still documents defaults; the DB just overrides the tunable subset at runtime.
+  As built (17 Nov 2026): only `enforce_2fa` and `liveness_threshold` are read back at runtime,
+  so only those two are offered (`settings.TUNABLE_KEYS`); the rest are `.env` plus a restart.
 - **Reader throughput ceiling.** One RC522 on a **9600-baud** serial link cannot reliably sustain
   3–5 taps/s (UID read + anti-collision + framing ≈ 100–300 ms/card; 9600 baud ≈ 1 ms/byte). The
   3–5/s target assumes **either** a higher baud + faster read loop **or multiple readers** with a

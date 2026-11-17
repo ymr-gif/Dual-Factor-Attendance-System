@@ -13,29 +13,14 @@ from typing import Any
 
 from . import db
 
-# The set of keys that can be read/written via the API.
+# The keys that can be saved through the API, and that the code reads back at runtime.
+# Only keys with a reader belong here; until 17 Nov the list held 21 keys, of which only
+# enforce_2fa did anything. Everything else is set in `.env` and needs a restart.
+#   enforce_2fa         decision.enforcing()
+#   liveness_threshold  liveness.threshold(); empty = the model's own verdict
 TUNABLE_KEYS = {
-    "face_det_size",
-    "min_face_px",
-    "face_threshold",
-    "liveness_threshold",
-    "camera_index",
-    "camera_resolution",
-    "perception_fps",
-    "track_iou_thresh",
-    "track_max_misses",
-    "assoc_window_sec",
-    "tap_cooldown_sec",
-    "match_threshold",
-    "tailgate_name_threshold",
-    "use_gpu",
     "enforce_2fa",
-    "face_consent_required",
-    "attendance_retention_days",
-    "score_retention_days",
-    "reenroll_after_days",
-    "dup_enroll_threshold",
-    "late_cutoff",
+    "liveness_threshold",
 }
 
 
@@ -54,6 +39,8 @@ def get(key: str, default: str | None = None, cast: type = str) -> Any:
 
 # Switches: saved only as "true" or "false", so a typo cannot turn one off silently.
 BOOL_KEYS = {"enforce_2fa", "use_gpu", "face_consent_required"}
+# A score cutoff: a number from 0 to 1, or empty to clear it.
+FRACTION_KEYS = {"liveness_threshold"}
 
 
 def set(key: str, value: str) -> None:
@@ -61,6 +48,13 @@ def set(key: str, value: str) -> None:
         raise ValueError(f"'{key}' is not a tunable setting")
     if key in BOOL_KEYS and value not in ("true", "false"):
         raise ValueError(f"'{key}' must be true or false")
+    if key in FRACTION_KEYS and value.strip():
+        try:
+            ok = 0.0 <= float(value) <= 1.0
+        except ValueError:
+            ok = False
+        if not ok:
+            raise ValueError(f"'{key}' must be a number from 0 to 1, or empty")
     db.set_setting(key, value)
 
 

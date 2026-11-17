@@ -575,7 +575,7 @@ def api_config():
         },
         "liveness": {
             "enabled": liveness.enabled(),
-            "threshold": liveness.LIVENESS_THRESHOLD,  # None = model argmax
+            "threshold": liveness.threshold(),  # None = model argmax
         },
         "decision": {
             "enforce_2fa": decision.enforcing(),

@@ -38,16 +38,44 @@ _LIVE_IDX = 1  # output softmax classes: [spoof, live, spoof], as in Silent-Face
 
 _sessions = None
 
+# The Settings page saves `liveness_threshold`; it is read at most every few seconds.
+_SAVED_TTL_SEC = 5.0
+_saved = (None, -1e9)  # (value, monotonic time read)
+
 
 def enabled() -> bool:
     return LIVENESS_ENABLED
 
 
+def threshold():
+    """The p_live cutoff in force: the value saved on the Settings page (empty = none,
+    the model's own verdict), else LIVENESS_THRESHOLD. A failed read falls back to
+    LIVENESS_THRESHOLD, so a tap never fails on this lookup."""
+    import time
+
+    global _saved
+    value, at = _saved
+    now = time.monotonic()
+    if now - at >= _SAVED_TTL_SEC:
+        try:
+            from . import db  # db imports numpy and psycopg2; keep this module cheap
+
+            value = db.get_setting("liveness_threshold")
+        except Exception as e:
+            print(f"liveness_threshold setting unreadable, using LIVENESS_THRESHOLD: {e}")
+            value = None
+        _saved = (value, now)
+    if value is None:
+        return LIVENESS_THRESHOLD
+    value = value.strip()
+    return float(value) if value else None
+
+
 def calibrated() -> bool:
-    """True once LIVENESS_THRESHOLD is set. Until then the model's argmax verdict is
-    untrusted (not calibrated against real spoofs) and must not decide a tap —
-    callers should treat is_live as advisory and still log the score for calibration."""
-    return LIVENESS_THRESHOLD is not None
+    """True once a threshold is set (Settings page or LIVENESS_THRESHOLD). Until then the
+    model's argmax verdict is untrusted (not calibrated against real spoofs) and must not
+    decide a tap; callers treat is_live as advisory and still log the score."""
+    return threshold() is not None
 
 
 def get_sessions():
@@ -139,10 +167,11 @@ def assess(frame, bbox):
             combined += _softmax(out)
         combined /= len(MODELS)
         score = float(combined[_LIVE_IDX])
-        if LIVENESS_THRESHOLD is None:
+        cutoff = threshold()
+        if cutoff is None:
             is_live = bool(int(np.argmax(combined)) == _LIVE_IDX)
         else:
-            is_live = bool(score >= LIVENESS_THRESHOLD)
+            is_live = bool(score >= cutoff)
         return score, is_live
     except Exception as e:
         print(f"[liveness] assess failed, failing open: {e}")

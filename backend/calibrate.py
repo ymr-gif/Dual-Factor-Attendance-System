@@ -28,7 +28,7 @@ from . import db, face, liveness
 METRICS = {
     # metric -> (score column, verdict column, current threshold, verdict labels)
     "face": ("face_score", "face_match", face.FACE_THRESHOLD, ("match", "mismatch")),
-    "liveness": ("liveness_score", "liveness_pass", liveness.LIVENESS_THRESHOLD, ("live", "spoof")),
+    "liveness": ("liveness_score", "liveness_pass", liveness.threshold(), ("live", "spoof")),
 }
 
 

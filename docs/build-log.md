@@ -408,6 +408,16 @@ distributions, the highest spoof and lowest genuine score, a threshold halfway b
 them when they do not overlap (or the fewest-error point when they do), and the errors
 on each side. `pytest tests`: 448 passed, 11 skipped (new `tests/test_calibrate.py`).
 
+**Settings page: only what is read.** `settings.TUNABLE_KEYS` listed 21 keys and the page
+let an operator save all of them, but only `enforce_2fa` was read back; the rest did
+nothing until a restart, and not even then. The list is now `enforce_2fa` and
+`liveness_threshold`. `liveness.threshold()` reads the saved value (cached 5 s; empty
+means the model's own verdict; unreadable falls back to `LIVENESS_THRESHOLD`), used by
+`assess`, `calibrated()`, `/api/config` and `calibrate`. A threshold outside 0-1 is
+refused. Roster: a tap fills the New card field only while it is empty, so someone else
+tapping cannot replace the UID before Link is pressed (security review).
+`pytest tests`: 457 passed, 11 skipped.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

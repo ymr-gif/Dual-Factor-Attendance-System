@@ -192,8 +192,11 @@ python -m backend.calibrate --metric liveness --since 09:00 --until 09:20 \
 Note the times of each round on the Spoof Trial Record and keep the rounds apart: every
 scored row in a window counts, including faces with no tap.
 
-While `LIVENESS_THRESHOLD` is unset the tap-to-face matcher logs the liveness score but
-does not turn a matched face into `spoof`.
+While no threshold is set the tap-to-face matcher logs the liveness score but does not
+turn a matched face into `spoof`. The Settings page can set `liveness_threshold` (0 to 1;
+empty clears it) without a restart; it is read within 5 s and wins over
+`LIVENESS_THRESHOLD`. Those two (and the two-factor switch) are the only settings the page
+offers: everything else is set in `.env` and needs a restart.
 
 **Guardian email**
 
