@@ -14,6 +14,11 @@ insightface
 # older Intel Mac pip would build opencv from source and find no onnxruntime at all.
 onnxruntime==1.19.2; sys_platform == "darwin" and platform_machine == "x86_64"
 onnxruntime; sys_platform != "darwin" or platform_machine != "x86_64"
+# insightface pulls in onnx unpinned; releases after 1.18.0 only ship macOS 13+
+# wheels, so on this older Intel Mac pip would try to build it from source and
+# fail (its C++ uses std::to_chars in a way this Xcode CLT's libc++ rejects).
+onnx==1.18.0; sys_platform == "darwin" and platform_machine == "x86_64"
+onnx; sys_platform != "darwin" or platform_machine != "x86_64"
 # opencv-python (non-headless) is pinned too: insightface pulls it in transitively.
 opencv-python-headless==4.10.0.84; sys_platform == "darwin" and platform_machine == "x86_64"
 opencv-python==4.10.0.84; sys_platform == "darwin" and platform_machine == "x86_64"
