@@ -31,7 +31,7 @@ CAMERA_WIDTH = int(os.environ.get("CAMERA_WIDTH", "0") or 0) or None
 CAMERA_HEIGHT = int(os.environ.get("CAMERA_HEIGHT", "0") or 0) or None
 MIN_FACE_PX = int(os.environ.get("MIN_FACE_PX", "80"))
 FACE_DET_SIZE = int(os.environ.get("FACE_DET_SIZE", "320"))  # kiosk close-face; raise for far/small faces
-# GPU on/off switch. Default CPU. Set USE_GPU=true once on a CUDA box (RTX 1050) —
+# GPU on/off switch. Default CPU. Set USE_GPU=true once on a CUDA box (GTX 1050, the Acer Nitro 5) —
 # same code, no edits. Falls back to CPU (with a warning) if CUDA isn't available,
 # so it's safe to preset before the hardware migration.
 USE_GPU = os.environ.get("USE_GPU", "false").lower() in ("1", "true", "yes", "on")

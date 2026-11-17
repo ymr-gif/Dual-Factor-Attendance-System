@@ -106,7 +106,7 @@ Measured on this 4-core CPU box: detection ~72ms, recognition ~360ms (once/tap),
 **GPU switch.** One env var, `USE_GPU`, drives both face and liveness. Default `false` (CPU). If
 set `true` it uses `CUDAExecutionProvider` (InsightFace `ctx_id=0`), and if CUDA isn't available
 it prints a warning and falls back to CPU — safe to preset before the hardware is in place.
-To enable on a CUDA machine (e.g. after migrating to the GTX 1050 box (the Acer Nitro 5)):
+To enable on a CUDA machine (e.g. after migrating to the Acer Nitro 5, GTX 1050):
 
 ```
 pip install onnxruntime-gpu                     # plus nvidia driver + CUDA/cuDNN
