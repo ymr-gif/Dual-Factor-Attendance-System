@@ -111,6 +111,7 @@ class FakeDB:
 
     def __init__(self):
         self.students = {}  # uid -> students row (dict)
+        self.revoked = {}  # uid -> {"student_id", "revoked_by"} (revoked_cards, PC-024)
         self.lookups = []  # every uid passed to find_student_by_uid
         self.logs = []  # every row "inserted" into attendance_logs
         self.reviews = []  # every row "inserted" into review_queue
@@ -138,6 +139,72 @@ class FakeDB:
     def find_student_by_uid(self, uid):
         self.lookups.append(uid)
         return self.students.get(uid)
+
+    # PC-024, with the rules the real statements enforce.
+
+    def _student(self, student_id):
+        for uid, row in self.students.items():
+            if row["student_id"] == student_id:
+                return uid, row
+        for row in getattr(self, "cardless", {}).values():
+            if row["student_id"] == student_id:
+                return None, row
+        raise LookupError(f"no such student {student_id}")
+
+    def _park(self, row):
+        # A student between cards: kept here, off the uid -> row map.
+        self.cardless = getattr(self, "cardless", {})
+        self.cardless[row["student_id"]] = row
+
+    def find_revoked_card(self, uid):
+        r = self.revoked.get(uid)
+        if r is None:
+            return None
+        _, row = self._student(r["student_id"])
+        return {"student_id": row["student_id"], "name": row.get("name")}
+
+    def mark_card_lost(self, student_id, actor):
+        uid, row = self._student(student_id)
+        if uid is None:
+            raise ValueError("this student has no card to report lost")
+        self.students.pop(uid)
+        row["uid"] = None
+        self._park(row)
+        self.revoked[uid] = {"student_id": student_id, "revoked_by": actor}
+        return {"student_id": student_id, "uid": None}
+
+    def link_card(self, student_id, uid, actor):
+        from backend.db import CardConflict
+
+        current, row = self._student(student_id)
+        if current == uid:
+            raise CardConflict("this is already the student's card")
+        if uid in self.revoked:
+            raise CardConflict("this card was reported lost; mark it found first")
+        if uid in self.students:
+            raise CardConflict("this card is on another student")
+        if current is not None:
+            self.students.pop(current)
+            self.revoked[current] = {"student_id": student_id, "revoked_by": actor}
+        else:
+            self.cardless.pop(student_id)
+        row["uid"] = uid
+        self.students[uid] = row
+        return {"student_id": student_id, "uid": uid, "revoked_old": current is not None}
+
+    def mark_card_found(self, student_id):
+        current, row = self._student(student_id)
+        if current is not None:
+            raise ValueError("this student already has a card; report it lost first")
+        mine = [u for u, r in self.revoked.items() if r["student_id"] == student_id]
+        if not mine:
+            raise LookupError("this student has no lost card")
+        uid = mine[-1]
+        del self.revoked[uid]
+        self.cardless.pop(student_id)
+        row["uid"] = uid
+        self.students[uid] = row
+        return {"student_id": student_id, "uid": uid}
 
     def insert_log(
         self,
@@ -195,6 +262,10 @@ class FakeDB:
 
     def insert_student(self, student_id, uid, name=None, guardian_email=None,
                        guardian_mobile=None):
+        from backend.db import CardConflict
+
+        if uid in self.revoked:
+            raise CardConflict("this card was reported lost; mark it found first")
         if uid in self.students or any(
             s["student_id"] == student_id for s in self.students.values()
         ):
@@ -212,6 +283,10 @@ class FakeDB:
     def update_student(self, student_id, uid=None, name=None, guardian_email=None,
                        guardian_mobile=None):
         # Like the real one: only a value that is not None is written.
+        from backend.db import CardConflict
+
+        if uid is not None and uid in self.revoked:
+            raise CardConflict("this card was reported lost; mark it found first")
         for row in self.students.values():
             if row["student_id"] == student_id:
                 break
@@ -318,23 +393,31 @@ class FakeDB:
         from backend.db import STUDENT_AUDIT_ACTIONS, erase_detail, names_student
 
         student_id = (student_id or "").strip()
-        counts = {"logs": 0, "students": 0, "notifications": 0, "audit_rows": 0, "uid": None}
+        counts = {"logs": 0, "students": 0, "notifications": 0, "audit_rows": 0, "uid": None,
+                  "old_uids": []}
         uid = next(
             (u for u, s in self.students.items() if s["student_id"] == student_id), None
         )
+        cardless = getattr(self, "cardless", {}).pop(student_id, None)
+        old_uids = sorted(u for u, r in self.revoked.items() if r["student_id"] == student_id)
+        cards = [u for u in [uid, *old_uids] if u]
 
         def about(a):
             return a["target"] == student_id and a["action"] in STUDENT_AUDIT_ACTIONS
 
-        if not student_id or (uid is None and not any(about(a) for a in self.audits)):
+        if not student_id or (
+            uid is None and cardless is None and not any(about(a) for a in self.audits)
+        ):
             return counts
         gone = {
             l["id"] for l in self.logs
-            if l["student_id"] == student_id or (l["student_id"] is None and l["uid"] == uid)
+            if l["student_id"] == student_id or (l["student_id"] is None and l["uid"] in cards)
         }
         counts["logs"] = len(gone)
         counts["notifications"] = sum(n["log_id"] in gone for n in self.notifications)
-        counts["students"] = 1 if self.students.pop(uid, None) else 0
+        counts["students"] = 1 if (self.students.pop(uid, None) or cardless) else 0
+        for u in old_uids:
+            del self.revoked[u]  # ON DELETE CASCADE
         self.logs = [l for l in self.logs if l["id"] not in gone]
         self.notifications = [n for n in self.notifications if n["log_id"] not in gone]
         self.reviews = [r for r in self.reviews if r["log_id"] not in gone]
@@ -345,19 +428,22 @@ class FakeDB:
             if about(a):
                 a.update(target=None, detail=None)
                 counts["audit_rows"] += 1
-            elif names_student(a["detail"], student_id, uid):
+            elif any(names_student(a["detail"], student_id, c) for c in cards or [None]):
                 a["detail"] = None
                 counts["audit_rows"] += 1
         if actor is not None:
             self.insert_audit(actor, "erase", None, erase_detail(counts))
         counts["uid"] = uid
+        counts["old_uids"] = old_uids
         return counts
 
     def get_students(self):
         # The real query never selects face_embedding; mirror that.
+        rows = [*self.students.values(), *getattr(self, "cardless", {}).values()]
         return [
-            {k: v for k, v in row.items() if k != "face_embedding"}
-            for row in self.students.values()
+            {**{k: v for k, v in row.items() if k != "face_embedding"},
+             "lost_cards": sum(r["student_id"] == row["student_id"] for r in self.revoked.values())}
+            for row in sorted(rows, key=lambda r: r["student_id"])
         ]
 
 
@@ -483,6 +569,8 @@ def client(backend_main, monkeypatch, tmp_path, fake_db, camera, fake_matcher, s
     monkeypatch.setattr(db, "init_db", fake_db.init_db)
     monkeypatch.setattr(db, "get_conn", fake_db.get_conn)
     monkeypatch.setattr(db, "find_student_by_uid", fake_db.find_student_by_uid)
+    for name in ("find_revoked_card", "mark_card_lost", "link_card", "mark_card_found"):
+        monkeypatch.setattr(db, name, getattr(fake_db, name))
     monkeypatch.setattr(db, "insert_log", fake_db.insert_log)
     monkeypatch.setattr(db, "insert_review", fake_db.insert_review)
     monkeypatch.setattr(db, "get_students", fake_db.get_students)

@@ -107,7 +107,8 @@ export interface TapLog {
 
 export interface Student {
   student_id: string
-  uid: string
+  uid: string | null  // null: the card was reported lost and no new one is linked (PC-024)
+  lost_cards?: number
   name: string | null
   guardian_email: string | null
   guardian_mobile?: string | null
@@ -265,6 +266,16 @@ export const createStudent = (b: { student_id: string; uid: string; name?: strin
 
 export const updateStudent = (id: string, b: { uid?: string; name?: string; guardian_email?: string; guardian_mobile?: string }) =>
   reqJson<Student>(`/api/students/${encodeURIComponent(id)}`, 'PATCH', b)
+
+// PC-024: lost cards.
+export const cardLost = (id: string) =>
+  reqJson<{ student_id: string; uid: null }>(`/api/students/${encodeURIComponent(id)}/card/lost`, 'POST', {})
+
+export const cardNew = (id: string, uid: string) =>
+  reqJson<{ student_id: string; uid: string; revoked_old: boolean }>(`/api/students/${encodeURIComponent(id)}/card`, 'POST', { uid })
+
+export const cardFound = (id: string) =>
+  reqJson<{ student_id: string; uid: string }>(`/api/students/${encodeURIComponent(id)}/card/found`, 'POST', {})
 
 export const deleteStudent = (id: string) =>
   del<{ erased: string; logs: number; students: number }>(`/api/students/${encodeURIComponent(id)}`)

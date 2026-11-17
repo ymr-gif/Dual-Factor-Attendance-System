@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getStudents, createStudent, updateStudent, deleteStudent, setConsent, type Student } from '../api'
+import { useTapStream } from '../useTapStream'
+import { getStudents, createStudent, updateStudent, deleteStudent, setConsent, cardLost, cardNew, cardFound, type Student } from '../api'
 
 interface FormState { student_id: string; uid: string; name: string; guardian_email: string; guardian_mobile: string }
 const empty = (): FormState => ({ student_id: '', uid: '', name: '', guardian_email: '', guardian_mobile: '' })
@@ -21,6 +22,8 @@ export default function Roster() {
   const [editId, setEditId] = useState<string | null>(null)
   const [edit, setEdit] = useState({ uid: '', name: '', guardian_email: '', guardian_mobile: '' })
   const [note, setNote] = useState('')
+  const [cardFor, setCardFor] = useState<string | null>(null)  // student getting a new card
+  const [newUid, setNewUid] = useState('')
 
   const fetch = () => {
     setLoading(true); setErr(null)
@@ -28,6 +31,12 @@ export default function Roster() {
   }
 
   useEffect(() => { fetch() }, [])
+
+  // While a New card field is open, the next unknown card tapped fills it.
+  useTapStream(e => {
+    if (!cardFor || e.log?.status !== 'unregistered' || !e.log.uid) return
+    setNewUid(e.log.uid)
+  })
 
   const handleAdd = async () => {
     try {
@@ -37,7 +46,7 @@ export default function Roster() {
   }
 
   const startEdit = (s: Student) => {
-    setEditId(s.student_id); setEdit({ uid: s.uid, name: s.name || '', guardian_email: s.guardian_email || '', guardian_mobile: s.guardian_mobile || '' })
+    setEditId(s.student_id); setEdit({ uid: s.uid ?? '', name: s.name || '', guardian_email: s.guardian_email || '', guardian_mobile: s.guardian_mobile || '' })
   }
 
   const handleUpdate = async (id: string) => {
@@ -50,6 +59,25 @@ export default function Roster() {
   const handleDelete = async (id: string) => {
     if (!confirm(`Delete student ${id} and all attendance logs?`)) return
     try { await deleteStudent(id); fetch() } catch (e) { setErr(String(e)) }
+  }
+
+  // PC-024: lost cards. The old card stops marking anyone present; face and contacts stay.
+  const handleLost = async (s: Student) => {
+    if (!confirm(`Report the card of ${s.name || s.student_id} lost? It will stop working until it is found.`)) return
+    try { await cardLost(s.student_id); fetch() } catch (e) { setErr(String(e)) }
+  }
+
+  const handleNewCard = async (id: string) => {
+    try {
+      const r = await cardNew(id, newUid.trim().toUpperCase())
+      setCardFor(null); setNewUid('')
+      if (r.revoked_old) setNote('The old card was reported lost.')
+      fetch()
+    } catch (e) { setErr(String(e)) }
+  }
+
+  const handleFound = async (id: string) => {
+    try { await cardFound(id); fetch() } catch (e) { setErr(String(e)) }
   }
 
   const handleConsent = async (id: string, granted: boolean) => {
@@ -114,7 +142,15 @@ export default function Roster() {
                   ) : (
                     <>
                       <td style={{ padding: '6px 8px' }}>{s.student_id}</td>
-                      <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: 12 }}>{s.uid}</td>
+                      <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: 12 }}>
+                        {cardFor === s.student_id ? (
+                          <span style={{ display: 'flex', gap: 4 }}>
+                            <input autoFocus placeholder="Tap the new card" value={newUid} onChange={e => setNewUid(e.target.value)} style={is} />
+                            <button className="btn btn-sm" disabled={!newUid.trim()} onClick={() => handleNewCard(s.student_id)}>Link</button>
+                            <button className="btn btn-sm btn-ghost" onClick={() => { setCardFor(null); setNewUid('') }}>Cancel</button>
+                          </span>
+                        ) : s.uid ?? <span style={{ opacity: 0.6, fontFamily: 'inherit' }}>no card{s.lost_cards ? ` (${s.lost_cards} lost)` : ''}</span>}
+                      </td>
                       <td style={{ padding: '6px 8px' }}>{s.name || '\u2014'}</td>
                       <td style={{ padding: '6px 8px', fontSize: 12 }}>{s.guardian_email || '\u2014'}</td>
                       <td style={{ padding: '6px 8px', fontSize: 12 }}>{s.guardian_mobile || '\u2014'}</td>
@@ -127,6 +163,9 @@ export default function Roster() {
                       </td>
                       <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                         <button className="btn btn-sm btn-ghost" onClick={() => startEdit(s)}>Edit</button>
+                        {s.uid && <button className="btn btn-sm btn-ghost" style={{ marginLeft: 4 }} onClick={() => handleLost(s)}>Card lost</button>}
+                        <button className="btn btn-sm btn-ghost" style={{ marginLeft: 4 }} onClick={() => { setCardFor(s.student_id); setNewUid('') }}>New card</button>
+                        {!s.uid && !!s.lost_cards && <button className="btn btn-sm btn-ghost" style={{ marginLeft: 4 }} onClick={() => handleFound(s.student_id)}>Card found</button>}
                         <button className="btn btn-sm btn-danger" style={{ marginLeft: 4 }} onClick={() => handleDelete(s.student_id)}>Delete</button>
                       </td>
                     </>

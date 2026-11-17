@@ -86,7 +86,10 @@ export default function Kiosk() {
   const status = last?.log?.status ?? 'unknown'
   const v = verdict(status)
   const s = VS[v]
-  const name = last?.student?.name || last?.log?.uid || 'Unknown'
+  // A lost card (PC-024) does not show its owner's name to whoever is holding it.
+  const name = last?.log?.status === 'revoked'
+    ? 'Card reported lost: see the guard'
+    : last?.student?.name || last?.log?.uid || 'Unknown'
 
   return (
     <div style={{

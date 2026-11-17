@@ -9,6 +9,7 @@ const HIGHLIGHT: Record<string, { border: string; bg: string }> = {
   flagged: { border: '#d69e2e', bg: 'rgba(214,158,46,0.08)' },
   no_face: { border: '#d69e2e', bg: 'rgba(214,158,46,0.08)' },
   tailgating: { border: '#d69e2e', bg: 'rgba(214,158,46,0.08)' },
+  revoked: { border: '#e53e3e', bg: 'rgba(229,62,62,0.08)' },
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,6 +20,7 @@ const STATUS_COLORS: Record<string, string> = {
   mismatch: '#5c1f22',
   no_face: '#5c4a1f',
   tailgating: '#5c1f22',
+  revoked: '#5c1f22',
   unverified: '#333',
   unregistered: '#333',
 }
@@ -78,7 +80,9 @@ export default function LiveFeed({
                     {status}
                   </span>
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {t.student?.name ?? t.log.uid}
+                    {status === 'revoked'
+                      ? `Lost card of ${t.student?.name ?? t.log.student_id ?? 'a student'}: hold the card, check the person`
+                      : t.student?.name ?? t.log.uid}
                   </span>
                   {t.log.method && (
                     <span className="pill" style={{ background: '#2a2d37', fontSize: 11, opacity: 0.85 }}>

@@ -272,6 +272,24 @@ GPU setup (`USE_GPU`) is in
 [`face-verification.md`](face-verification.md#performance--gpu). Consent and retention
 settings are in [`privacy.md`](privacy.md).
 
+## Lost cards (PC-024)
+
+On the Roster page:
+
+- **Card lost** (confirm): the card stops marking anyone present. A tap with it is logged
+  `revoked` under its owner, goes to Review as "card reported lost", sends the guardian
+  nothing, and shows "Lost card of <name>: hold the card, check the person" on the live
+  feed. The kiosk shows "Card reported lost: see the guard", not the name. The face
+  template and contacts stay; the UID column reads "no card".
+- **New card**: tap the new card (or type its UID) and press Link. A card the student
+  still has is reported lost first. A UID on another student, or one reported lost, is
+  refused.
+- **Card found** (a student with no card): gives back the card most recently reported
+  lost. Refused once a new card is linked; report the new one lost first.
+
+Erasing a student removes their lost cards and the taps those cards made. The audit log
+records `card_lost`, `card_new` and `card_found` with the student ID, never the UID.
+
 ## Command-line tools
 
 Run from the repo root with the backend's interpreter. `make enroll`, `make calibrate`,

@@ -11,6 +11,7 @@ const STATUS_COLORS: Record<string, string> = {
   mismatch: '#5c1f22',
   no_face: '#5c4a1f',
   tailgating: '#5c1f22',
+  revoked: '#5c1f22',
   unverified: '#333',
   unregistered: '#333',
 }

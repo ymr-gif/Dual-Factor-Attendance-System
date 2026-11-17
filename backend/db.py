@@ -126,11 +126,22 @@ def init_db():
 # --- Phase 1: Student CRUD ---
 
 
+class CardConflict(ValueError):
+    """The card UID is on another student, or was reported lost (PC-024)."""
+
+
+def _refuse_revoked(cur, uid):
+    cur.execute("SELECT 1 FROM revoked_cards WHERE uid = %s", (uid,))
+    if cur.fetchone() is not None:
+        raise CardConflict("this card was reported lost; mark it found first")
+
+
 def insert_student(student_id: str, uid: str, name: str | None = None,
                    guardian_email: str | None = None, guardian_mobile: str | None = None):
     """Create a new student. Raises ValueError on duplicate student_id or uid."""
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            _refuse_revoked(cur, uid)
             try:
                 cur.execute(
                     """
@@ -166,18 +177,107 @@ def update_student(student_id: str, uid: str | None = None, name: str | None = N
     params.append(student_id)
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                f"""
-                UPDATE students SET {", ".join(sets)}
-                WHERE student_id = %s
-                RETURNING student_id, uid, name, guardian_email, guardian_mobile
-                """,
-                params,
-            )
+            if uid is not None:
+                _refuse_revoked(cur, uid)
+            try:
+                cur.execute(
+                    f"""
+                    UPDATE students SET {", ".join(sets)}
+                    WHERE student_id = %s
+                    RETURNING student_id, uid, name, guardian_email, guardian_mobile
+                    """,
+                    params,
+                )
+            except psycopg2.errors.UniqueViolation:
+                raise CardConflict("this card is on another student")
             row = cur.fetchone()
             if not row:
                 raise ValueError(f"no student with student_id={student_id}")
             return row
+
+
+# --- PC-024: lost cards ---
+
+
+def find_revoked_card(uid: str):
+    """The owner of a card reported lost ({student_id, name}), or None."""
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT s.student_id, s.name FROM revoked_cards r "
+                "JOIN students s USING (student_id) WHERE r.uid = %s",
+                (uid,),
+            )
+            return cur.fetchone()
+
+
+def _lock_student(cur, student_id):
+    cur.execute("SELECT uid FROM students WHERE student_id = %s FOR UPDATE", (student_id,))
+    row = cur.fetchone()
+    if row is None:
+        raise LookupError(f"no such student {student_id}")
+    return row["uid"]
+
+
+def mark_card_lost(student_id: str, actor: str):
+    """Move the student's card to revoked_cards and leave the student with no card.
+    LookupError: no such student. ValueError: the student has no card."""
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            uid = _lock_student(cur, student_id)
+            if uid is None:
+                raise ValueError("this student has no card to report lost")
+            cur.execute("UPDATE students SET uid = NULL WHERE student_id = %s", (student_id,))
+            cur.execute(
+                "INSERT INTO revoked_cards (uid, student_id, revoked_by) VALUES (%s, %s, %s)",
+                (uid, student_id, actor),
+            )
+    return {"student_id": student_id, "uid": None}
+
+
+def link_card(student_id: str, uid: str, actor: str):
+    """Give the student a new card. A card the student still has is revoked first.
+    LookupError: no such student. CardConflict: the UID is on the roster or lost."""
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            current = _lock_student(cur, student_id)
+            if current == uid:
+                raise CardConflict("this is already the student's card")
+            _refuse_revoked(cur, uid)
+            cur.execute("SELECT 1 FROM students WHERE uid = %s", (uid,))
+            if cur.fetchone() is not None:
+                raise CardConflict("this card is on another student")
+            if current is not None:
+                cur.execute("UPDATE students SET uid = NULL WHERE student_id = %s", (student_id,))
+                cur.execute(
+                    "INSERT INTO revoked_cards (uid, student_id, revoked_by) VALUES (%s, %s, %s)",
+                    (current, student_id, actor),
+                )
+            try:
+                cur.execute("UPDATE students SET uid = %s WHERE student_id = %s", (uid, student_id))
+            except psycopg2.errors.UniqueViolation:
+                raise CardConflict("this card is on another student")
+    return {"student_id": student_id, "uid": uid, "revoked_old": current is not None}
+
+
+def mark_card_found(student_id: str):
+    """Give the student back the card they most recently reported lost.
+    LookupError: no such student, or no lost card. ValueError: they have a card now."""
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            if _lock_student(cur, student_id) is not None:
+                raise ValueError("this student already has a card; report it lost first")
+            cur.execute(
+                "SELECT uid FROM revoked_cards WHERE student_id = %s "
+                "ORDER BY revoked_at DESC LIMIT 1",
+                (student_id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise LookupError("this student has no lost card")
+            cur.execute("DELETE FROM revoked_cards WHERE uid = %s", (row["uid"],))
+            cur.execute("UPDATE students SET uid = %s WHERE student_id = %s", (row["uid"], student_id))
+    return {"student_id": student_id, "uid": row["uid"]}
 
 
 # --- Phase 3: Review queue ---
@@ -513,7 +613,8 @@ def get_audit(limit: int = 100):
 
 
 # Audit rows whose target is a student ID. `review_resolve` rows target "review#<n>".
-STUDENT_AUDIT_ACTIONS = ("create", "update", "enroll", "consent", "contact_test", "erase")
+STUDENT_AUDIT_ACTIONS = ("create", "update", "enroll", "consent", "contact_test", "erase",
+                         "card_lost", "card_new", "card_found")
 
 
 def names_student(text: str | None, student_id: str, uid: str | None = None) -> bool:
@@ -546,10 +647,14 @@ def delete_student(student_id: str, actor: str | None = None):
     carries it, which is what an erase by an older build left behind. Any other ID
     changes nothing and returns zeros.
 
-    Returns the counts, and the card UID so the caller can clean what is not in the
-    database. The UID is not for the API response or the audit log."""
+    Cards the student reported lost (PC-024) count as theirs too, and their
+    revoked_cards rows go with the roster row (ON DELETE CASCADE).
+
+    Returns the counts, and the card UIDs (`uid`, `old_uids`) so the caller can clean
+    what is not in the database. They are not for the API response or the audit log."""
     student_id = (student_id or "").strip()
-    counts = {"logs": 0, "students": 0, "notifications": 0, "audit_rows": 0, "uid": None}
+    counts = {"logs": 0, "students": 0, "notifications": 0, "audit_rows": 0, "uid": None,
+              "old_uids": []}
     if not student_id:
         return counts
     actions = list(STUDENT_AUDIT_ACTIONS)
@@ -566,14 +671,18 @@ def delete_student(student_id: str, actor: str | None = None):
                 if cur.fetchone() is None:
                     return counts
 
-            own = "student_id = %s OR (student_id IS NULL AND uid = %s)"
+            cur.execute("SELECT uid FROM revoked_cards WHERE student_id = %s ORDER BY uid",
+                        (student_id,))
+            old_uids = [r[0] for r in cur.fetchall()]
+            cards = [u for u in [uid, *old_uids] if u]
+            own = "student_id = %s OR (student_id IS NULL AND uid = ANY(%s))"
             cur.execute(
                 f"""SELECT count(*) FROM notification_log
                      WHERE log_id IN (SELECT id FROM attendance_logs WHERE {own})""",
-                (student_id, uid),
+                (student_id, cards),
             )
             counts["notifications"] = cur.fetchone()[0]
-            cur.execute(f"DELETE FROM attendance_logs WHERE {own}", (student_id, uid))
+            cur.execute(f"DELETE FROM attendance_logs WHERE {own}", (student_id, cards))
             counts["logs"] = cur.rowcount
             cur.execute("DELETE FROM students WHERE student_id = %s", (student_id,))
             counts["students"] = cur.rowcount
@@ -586,7 +695,8 @@ def delete_student(student_id: str, actor: str | None = None):
             scrubbed = cur.rowcount
             for table, column in (("audit_log", "detail"), ("review_queue", "reason")):
                 cur.execute(f"SELECT id, {column} FROM {table} WHERE {column} IS NOT NULL")
-                ids = [i for i, text in cur.fetchall() if names_student(text, student_id, uid)]
+                ids = [i for i, text in cur.fetchall()
+                       if any(names_student(text, student_id, c) for c in cards or [None])]
                 if ids:
                     cur.execute(f"UPDATE {table} SET {column} = NULL WHERE id = ANY(%s)", (ids,))
                 scrubbed += len(ids)
@@ -599,6 +709,7 @@ def delete_student(student_id: str, actor: str | None = None):
                     (actor, erase_detail(counts)),
                 )
     counts["uid"] = uid
+    counts["old_uids"] = old_uids
     return counts
 
 
@@ -681,7 +792,9 @@ def get_students():
                 """
                 SELECT student_id, uid, name, guardian_email, guardian_mobile,
                        (face_embedding IS NOT NULL) AS enrolled,
-                       face_consent, face_consent_at, embed_model, enrolled_at
+                       face_consent, face_consent_at, embed_model, enrolled_at,
+                       (SELECT count(*) FROM revoked_cards r
+                         WHERE r.student_id = students.student_id) AS lost_cards
                 FROM students
                 ORDER BY student_id
                 """

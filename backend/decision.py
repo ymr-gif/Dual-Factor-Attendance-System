@@ -34,14 +34,15 @@ NO_FACE = "no_face"  # tap, but no face observed in the association window
 MISMATCH = "mismatch"  # tap + a face in window, but below the match threshold
 SPOOF = "spoof"  # matched face, but liveness said not-live
 TAILGATING = "tailgating"  # a recognized face with no tap to claim it (cardless)
+REVOKED = "revoked"  # a card reported lost (PC-024): not counted, the guard checks the person
 
 # Statuses that do NOT count as attendance-present. `unverified` is here because the
 # card alone is one factor and the study requires both (PC-027).
-_NOT_PRESENT = {REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING, UNVERIFIED}
+_NOT_PRESENT = {REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING, UNVERIFIED, REVOKED}
 
 # Statuses that go to the operator review queue: a failed check, or a face that could
 # not be checked at all (`unverified`), so an operator can clear the tap.
-_NEEDS_REVIEW = {FLAGGED, REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING, UNVERIFIED}
+_NEEDS_REVIEW = {FLAGGED, REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING, UNVERIFIED, REVOKED}
 
 
 def enforcing() -> bool:

@@ -4,7 +4,7 @@ import { getReviewQueue, getStudents, resolveReview, type ReviewQueueItem, type 
 const C: Record<string, string> = {
   accepted: '#1f5c2a', flagged: '#5c4a1f', rejected: '#5c1f22',
   spoof: '#5c1f22', mismatch: '#5c1f22', no_face: '#5c4a1f',
-  tailgating: '#5c1f22', unverified: '#333', unregistered: '#333',
+  tailgating: '#5c1f22', revoked: '#5c1f22', unverified: '#333', unregistered: '#333',
 }
 
 export default function Review() {

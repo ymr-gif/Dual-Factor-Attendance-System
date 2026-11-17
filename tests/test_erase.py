@@ -284,7 +284,8 @@ def test_after_erase_a_dump_of_every_table_has_no_hit(monkeypatch):
         before = dump()
 
         # An ID nobody has changes nothing, whatever word it is.
-        nothing = {"logs": 0, "students": 0, "notifications": 0, "audit_rows": 0, "uid": None}
+        nothing = {"logs": 0, "students": 0, "notifications": 0, "audit_rows": 0, "uid": None,
+                   "old_uids": []}
         for made_up in ("test", "3", "review#999999", "dismiss", "pc044-s1", ""):
             assert db.delete_student(made_up, "pc044-test") == nothing
         assert dump() == before
@@ -292,7 +293,7 @@ def test_after_erase_a_dump_of_every_table_has_no_hit(monkeypatch):
         counts = db.delete_student(sid, "pc044-test")
 
         assert counts == {"logs": 2, "students": 1, "notifications": 2, "audit_rows": 4,
-                          "uid": uid}
+                          "uid": uid, "old_uids": []}
         tables = dump()
         assert any('"action":"erase","target":null,'
                    '"detail":"logs=2 students=1 notifications=2 audit_rows=4"' in line

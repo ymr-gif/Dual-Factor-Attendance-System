@@ -92,8 +92,9 @@ def erase_student(student_id: str, actor: str | None = None) -> dict:
     the operator has to see."""
     counts = db.delete_student(student_id, actor)
     uid = counts.pop("uid", None)
+    old_uids = counts.pop("old_uids", [])
     try:
-        counts["queued_taps"] = scrub_failed_taps(uid)
+        counts["queued_taps"] = sum(scrub_failed_taps(u) for u in [uid, *old_uids])
     except OSError as e:
         print(f"erase: failed-tap queue not cleaned: {type(e).__name__}")
         counts["queued_taps"] = None

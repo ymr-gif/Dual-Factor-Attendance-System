@@ -385,6 +385,22 @@ cutoff is `DWELL_THRESHOLD` (default 0.6, stricter than the 0.5 match). A face j
 `mismatch` or `spoof` is still remembered: that person already has a row. `pytest tests`:
 429 passed, 10 skipped.
 
+**PC-024: lost cards.** New table `revoked_cards` (uid, owner, when, by whom), and
+`students.uid` may now be NULL so a student can be between cards. New status `revoked`:
+not counted, reviewed, no guardian message, never reaches the matcher (`/tap` checks
+the lost cards when the UID is not on the roster, on both paths; a failed lookup falls
+through to `unregistered`). Endpoints `POST /api/students/{id}/card/lost`,
+`POST /api/students/{id}/card` (`{uid}`), `POST /api/students/{id}/card/found`; audited
+as `card_lost` / `card_new` / `card_found` without the UID. A lost UID is refused on
+create, update and link (`db.CardConflict`, 409); a PATCH to a UID on another student is
+now a 409 too, not a 500. Erase takes the lost cards, their taps and their queued taps.
+Roster: Card lost / New card (filled by the next unknown tap) / Card found, "no card" in
+the UID column. Live feed: "Lost card of <name>"; the kiosk hides the name. Found takes
+no UID: it restores the most recently lost card (deviation from the spec, which had
+`/api/cards/{uid}/found`). `pytest tests`: 444 passed, 11 skipped (new
+`tests/test_lost_card.py`); with `TEST_DB_DSN` on the scratch database the real
+statements pass too.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

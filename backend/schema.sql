@@ -26,7 +26,7 @@ ALTER TABLE attendance_logs ADD COLUMN IF NOT EXISTS face_match BOOLEAN;
 ALTER TABLE attendance_logs ADD COLUMN IF NOT EXISTS liveness_pass BOOLEAN;
 
 -- Step 9 (2FA enforcement / buddy-punch). Overall verdict per tap:
--- accepted / flagged / rejected / unverified / unregistered (see backend/decision.py).
+-- accepted / flagged / rejected / unverified / unregistered / revoked (see backend/decision.py).
 ALTER TABLE attendance_logs ADD COLUMN IF NOT EXISTS status TEXT;
 
 -- ===== Phase B schema pass (land additive columns together; all idempotent) =====
@@ -108,6 +108,18 @@ CREATE TABLE IF NOT EXISTS notification_log (
     UNIQUE (log_id, channel)
 );
 
+-- PC-024 (lost cards): a card reported lost stays here, under its owner, until it is
+-- found. It cannot mark anyone present and cannot be put on another student. A student
+-- can be between cards, so students.uid may be NULL. The rows go when the student is
+-- erased (PC-044).
+ALTER TABLE students ALTER COLUMN uid DROP NOT NULL;
+CREATE TABLE IF NOT EXISTS revoked_cards (
+    uid         TEXT PRIMARY KEY,
+    student_id  TEXT NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+    revoked_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked_by  TEXT NOT NULL
+);
+
 -- Step 21 (attendance sessions): pairs consecutive taps by a student within a day
 -- into check-in/check-out sessions. Odd-numbered taps = check-in, even = check-out.
 -- A lone odd tap with no partner (still present) has check_out = NULL.
@@ -123,8 +135,8 @@ WITH ordered AS (
       AND (
         l.status IS NULL
         OR l.status NOT IN (
-            'mismatch', 'no_face', 'rejected', 'spoof', 'tailgating', 'unregistered',
-            'unverified'
+            'mismatch', 'no_face', 'rejected', 'revoked', 'spoof', 'tailgating',
+            'unregistered', 'unverified'
         )
         OR EXISTS (
             SELECT 1 FROM review_queue r

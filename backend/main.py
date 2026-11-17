@@ -186,6 +186,29 @@ def _write_outcome(o):
         print(f"matcher event publish failed: {e}")
 
 
+# Review reason for a tap by a card its owner reported lost (PC-024).
+LOST_CARD_REASON = "card reported lost"
+
+
+def _revoked_tap(uid, method):
+    """A tap by a card reported lost (PC-024): logged `revoked` under the owner, not
+    counted, no guardian message, sent to review, and shown on the live feed with the
+    owner's name so the guard can hold the card and check the person. None when the
+    card is not a lost one, or the lookup fails (the tap then goes on as unregistered)."""
+    try:
+        owner = db.find_revoked_card(uid)
+    except Exception as e:
+        print(f"lost-card lookup failed: {e}")
+        return None
+    if owner is None:
+        return None
+    log = db.insert_log(uid=uid, student_id=owner["student_id"], method=method,
+                        status=decision.REVOKED)
+    _queue_review(log, LOST_CARD_REASON)
+    _post_log(owner, log)
+    return {"status": "logged", "student": _public_student(owner), "log": log}
+
+
 def _post_log(student, log):
     """notify + broadcast for a synchronously-written log (fail-open on both)."""
     try:
@@ -238,6 +261,10 @@ class StudentUpdate(BaseModel):
     name: str | None = None
     guardian_email: str | None = None
     guardian_mobile: str | None = None
+
+
+class NewCard(BaseModel):
+    uid: str
 
 
 class ResolveReview(BaseModel):
@@ -736,12 +763,57 @@ def api_update_student(student_id: str, body: StudentUpdate, actor: str = Depend
             guardian_email=guardian_email,
             guardian_mobile=guardian_mobile,
         )
+    except db.CardConflict as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     db.insert_audit(actor, "update", student_id)
     # Only a contact this request sent is tested, not one that was already on file.
     tested = _test_contacts(actor, s, email=bool(guardian_email), sms=bool(guardian_mobile))
     return {**s, "contact_test": tested}
+
+
+# PC-024: lost cards. The audit rows name the student, never the card UID (PC-044).
+
+
+@app.post("/api/students/{student_id}/card/lost", dependencies=[Depends(require_operator)])
+def api_card_lost(student_id: str, actor: str = Depends(_actor)):
+    try:
+        s = db.mark_card_lost(student_id, actor)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    db.insert_audit(actor, "card_lost", student_id)
+    return s
+
+
+@app.post("/api/students/{student_id}/card", dependencies=[Depends(require_operator)])
+def api_card_new(student_id: str, body: NewCard, actor: str = Depends(_actor)):
+    uid = body.uid.strip().upper()
+    if not uid:
+        raise HTTPException(status_code=422, detail="card UID is empty")
+    try:
+        s = db.link_card(student_id, uid, actor)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    db.insert_audit(actor, "card_new", student_id,
+                    detail="old card reported lost" if s["revoked_old"] else None)
+    return s
+
+
+@app.post("/api/students/{student_id}/card/found", dependencies=[Depends(require_operator)])
+def api_card_found(student_id: str, actor: str = Depends(_actor)):
+    try:
+        s = db.mark_card_found(student_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    db.insert_audit(actor, "card_found", student_id)
+    return s
 
 
 @app.post("/api/students/{student_id}/enroll", dependencies=[Depends(require_operator)])
@@ -912,6 +984,10 @@ def perception_state():
 def tap(req: TapRequest):
     uid = req.uid.strip().upper()
     student = db.find_student_by_uid(uid)
+    if student is None:
+        lost = _revoked_tap(uid, req.method)
+        if lost is not None:
+            return lost
     student_id = student["student_id"] if student else None
     student_out = _public_student(student)
 

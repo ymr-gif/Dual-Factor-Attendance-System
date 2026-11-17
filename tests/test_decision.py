@@ -14,6 +14,7 @@ from backend.decision import (
     FLAGGED,
     MISMATCH,
     NO_FACE,
+    REVOKED,
     REJECTED,
     SPOOF,
     TAILGATING,
@@ -48,6 +49,7 @@ PRESENT_TABLE = {
     MISMATCH: False,
     SPOOF: False,
     TAILGATING: False,
+    REVOKED: False,  # PC-024: a lost card marks nobody present
 }
 
 
@@ -135,6 +137,7 @@ REVIEW_TABLE = {
     MISMATCH: True,
     SPOOF: True,
     TAILGATING: True,
+    REVOKED: True,
 }
 
 
@@ -171,6 +174,7 @@ def test_not_counted_statuses_is_the_list_the_attendance_queries_leave_out():
         "mismatch",
         "no_face",
         "rejected",
+        "revoked",
         "spoof",
         "tailgating",
         "unregistered",
