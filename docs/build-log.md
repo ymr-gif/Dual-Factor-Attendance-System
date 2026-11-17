@@ -418,6 +418,16 @@ refused. Roster: a tap fills the New card field only while it is empty, so someo
 tapping cannot replace the UID before Link is pressed (security review).
 `pytest tests`: 457 passed, 11 skipped.
 
+**Live log and scan steps, backend (17-18 Nov).** `backend/livelog.py` tees stdout and
+stderr: every line still goes to the terminal, and is kept (last 500, `GET /api/logs`) and
+published on `/ws/taps` as `{"type": "log"}`, with emails, PH mobiles and secret setting
+values redacted. `livelog.stage()` publishes each step of a scan (`card`, `student`,
+`window`, `face`, `liveness`, `verdict`, `notify`) as `{"type": "stage"}` for the
+dashboard animation. New detail lines: perception recognition time and liveness per
+track, the matcher's window-close summary per tap, and the nearest remembered face for
+a face with no tap (to tune `DWELL_THRESHOLD`). Frontend not built yet.
+`pytest tests`: 469 passed, 11 skipped (new `tests/test_livelog.py`).
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

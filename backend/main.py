@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import (
-    cameras, contacts, db, decision, events, face, liveness, matcher as matcher_mod,
+    cameras, contacts, db, decision, events, face, livelog, liveness, matcher as matcher_mod,
     notify as notify_mod, notify_report, perception, ports, privacy,
 )
 from .notify import contact_test, notify
@@ -176,6 +176,7 @@ def _write_outcome(o):
         notify(student, log)
     except Exception as e:
         print(f"matcher notify failed: {e}")
+    _trace_result(log)
     try:
         events.publish(
             jsonable_encoder(
@@ -202,11 +203,35 @@ def _revoked_tap(uid, method):
         return None
     if owner is None:
         return None
+    livelog.stage(uid, "student", f"lost card of {owner.get('name') or owner['student_id']}")
     log = db.insert_log(uid=uid, student_id=owner["student_id"], method=method,
                         status=decision.REVOKED)
     _queue_review(log, LOST_CARD_REASON)
     _post_log(owner, log)
     return {"status": "logged", "student": _public_student(owner), "log": log}
+
+
+def _trace_result(log):
+    """The last steps of a scan for the dashboard's scan animation: the face and
+    liveness scores when there are any, the verdict, and whether a guardian message
+    goes out. Faces with no tap (no UID) are not a scan."""
+    uid = log.get("uid")
+    if not uid:
+        return
+    if log.get("face_score") is not None:
+        livelog.stage(uid, "face", f"face match {log['face_score']:.2f}"
+                      f" ({'same person' if log.get('face_match') else 'below the cutoff'})")
+    if log.get("liveness_score") is not None:
+        livelog.stage(uid, "liveness", f"liveness {log['liveness_score']:.2f}"
+                      f" ({'live' if log.get('liveness_pass') else 'not live'})")
+    status = log.get("status") or "logged"
+    livelog.stage(uid, "verdict", status)
+    if not (decision.counts_as_present(status) and log.get("student_id") is not None):
+        text = "no guardian message"
+    else:
+        on = [c for c, en in (("email", notify_mod.EMAIL_ENABLED), ("SMS", notify_mod.SMS_ENABLED)) if en]
+        text = f"guardian message queued ({', '.join(on)})" if on else "guardian message: email and SMS are off"
+    livelog.stage(uid, "notify", text, done=True)
 
 
 def _post_log(student, log):
@@ -215,6 +240,7 @@ def _post_log(student, log):
         notify(student, log)
     except Exception as e:
         print(f"notify failed: {e}")
+    _trace_result(log)
     try:
         events.publish(
             jsonable_encoder({"type": "tap", "student": _public_student(student), "log": log})
@@ -338,6 +364,7 @@ def require_stream_access(
 
 @app.on_event("startup")
 def on_startup():
+    livelog.install()  # every printed line also goes to the dashboard's live log
     for attempt in range(1, 11):
         try:
             db.init_db()
@@ -621,6 +648,13 @@ def api_set_settings(body: SettingsUpdate, actor: str = Depends(_actor)):
 
 class ConsentRequest(BaseModel):
     granted: bool
+
+
+@app.get("/api/logs", dependencies=[Depends(require_operator)])
+def api_logs(limit: int = 200):
+    """The latest backend log lines, redacted (backend/livelog.py); new ones arrive on
+    /ws/taps as {"type": "log"}."""
+    return {"lines": livelog.recent(min(max(limit, 0), livelog.MAX_LINES))}
 
 
 @app.get("/api/audit", dependencies=[Depends(require_operator)])
@@ -983,7 +1017,11 @@ def perception_state():
 @app.post("/tap")
 def tap(req: TapRequest):
     uid = req.uid.strip().upper()
+    livelog.stage(uid, "card", "card read")
     student = db.find_student_by_uid(uid)
+    if student is not None:
+        livelog.stage(uid, "student", f"{student.get('name') or student['student_id']}"
+                      f" ({student['student_id']})")
     if student is None:
         lost = _revoked_tap(uid, req.method)
         if lost is not None:
@@ -997,6 +1035,7 @@ def tap(req: TapRequest):
     # to wait for).
     if perception.enabled():
         if student is None:
+            livelog.stage(uid, "student", "not on the roster")
             log = db.insert_log(uid=uid, student_id=None, method=req.method, status=decision.UNREGISTERED)
             _post_log(student, log)
             return {"status": "logged", "student": None, "log": log}
@@ -1009,6 +1048,11 @@ def tap(req: TapRequest):
             _post_log(student, log)
             return {"status": "logged", "student": student_out, "log": log}
         tap_id = matcher.add_tap(uid, student_id, ref, student=student)
+        if tap_id:
+            livelog.stage(uid, "window", f"looking for the face ({matcher.window:g} s window)")
+        else:
+            livelog.stage(uid, "verdict", "same card again within the cooldown: ignored",
+                          done=True)
         return {"status": "queued" if tap_id else "debounced", "uid": uid, "student": student_out}
 
     # One webcam capture, reused for face match (1:1) and liveness. Fail-open: any

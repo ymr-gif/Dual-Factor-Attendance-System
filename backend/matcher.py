@@ -220,6 +220,10 @@ class Matcher:
             assignment = self._assign(ripe_taps, faces)
             for i, t in enumerate(ripe_taps):
                 j = assignment.get(i)
+                seen = sum(1 for f in faces if abs(f.ts - t.ts) <= self.window)
+                print(f"[matcher] tap uid={t.uid}: window closed, {seen} face event(s) in it, "
+                      f"{t.frames} camera frame(s)"
+                      + ("" if j is None else f", paired with track {faces[j].track_id}"))
                 if j is None:
                     # No time-valid face left for this tap (none, or all taken).
                     if self.camera_heartbeat and t.frames == 0:
@@ -267,6 +271,12 @@ class Matcher:
                     # tracker lost the person, they did not leave (PC-046).
                     self._settle(f)
                     continue
+                near = self._dwell_nearest(f)
+                if near is not None:
+                    # Logged so DWELL_THRESHOLD can be tuned on the real camera.
+                    print(f"[matcher] face with no tap, track {f.track_id}: nearest remembered "
+                          f"face {near[0]:.3f} seen {near[1]:.0f} s ago "
+                          f"(same person at >= {self.dwell_threshold:.2f})")
                 self._settle(f)
                 outcomes.append(self._tailgating(f))
 
@@ -307,6 +317,15 @@ class Matcher:
             if sim >= best:
                 best_i, best = i, sim
         return best_i
+
+    def _dwell_nearest(self, f):
+        """(similarity, seconds since seen) of the closest remembered face, or None."""
+        best = None
+        for emb, seen in self._dwells:
+            sim = _cosine(emb, f.embedding)
+            if best is None or sim > best[0]:
+                best = (sim, f.ts - seen)
+        return best
 
     def _remember(self, f):
         """Record or refresh this face's presence in the dwell memory (PC-046)."""

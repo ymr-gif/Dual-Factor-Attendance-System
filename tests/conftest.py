@@ -483,8 +483,11 @@ class FakeCamera:
 class FakeMatcher:
     """Records taps queued for async tap-to-face correlation (perception mode).
 
-    Only `add_tap` exists: nothing else on the matcher may be touched by `/tap`.
+    Only `add_tap` exists, and `window`, which `/tap` reads for the live log: nothing
+    else on the matcher may be touched by `/tap`.
     """
+
+    window = 4.0
 
     def __init__(self):
         self.taps = []
@@ -504,7 +507,9 @@ class Sinks:
 
     def __init__(self):
         self.notified = []  # (student, log) pairs
-        self.published = []  # event dicts
+        self.published = []  # tap event dicts
+        self.stages = []  # scan step events for the dashboard animation (livelog.stage)
+        self.lines = []  # live log lines (livelog.record)
         self.notify_error = None
 
     def notify(self, student, log):
@@ -513,7 +518,7 @@ class Sinks:
         self.notified.append((student, log))
 
     def publish(self, event):
-        self.published.append(event)
+        {"stage": self.stages, "log": self.lines}.get(event.get("type"), self.published).append(event)
 
 
 def _forbidden(what):
@@ -568,6 +573,10 @@ def client(backend_main, monkeypatch, tmp_path, fake_db, camera, fake_matcher, s
     # Database: startup migration, /health probe, /tap lookup + insert, review queue,
     # roster.
     monkeypatch.setattr(db, "init_db", fake_db.init_db)
+    # The live log tees sys.stdout; under pytest that is a capture stream swapped per test.
+    from backend import livelog
+
+    monkeypatch.setattr(livelog, "install", lambda: None)
     monkeypatch.setattr(db, "get_conn", fake_db.get_conn)
     monkeypatch.setattr(db, "find_student_by_uid", fake_db.find_student_by_uid)
     for name in ("find_revoked_card", "mark_card_lost", "link_card", "mark_card_found"):

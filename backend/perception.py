@@ -34,6 +34,7 @@ it is down / not yet correlating, `/tap` logs card-only `unverified` (never sile
 
 import os
 import time
+from time import perf_counter  # timings in the log; tests replace `time` itself
 
 from . import face, liveness
 
@@ -209,14 +210,22 @@ def _recognize(tr: _Track, frame, det) -> None:
     """Measure the face now in this track: embedding, and liveness when enabled.
     The track is updated only once both are in hand, so a failure part-way leaves
     it as it was and still due for recognition."""
+    t0 = perf_counter()
     embedding = face.embed(frame, det)
+    t1 = perf_counter()
     live_score = is_live = None
     if liveness.enabled():
         live_score, is_live = liveness.assess(frame, det.bbox)
+    t2 = perf_counter()
+    again = tr.recognized
     tr.embedding = embedding
     tr.live_score, tr.is_live = live_score, is_live
     tr.recognized = True
     tr.reacquired = False
+    x1, _y1, x2, _y2 = det.bbox
+    live = "off" if live_score is None else f"{live_score:.2f} ({'live' if is_live else 'not live'})"
+    print(f"[perception] track {tr.id}: face {int(x2 - x1)} px {'re-' if again else ''}recognized "
+          f"in {(t1 - t0) * 1000:.0f} ms, liveness {live} in {(t2 - t1) * 1000:.0f} ms")
 
 
 def process_frame(frame, tracker: FaceTracker) -> list:
