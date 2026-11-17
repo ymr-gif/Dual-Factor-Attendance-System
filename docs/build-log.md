@@ -339,6 +339,12 @@ take only `true` or `false`. Every settings change is now written to the audit l
 tests get an in-memory settings table (autouse), so no test reads the real one.
 `pytest tests`: 414 passed, 10 skipped (new `tests/test_enforce_switch.py`).
 
+**PC-033: camera-down label.** A tap the camera gave no frame for keeps its handling
+(`unverified`, not counted, queued for review, `[ALERT]` in the log) and now carries the
+reason `student scans and enters, camera down -- cannot verify face`, shown on the Review
+page and the live feed. Only the perception path can tell a dead camera from an empty frame;
+the direct path keeps `face not checked`. `pytest tests`: 414 passed, 10 skipped.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

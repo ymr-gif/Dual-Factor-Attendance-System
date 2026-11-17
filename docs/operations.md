@@ -238,9 +238,11 @@ with the reason. The three resolutions:
 
 A tap the camera never watched is the one `unverified` case that is also queued. The matcher
 counts the camera frames that arrive inside each tap's own window. No frame at all means the
-camera was down for that tap, so it is logged `unverified` (still counted, per the fail-open
-rule), an `[ALERT]` line goes to the backend log, and the review entry carries the reason
-`camera delivered no frame during the tap; card-only`.
+camera was down for that tap, so it is logged `unverified` (not counted, PC-027 and PC-033),
+an `[ALERT]` line goes to the backend log, and the review entry carries the reason
+`student scans and enters, camera down -- cannot verify face`. The guard lets the student in
+and writes the entry in the logbook. With perception off, a tap whose capture found no face
+cannot tell a dead camera from an empty frame, so its reason stays `face not checked`.
 
 **Attendance clock**
 

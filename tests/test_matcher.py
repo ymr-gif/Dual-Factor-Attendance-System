@@ -71,7 +71,7 @@ def test_tap_the_camera_never_watched_is_unverified_and_marked_for_review():
     outcomes = m.resolve(now=WINDOW)
 
     assert statuses(outcomes) == [decision.UNVERIFIED]
-    assert outcomes[0]["reason"] == "camera delivered no frame during the tap; card-only"
+    assert outcomes[0]["reason"] == "student scans and enters, camera down -- cannot verify face"
     assert outcomes[0]["camera_down"] is True
     assert outcomes[0]["student_id"] == "S001"
     assert outcomes[0]["face_match"] is None and outcomes[0]["liveness_pass"] is None

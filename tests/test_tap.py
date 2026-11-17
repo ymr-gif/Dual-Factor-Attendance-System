@@ -484,7 +484,7 @@ def test_a_tap_the_camera_never_watched_is_reviewed_and_not_counted(
     outcome = matcher_outcome(
         decision.UNVERIFIED,
         method="nfc",
-        reason="camera delivered no frame during the tap; card-only",
+        reason="student scans and enters, camera down -- cannot verify face",
         camera_down=True,
     )
 
@@ -497,7 +497,7 @@ def test_a_tap_the_camera_never_watched_is_reviewed_and_not_counted(
             "log_id": 1,
             "student_id": "S001",
             "status": decision.UNVERIFIED,
-            "reason": "camera delivered no frame during the tap; card-only",
+            "reason": "student scans and enters, camera down -- cannot verify face",
         }
     ]
     assert "[ALERT] camera delivered no frame" in capsys.readouterr().out

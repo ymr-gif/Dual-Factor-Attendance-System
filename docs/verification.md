@@ -162,7 +162,7 @@ sleep 6
 curl -s -XPOST localhost:8002/tap -H 'Content-Type: application/json' -d '{"uid":"C3BE343A"}'  # {"status":"queued",...}
 sleep 3
 curl -s "localhost:8002/api/attendance?student_id=S001&limit=1" | $PY -m json.tool  # status: unverified
-curl -s localhost:8002/api/review | $PY -m json.tool  # one entry, reason "camera delivered no frame ..."
+curl -s localhost:8002/api/review | $PY -m json.tool  # one entry, reason "student scans and enters, camera down -- cannot verify face"
 kill %1
 ```
 Pass: edge cases assert clean; queued tap async-resolves to `unverified`, with a review entry and

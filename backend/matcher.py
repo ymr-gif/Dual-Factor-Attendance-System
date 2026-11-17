@@ -55,6 +55,10 @@ RESOLVE_INTERVAL_SEC = _env_f("RESOLVE_INTERVAL_SEC", 0.5)
 MAX_FACE_BUFFER = int(os.environ.get("MAX_FACE_BUFFER", "256"))
 MAX_TAILGATED_TRACKS = int(os.environ.get("MAX_TAILGATED_TRACKS", "512"))
 
+# Review reason for a tap the camera gave no frame for: the student was let in on the
+# card alone and the face could not be checked (PC-033). Logged `unverified`, not counted.
+CAMERA_DOWN_REASON = "student scans and enters, camera down -- cannot verify face"
+
 _BIG = 10.0  # cost sentinel for time-invalid tap/face pairs
 
 
@@ -314,7 +318,7 @@ class Matcher:
 
     def _unwatched(self, t):
         o = self._base(t.uid, t.student_id, t.student, decision.UNVERIFIED)
-        o.update(reason="camera delivered no frame during the tap; card-only", camera_down=True)
+        o.update(reason=CAMERA_DOWN_REASON, camera_down=True)
         return o
 
     def _tailgating(self, f):
