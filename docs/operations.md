@@ -151,7 +151,7 @@ database without the installer:
 
 ```bash
 docker run -d --name nfc-scan-postgres --restart unless-stopped \
-  -p 5433:5432 -v nfc-scan-pgdata:/var/lib/postgresql/data \
+  -p 127.0.0.1:5433:5432 -v nfc-scan-pgdata:/var/lib/postgresql/data \
   -e POSTGRES_DB=attendance -e POSTGRES_USER=attendance -e POSTGRES_PASSWORD=attendance \
   pgvector/pgvector:pg16
 ```

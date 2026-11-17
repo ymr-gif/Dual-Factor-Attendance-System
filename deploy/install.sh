@@ -89,7 +89,7 @@ if command -v docker >/dev/null 2>&1; then
     else
       say "Creating Postgres container ($PG_CONTAINER) on port $DB_PORT with a persistent volume"
       docker run -d --name "$PG_CONTAINER" --restart unless-stopped \
-        -p "${DB_PORT}:5432" -v "${PG_VOLUME}:/var/lib/postgresql/data" \
+        -p "127.0.0.1:${DB_PORT}:5432" -v "${PG_VOLUME}:/var/lib/postgresql/data" \
         -e POSTGRES_DB=attendance -e POSTGRES_USER=attendance -e POSTGRES_PASSWORD=attendance \
         pgvector/pgvector:pg16
     fi

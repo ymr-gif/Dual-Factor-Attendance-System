@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: attendance
       POSTGRES_PASSWORD: attendance
     ports:
-      - "5433:5432"   # host 5433 (5432 is taken on the dev box)
+      - "127.0.0.1:5433:5432"   # host 5433 (5432 is taken on the dev box); loopback only, default creds
     volumes:
       - nfc-scan-pgdata:/var/lib/postgresql/data
     healthcheck:
