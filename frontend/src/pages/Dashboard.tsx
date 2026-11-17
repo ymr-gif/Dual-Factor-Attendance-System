@@ -1,12 +1,17 @@
-// Operator dashboard (Step 13) — live feed, today stats, history table.
+// Operator dashboard (Step 13). Camera on the left with the scan steps and today's counts
+// under it; on the right the History table over the Live Feed (the backend's own log).
+// Stacks into one column on a narrow screen (index.css .dash).
 
 import { useCallback, useEffect, useState } from 'react'
-import { getHealth, setToken, getToken, type Health, type TapEvent } from '../api'
+import { getHealth, getLogs, setToken, getToken, type Health, type LogLine, type StreamEvent } from '../api'
 import { useTapStream } from '../useTapStream'
 import TodayPanel from '../components/TodayPanel'
 import LiveFeed from '../components/LiveFeed'
 import HistoryTable from '../components/HistoryTable'
 import CameraFeed from '../components/CameraFeed'
+import ScanSteps, { useScanSteps } from '../components/ScanSteps'
+
+const MAX_LOG_LINES = 500
 
 function AuthGate({ onAuth }: { onAuth: () => void }) {
   const [value, setValue] = useState('')
@@ -64,26 +69,37 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
 export default function Dashboard() {
   const [authed, setAuthed] = useState(() => !!getToken())
   const [health, setHealth] = useState<Health | null>(null)
-  const [taps, setTaps] = useState<TapEvent[]>([])
+  const [lines, setLines] = useState<LogLine[]>([])
   const [todayKey, setTodayKey] = useState(0)
+  const { scan, fading, onStage } = useScanSteps()
 
-  const handleTap = useCallback((e: TapEvent) => {
-    setTaps((prev) => [e, ...prev].slice(0, 50))
-    setTodayKey((k) => k + 1)
-  }, [])
+  const handleTap = useCallback(() => setTodayKey((k) => k + 1), [])
 
-  const { connected } = useTapStream(authed ? handleTap : undefined)
+  const handleEvent = useCallback((e: StreamEvent) => {
+    if (e.type === 'log') {
+      setLines((prev) => (prev.length && prev[prev.length - 1].seq >= e.seq ? prev : [...prev, e].slice(-MAX_LOG_LINES)))
+    } else if (e.type === 'stage') {
+      onStage(e)
+    }
+  }, [onStage])
+
+  const { connected } = useTapStream(authed ? handleTap : undefined, authed ? handleEvent : undefined)
 
   useEffect(() => {
     if (!authed) return
     getHealth().then(setHealth).catch(() => {})
+    getLogs(200).then((d) => setLines((prev) => {
+      // Lines that arrived on the socket before the backlog came back are kept after it.
+      const last = d.lines.length ? d.lines[d.lines.length - 1].seq : 0
+      return [...d.lines, ...prev.filter((l) => l.seq > last)].slice(-MAX_LOG_LINES)
+    })).catch(() => {})
   }, [authed])
 
   const logout = () => {
     setToken('')
     window.dispatchEvent(new CustomEvent('auth-changed'))
     setAuthed(false)
-    setTaps([])
+    setLines([])
     setHealth(null)
   }
 
@@ -91,7 +107,7 @@ export default function Dashboard() {
 
   return (
     <div className="wrap">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <h1 style={{ margin: 0, fontSize: 20 }}>nfc-scan</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {health && (
@@ -119,14 +135,17 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="dash-grid">
-        <TodayPanel refreshKey={todayKey} />
-        <LiveFeed taps={taps} connected={connected} />
+      <div className="dash">
+        <div className="dash-col">
+          <CameraFeed />
+          <ScanSteps scan={scan} fading={fading} />
+          <TodayPanel refreshKey={todayKey} />
+        </div>
+        <div className="dash-col dash-right">
+          <HistoryTable refreshKey={todayKey} />
+          <LiveFeed lines={lines} connected={connected} />
+        </div>
       </div>
-
-      <CameraFeed />
-
-      <HistoryTable refreshKey={todayKey} />
     </div>
   )
 }

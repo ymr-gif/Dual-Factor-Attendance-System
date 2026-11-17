@@ -32,11 +32,9 @@ export default function TodayPanel({ refreshKey }: { refreshKey?: number }) {
   if (!data) return <div style={{ opacity: 0.4 }}>Loading stats...</div>
 
   return (
-    <div>
-      <h2 style={{ margin: '0 0 8px', fontSize: 14, opacity: 0.6 }}>Today</h2>
-      <div style={{ fontSize: 36, fontWeight: 700, margin: '0 0 12px' }}>
-        {data.total}
-      </div>
+    <div className="panel" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <h2 className="panel-title" style={{ margin: 0 }}>Today</h2>
+      <div style={{ fontSize: 26, fontWeight: 700 }}>{data.total}</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {Object.entries(data.by_status).map(([status, count]) => (
           <span

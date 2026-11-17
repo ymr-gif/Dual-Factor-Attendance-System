@@ -8,14 +8,13 @@ export default function CameraFeed() {
   const src = useStreamUrl()
 
   return (
-    <div>
-      <h2 style={{ margin: '0 0 8px', fontSize: 14, opacity: 0.6 }}>Camera</h2>
+    <div className="panel" style={{ padding: 8 }}>
       {failed ? (
         <div
           style={{
             background: '#1c1f27',
             borderRadius: 4,
-            height: 180,
+            height: '40vh',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -28,7 +27,7 @@ export default function CameraFeed() {
       ) : src && (
         <img
           src={src}
-          style={{ width: '100%', borderRadius: 4, display: 'block' }}
+          className="cam-img"
           onError={() => setFailed(true)}
           onLoad={() => setFailed(false)}
           alt="live camera feed"

@@ -425,8 +425,20 @@ values redacted. `livelog.stage()` publishes each step of a scan (`card`, `stude
 `window`, `face`, `liveness`, `verdict`, `notify`) as `{"type": "stage"}` for the
 dashboard animation. New detail lines: perception recognition time and liveness per
 track, the matcher's window-close summary per tap, and the nearest remembered face for
-a face with no tap (to tune `DWELL_THRESHOLD`). Frontend not built yet.
+a face with no tap (to tune `DWELL_THRESHOLD`).
 `pytest tests`: 469 passed, 11 skipped (new `tests/test_livelog.py`).
+
+**Dashboard overhaul (18 Nov, Cabucos).** Camera on the left, sized to the screen
+height, with the scan steps and today's counts under it; on the right the History table
+(the day's taps, refreshed on every tap, scrolling inside its box) over the Live Feed,
+which is now the backend's own log (`components/LiveFeed.tsx`: 5 lines, Expand for 22,
+follows the newest line unless scrolled up, coloured by source). Scan steps
+(`components/ScanSteps.tsx`): the step in progress glows, dots travel toward the next,
+the result holds 6 s and fades; only a card scan starts it. `useTapStream` passes only
+tap events to `onTap`, log and step events to a second callback, so Kiosk, Register and
+Roster are unchanged. All pages: fluid width (`.page` up to 1400 px, `.wrap` 1800 px),
+padding that scales, a nav bar that scrolls on a narrow screen, cameras on Register and
+Lookup capped at 60 % of the screen height. Below 1000 px the dashboard is one column.
 
 ## Design-only stubs (not built)
 

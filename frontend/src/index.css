@@ -7,28 +7,65 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 a { color: #6ea8fe; }
-.wrap { max-width: 960px; margin: 0 auto; padding: 24px; }
+/* Pages take the screen's width up to a cap, so they grow with the monitor. */
+.wrap { max-width: min(1800px, 100%); margin: 0 auto; padding: clamp(10px, 1.6vw, 24px); }
 .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
 code { background: #1c1f27; padding: 1px 5px; border-radius: 4px; }
 
-.dash-grid {
+/* Dashboard: camera left; history over the live log on the right. Below 1000 px wide
+   the two stack. The right column is as tall as the screen so neither box pushes the
+   page down; each scrolls inside itself. */
+.dash {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 24px;
-  margin-bottom: 24px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+  gap: clamp(10px, 1.2vw, 20px);
+  align-items: start;
+}
+.dash-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.dash-right { height: calc(100vh - 44px - 90px); min-height: 420px; position: sticky; top: 8px; }
+.dash-history { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.cam-img {
+  width: 100%; max-height: calc(100vh - 44px - 220px); min-height: 160px;
+  object-fit: contain; background: #000; border-radius: 6px; display: block;
+}
+.panel { background: #1c1f27; border-radius: 6px; padding: 10px 12px; min-width: 0; }
+.panel-title { margin: 0 0 8px; font-size: 13px; opacity: 0.6; font-weight: 600; }
+.scroll { overflow: auto; min-height: 0; }
+.scroll thead th { position: sticky; top: 0; background: #1c1f27; }
+
+/* Live log */
+.log { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 18px; }
+.log-line { white-space: pre-wrap; word-break: break-word; }
+.log-ts { opacity: 0.45; margin-right: 8px; }
+
+/* Scan steps: glowing current step, travelling dots between steps */
+.steps { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-height: 26px; font-size: 13px; }
+.step { opacity: 0.85; }
+.step.active { color: #9cc4ff; text-shadow: 0 0 6px rgba(110, 168, 254, 0.9); animation: glow 1.2s ease-in-out infinite; }
+.step.pending { opacity: 0.35; }
+.step-dots { display: inline-flex; gap: 3px; }
+.step-dots i { width: 4px; height: 4px; border-radius: 50%; background: #6ea8fe; opacity: 0.15; animation: dot 1.2s infinite; }
+.step-dots i:nth-child(2) { animation-delay: 0.2s; }
+.step-dots i:nth-child(3) { animation-delay: 0.4s; }
+.step-dots.still i { animation: none; opacity: 0.5; background: #888; }
+.steps.fading { opacity: 0.35; transition: opacity 1.5s; }
+@keyframes glow { 50% { text-shadow: 0 0 12px rgba(110, 168, 254, 1); } }
+@keyframes dot { 30% { opacity: 1; } 60%, 100% { opacity: 0.15; } }
+@media (prefers-reduced-motion: reduce) {
+  .step.active, .step-dots i { animation: none; }
 }
 
-@media (max-width: 768px) {
-  .wrap { padding: 16px; }
-  .dash-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
+@media (max-width: 1000px) {
+  .dash { grid-template-columns: 1fr; }
+  .dash-right { height: auto; min-height: 0; position: static; }
+  .dash-history .scroll { max-height: 50vh; }
+  .cam-img { max-height: 60vh; }
 }
 
 .nav {
   display: flex; gap: 4px; align-items: center;
-  background: #1c1f27; padding: 0 24px; height: 44px;
+  background: #1c1f27; padding: 0 clamp(8px, 1.6vw, 24px); height: 44px;
+  overflow-x: auto; white-space: nowrap;
 }
 .nav a {
   color: #888; text-decoration: none; font-size: 13px;
@@ -38,7 +75,9 @@ code { background: #1c1f27; padding: 1px 5px; border-radius: 4px; }
 .nav a.active { color: #6ea8fe; background: rgba(110, 168, 254, 0.1); }
 .nav .spacer { flex: 1; }
 
-.page { max-width: 960px; margin: 0 auto; padding: 24px; }
+.page { max-width: min(1400px, 100%); margin: 0 auto; padding: clamp(10px, 1.6vw, 24px); }
+/* Camera and video on any page: full width of their box, never taller than the screen. */
+.media { width: 100%; max-height: 60vh; object-fit: contain; border-radius: 4px; display: block; background: #000; }
 .card {
   background: #1c1f27; border-radius: 6px; padding: 16px; margin-bottom: 16px;
 }

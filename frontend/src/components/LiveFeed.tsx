@@ -1,114 +1,75 @@
-// Live feed (Step 13) — newest taps stream in with status pills and highlights.
+// Live feed: the backend's own log, line by line as it prints (backend/livelog.py).
+// Shows the last few lines; Expand shows more. Follows the newest line unless the
+// operator has scrolled up to read. (Until 18 Nov this box listed taps; that list is
+// now the History table.)
 
-import { type TapEvent } from '../api'
+import { useEffect, useRef, useState } from 'react'
+import { type LogLine } from '../api'
 
-const HIGHLIGHT: Record<string, { border: string; bg: string }> = {
-  rejected: { border: '#e53e3e', bg: 'rgba(229,62,62,0.08)' },
-  spoof: { border: '#e53e3e', bg: 'rgba(229,62,62,0.08)' },
-  mismatch: { border: '#e53e3e', bg: 'rgba(229,62,62,0.08)' },
-  flagged: { border: '#d69e2e', bg: 'rgba(214,158,46,0.08)' },
-  no_face: { border: '#d69e2e', bg: 'rgba(214,158,46,0.08)' },
-  tailgating: { border: '#d69e2e', bg: 'rgba(214,158,46,0.08)' },
-  revoked: { border: '#e53e3e', bg: 'rgba(229,62,62,0.08)' },
+const SHORT = 5 // lines visible when collapsed
+const LONG = 22 // lines visible when expanded
+const LINE_PX = 18 // .log line-height
+
+function tone(l: LogLine): string | undefined {
+  const t = l.text
+  if (l.source === 'err' || /\[ALERT\]|Traceback|Error|error|failed/.test(t)) return '#f08a8a'
+  if (t.startsWith('[scan]')) return '#9cc4ff'
+  if (t.startsWith('[matcher]')) return '#c9a3ff'
+  if (t.startsWith('[perception]')) return '#8fb8b0'
+  if (t.startsWith('[NOTIFY]') || t.startsWith('[notify]')) return '#8fd19e'
+  return undefined
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  accepted: '#1f5c2a',
-  flagged: '#5c4a1f',
-  rejected: '#5c1f22',
-  spoof: '#5c1f22',
-  mismatch: '#5c1f22',
-  no_face: '#5c4a1f',
-  tailgating: '#5c1f22',
-  revoked: '#5c1f22',
-  unverified: '#333',
-  unregistered: '#333',
+function clock(ts: string): string {
+  const d = new Date(ts)
+  const ms = String(d.getMilliseconds()).padStart(3, '0')
+  return `${d.toLocaleTimeString([], { hour12: false })}.${ms}`
 }
 
-function timeAgo(ts: string): string {
-  const diff = Date.now() - new Date(ts).getTime()
-  if (diff < 60_000) return 'just now'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`
-  return new Date(ts).toLocaleDateString()
-}
+export default function LiveFeed({ lines, connected }: { lines: LogLine[]; connected: boolean }) {
+  const [expanded, setExpanded] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  const follow = useRef(true)
 
-export default function LiveFeed({
-  taps,
-  connected,
-}: {
-  taps: TapEvent[]
-  connected: boolean
-}) {
+  useEffect(() => {
+    const el = box.current
+    if (el && follow.current) el.scrollTop = el.scrollHeight
+  }, [lines, expanded])
+
+  const onScroll = () => {
+    const el = box.current
+    if (el) follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+  }
+
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <h2 style={{ margin: 0, fontSize: 14, opacity: 0.6 }}>Live Feed</h2>
-        <span
-          className="pill"
-          style={{
-            background: connected ? '#1f5c2a' : '#5c4a1f',
-            fontSize: 10,
-          }}
-        >
+    <div className="panel">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <h2 className="panel-title" style={{ margin: 0 }}>Live Feed</h2>
+        <span className="pill" style={{ background: connected ? '#1f5c2a' : '#5c4a1f', fontSize: 10 }}>
           {connected ? 'connected' : 'reconnecting...'}
         </span>
+        <span style={{ flex: 1 }} />
+        <button className="btn btn-sm btn-ghost" onClick={() => setExpanded(!expanded)}>
+          {expanded ? 'Collapse' : 'Expand'}
+        </button>
       </div>
-      <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-        {taps.length === 0 ? null : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {taps.map((t) => {
-              const status = t.log.status ?? 'unknown'
-              const hl = HIGHLIGHT[status]
-              return (
-                <div
-                  key={t.log.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 8px',
-                    borderRadius: 4,
-                    borderLeft: hl ? `3px solid ${hl.border}` : '3px solid transparent',
-                    background: hl?.bg || 'transparent',
-                  }}
-                >
-                  <span
-                    className="pill"
-                    style={{ background: STATUS_COLORS[status] || '#333', minWidth: 80, textAlign: 'center' }}
-                  >
-                    {status}
-                  </span>
-                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {status === 'revoked'
-                      ? `Lost card of ${t.student?.name ?? t.log.student_id ?? 'a student'}: hold the card, check the person`
-                      : t.student?.name ?? t.log.uid}
-                  </span>
-                  {t.log.method && (
-                    <span className="pill" style={{ background: '#2a2d37', fontSize: 11, opacity: 0.85 }}>
-                      {t.log.method}
-                    </span>
-                  )}
-                  {t.log.face_score != null && (
-                    <span style={{ fontSize: 12, opacity: 0.7 }}>
-                      face {t.log.face_score.toFixed(2)} {t.log.face_match ? '\u2713' : '\u2717'}
-                    </span>
-                  )}
-                  {t.log.liveness_score != null && (
-                    <span style={{ fontSize: 12, opacity: 0.7 }}>
-                      live {t.log.liveness_score.toFixed(2)} {t.log.liveness_pass ? '\u2713' : '\u2717'}
-                    </span>
-                  )}
-                  <span style={{ fontSize: 12, opacity: 0.5, whiteSpace: 'nowrap' }}>
-                    {timeAgo(t.log.ts)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+      <div
+        ref={box}
+        onScroll={onScroll}
+        className="log scroll"
+        style={{ height: (expanded ? LONG : SHORT) * LINE_PX + 4 }}
+      >
+        {lines.length === 0 ? (
+          <div style={{ opacity: 0.4 }}>Waiting for the backend...</div>
+        ) : (
+          lines.map((l) => (
+            <div key={l.seq} className="log-line" style={{ color: tone(l) }}>
+              <span className="log-ts">{clock(l.ts)}</span>
+              {l.text}
+            </div>
+          ))
         )}
       </div>
-      {taps.length === 0 && <p style={{ opacity: 0.4, margin: 0 }}>Waiting for taps...</p>}
     </div>
   )
 }

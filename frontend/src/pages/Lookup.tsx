@@ -70,7 +70,7 @@ export default function Lookup() {
         {camActive && (
           <div style={{ marginBottom: 12 }}>
             <video ref={vr} autoPlay playsInline muted
-              style={{ width: '100%', maxHeight: 320, borderRadius: 4, display: 'block', background: '#000' }} />
+              className="media" />
             <canvas ref={cr} style={{ display: 'none' }} />
             <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={captureFromCam}>Capture</button>
           </div>
@@ -78,7 +78,7 @@ export default function Lookup() {
 
         {preview && (
           <div style={{ marginBottom: 12 }}>
-            <img src={preview} style={{ maxWidth: 320, maxHeight: 240, borderRadius: 4, display: 'block' }} alt="Upload preview" />
+            <img src={preview} style={{ maxWidth: 'min(100%, 480px)', maxHeight: '40vh', borderRadius: 4, display: 'block' }} alt="Upload preview" />
           </div>
         )}
 

@@ -128,6 +128,11 @@ export interface TapEvent {
   reason?: string | null
 }
 
+// Live backend log line and scan step, from /ws/taps and /api/logs (backend/livelog.py).
+export interface LogLine { seq: number; ts: string; source: string; text: string }
+export interface StageEvent { type: 'stage'; uid: string; stage: string; text: string; done: boolean; ts: string }
+export type StreamEvent = ({ type: 'log' } & LogLine) | StageEvent
+
 export interface Health {
   status: string
   db: boolean
@@ -254,6 +259,8 @@ export const getHealth = () => req<Health>('/health')
 export const getConfig = () => req<Config>('/api/config')
 export const getStudents = () => req<{ students: Student[] }>('/api/students')
 export const getStatsToday = () => req<StatsToday>('/api/stats/today')
+
+export const getLogs = (limit = 200) => req<{ lines: LogLine[] }>(`/api/logs?limit=${limit}`)
 export const getAttendance = (params: Record<string, string | number> = {}) => {
   const q = new URLSearchParams(
     Object.entries(params).map(([k, v]) => [k, String(v)]),

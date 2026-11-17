@@ -1,4 +1,6 @@
-// History table (Step 13) — filterable, paginated attendance log.
+// History (Step 13): the day's taps as a table, refreshed on every new tap, filterable,
+// scrolling inside its own box when it fills. (Replaced the tap cards of the old Live
+// Feed on 18 Nov.)
 
 import { useEffect, useState } from 'react'
 import { getAttendance, localToday, type TapLog } from '../api'
@@ -25,7 +27,7 @@ export default function HistoryTable({ refreshKey }: { refreshKey?: number }) {
   const [logs, setLogs] = useState<TapLog[]>([])
   const [date, setDate] = useState(localToday)
   const [status, setStatus] = useState('')
-  const [limit, setLimit] = useState(25)
+  const [limit, setLimit] = useState(100)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -44,13 +46,13 @@ export default function HistoryTable({ refreshKey }: { refreshKey?: number }) {
   useEffect(() => { fetchLogs() }, [date, status, limit, refreshKey])
 
   return (
-    <div>
-      <h2 style={{ margin: '0 0 8px', fontSize: 14, opacity: 0.6 }}>History</h2>
+    <div className="panel dash-history">
+      <h2 className="panel-title">History</h2>
       <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
         <input
           type="date"
           value={date}
-          onChange={(e) => { setDate(e.target.value); setLimit(25) }}
+          onChange={(e) => { setDate(e.target.value); setLimit(100) }}
           style={{
             background: '#1c1f27',
             color: '#e6e8ee',
@@ -62,7 +64,7 @@ export default function HistoryTable({ refreshKey }: { refreshKey?: number }) {
         />
         <select
           value={status}
-          onChange={(e) => { setStatus(e.target.value); setLimit(25) }}
+          onChange={(e) => { setStatus(e.target.value); setLimit(100) }}
           style={{
             background: '#1c1f27',
             color: '#e6e8ee',
@@ -89,7 +91,7 @@ export default function HistoryTable({ refreshKey }: { refreshKey?: number }) {
         <p style={{ opacity: 0.4 }}>No records for this date/filters.</p>
       ) : (
         <>
-          <div style={{ overflowX: 'auto' }}>
+          <div className="scroll" style={{ flex: '1 1 auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #333', textAlign: 'left' }}>
@@ -111,7 +113,9 @@ export default function HistoryTable({ refreshKey }: { refreshKey?: number }) {
                       {new Date(log.ts).toLocaleTimeString()}
                     </td>
                     <td style={{ padding: '6px 8px' }}>
-                      {log.student_name || log.student_id || log.uid}
+                      {log.status === 'revoked'
+                        ? `Lost card of ${log.student_name || log.student_id}`
+                        : log.student_name || log.student_id || log.uid}
                     </td>
                     <td style={{ padding: '6px 8px' }}>
                       <span
@@ -141,7 +145,7 @@ export default function HistoryTable({ refreshKey }: { refreshKey?: number }) {
           </div>
           {logs.length >= limit && (
             <button
-              onClick={() => setLimit(limit + 25)}
+              onClick={() => setLimit(limit + 100)}
               style={{
                 marginTop: 8,
                 background: '#1c1f27',

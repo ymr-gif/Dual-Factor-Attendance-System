@@ -1,13 +1,17 @@
 // Live tap stream hook (Step 12). Connects to WS /ws/taps (through the Vite dev
-// proxy in dev, same-origin in prod), auto-reconnects, and calls onTap per event.
+// proxy in dev, same-origin in prod), auto-reconnects, and calls onTap per tap event.
+// The same socket carries the backend's live log lines and scan steps; those go to
+// onEvent, never to onTap.
 
 import { useEffect, useRef, useState } from 'react'
-import { getToken, type TapEvent } from './api'
+import { getToken, type StreamEvent, type TapEvent } from './api'
 
-export function useTapStream(onTap?: (e: TapEvent) => void) {
+export function useTapStream(onTap?: (e: TapEvent) => void, onEvent?: (e: StreamEvent) => void) {
   const [connected, setConnected] = useState(false)
   const onTapRef = useRef(onTap)
   onTapRef.current = onTap
+  const onEventRef = useRef(onEvent)
+  onEventRef.current = onEvent
 
   useEffect(() => {
     const token = getToken()
@@ -28,7 +32,9 @@ export function useTapStream(onTap?: (e: TapEvent) => void) {
       }
       ws.onmessage = (ev) => {
         try {
-          onTapRef.current?.(JSON.parse(ev.data) as TapEvent)
+          const data = JSON.parse(ev.data)
+          if (!data.type || data.type === 'tap') onTapRef.current?.(data as TapEvent)
+          else onEventRef.current?.(data as StreamEvent)
         } catch {
           /* ignore malformed frame */
         }

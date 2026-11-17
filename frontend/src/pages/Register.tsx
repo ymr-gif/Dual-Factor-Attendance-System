@@ -167,13 +167,13 @@ export default function Register() {
         <div className="card" style={{ marginBottom: 16 }}>
           {camNote && <p style={{ fontSize: 12, color: '#d69e2e', margin: '0 0 8px' }}>Warning: {camNote}</p>}
 
-          <div style={{ maxWidth: 420 }}>
+          <div style={{ maxWidth: 'min(100%, 900px)' }}>
             {camSource === 'stream'
               ? <img ref={ir} src={streamSrc ?? undefined} alt="camera"
                   onError={() => setCamNote('Server camera stream offline — no frames available.')}
-                  style={{ width: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 4, display: 'block', background: '#000' }} />
+                  className="media" />
               : <video ref={vr} autoPlay playsInline muted
-                  style={{ width: '100%', maxHeight: 320, borderRadius: 4, display: 'block', background: '#000' }} />}
+                  className="media" />}
           </div>
           <canvas ref={cr} style={{ display: 'none' }} />
 
