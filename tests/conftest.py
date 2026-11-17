@@ -452,6 +452,19 @@ def fake_matcher():
     return FakeMatcher()
 
 
+@pytest.fixture(autouse=True)
+def settings_store(monkeypatch):
+    """The runtime settings table, in memory. decision.enforcing() reads it on every
+    decide(), so without this a test would open a connection to the real database."""
+    from backend import db
+
+    store = {}
+    monkeypatch.setattr(db, "get_setting", lambda key, default=None: store.get(key, default))
+    monkeypatch.setattr(db, "set_setting", lambda key, value: store.__setitem__(key, value))
+    monkeypatch.setattr(db, "get_all_settings", lambda: dict(sorted(store.items())))
+    return store
+
+
 @pytest.fixture
 def sinks():
     return Sinks()

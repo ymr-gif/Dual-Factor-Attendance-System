@@ -568,6 +568,12 @@ def api_config():
     }
 
 
+def _actor(x_operator_actor: str | None = Header(default=None)) -> str:
+    # Best-effort operator identity for the audit log (shared-token auth has no real
+    # user; an optional X-Operator-Actor header names the person for accountability).
+    return (x_operator_actor or "operator").strip()
+
+
 @app.get("/api/settings", dependencies=[Depends(require_operator)])
 def api_get_settings():
     from . import settings as s
@@ -575,23 +581,20 @@ def api_get_settings():
 
 
 @app.put("/api/settings", dependencies=[Depends(require_operator)])
-def api_set_settings(body: SettingsUpdate):
+def api_set_settings(body: SettingsUpdate, actor: str = Depends(_actor)):
     from . import settings as s
     try:
         s.set(body.key, body.value)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    # A switch such as enforce_2fa changes what counts as present, so who changed it and
+    # when is kept.
+    db.insert_audit(actor, "setting", body.key, detail=body.value)
     return {"key": body.key, "value": body.value}
 
 
 class ConsentRequest(BaseModel):
     granted: bool
-
-
-def _actor(x_operator_actor: str | None = Header(default=None)) -> str:
-    # Best-effort operator identity for the audit log (shared-token auth has no real
-    # user; an optional X-Operator-Actor header names the person for accountability).
-    return (x_operator_actor or "operator").strip()
 
 
 @app.get("/api/audit", dependencies=[Depends(require_operator)])

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getSettings, setSetting } from '../api'
+import { getConfig, getSettings, setSetting } from '../api'
 import CamerasPanel from '../components/CamerasPanel'
 import SerialPortsPanel from '../components/SerialPortsPanel'
 
@@ -10,6 +10,9 @@ export default function Settings() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
+  // The two-factor switch as the tap path sees it (saved value, else ENFORCE_2FA).
+  const [enforce, setEnforce] = useState<boolean | null>(null)
+  const [perceptionOn, setPerceptionOn] = useState(false)
 
   const fetch = () => {
     setLoading(true); setErr(null)
@@ -17,6 +20,20 @@ export default function Settings() {
       setSettings(d.settings); setTunable(d.tunable_keys)
       setEditing(p => { const n = { ...d.settings }; return Object.keys(n).length ? n : p })
     }).catch(e => setErr(String(e))).finally(() => setLoading(false))
+    getConfig().then(c => { setEnforce(c.decision.enforce_2fa); setPerceptionOn(c.perception.enabled) })
+      .catch(e => setErr(String(e)))
+  }
+
+  const toggleEnforce = async () => {
+    if (enforce === null) return
+    setSaving('enforce_2fa')
+    try {
+      await setSetting('enforce_2fa', enforce ? 'false' : 'true')
+      const c = await getConfig()
+      setEnforce(c.decision.enforce_2fa)
+      fetch()
+    } catch (e) { setErr(String(e)) }
+    setSaving(null)
   }
 
   useEffect(() => { fetch() }, [])
@@ -39,6 +56,20 @@ export default function Settings() {
         <button className="btn btn-sm btn-ghost" onClick={fetch}>Refresh</button>
       </div>
       {err && <p style={{ color: '#e53e3e', marginBottom: 8 }}>{err}</p>}
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+          <input type="checkbox" checked={enforce === true} disabled={enforce === null || saving === 'enforce_2fa'}
+            onChange={toggleEnforce} />
+          <strong style={{ fontSize: 14 }}>Two-factor enforcement</strong>
+          <span style={{ fontSize: 12, opacity: 0.6 }}>{enforce === null ? '' : enforce ? 'ON' : 'OFF'}</span>
+        </label>
+        <p style={{ fontSize: 12, opacity: 0.6, margin: '8px 0 0' }}>
+          OFF: a tap whose face or liveness check fails is logged <code>flagged</code> and still counts.
+          ON: it is logged <code>rejected</code> and does not count. Takes effect on the next tap; every change is in the audit log.
+          {perceptionOn && ' The camera pipeline is on: a wrong face or a spoof never counts either way, so this switch only matters with the pipeline off.'}
+        </p>
+      </div>
 
       {tunable.length === 0 ? (
         <p style={{ opacity: 0.4 }}>No tunable settings.</p>

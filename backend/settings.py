@@ -52,9 +52,15 @@ def get(key: str, default: str | None = None, cast: type = str) -> Any:
     return None
 
 
+# Switches: saved only as "true" or "false", so a typo cannot turn one off silently.
+BOOL_KEYS = {"enforce_2fa", "use_gpu", "face_consent_required"}
+
+
 def set(key: str, value: str) -> None:
     if key not in TUNABLE_KEYS:
         raise ValueError(f"'{key}' is not a tunable setting")
+    if key in BOOL_KEYS and value not in ("true", "false"):
+        raise ValueError(f"'{key}' must be true or false")
     db.set_setting(key, value)
 
 

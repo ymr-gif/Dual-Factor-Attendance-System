@@ -209,6 +209,11 @@ An SMTP error is printed and ignored. It never fails a tap.
 ENFORCE_2FA=false    # default: a failed factor is stored as "flagged". true: stored as "rejected".
 ```
 
+The Settings page has a switch for it. A value saved there is kept in the `settings` table,
+wins over `ENFORCE_2FA`, takes effect on the next tap without a restart, and each change is
+written to the audit log (`setting`, `enforce_2fa`, the new value). With nothing saved, or
+when the table cannot be read, `ENFORCE_2FA` decides.
+
 Enforcement acts only on an explicit failure. A factor that could not run (no camera, no
 enrolled face, model error) never causes a rejection.
 
@@ -219,8 +224,9 @@ calls `decision.decide()`). With perception on, the matcher writes `accepted`, `
 
 **What counts as present, and the review queue**
 
-`accepted`, `flagged` and `unverified` count toward attendance. `rejected`, `no_face`,
-`mismatch`, `spoof` and `tailgating` do not. The summary, the late flag and the
+`accepted` and `flagged` count toward attendance. `rejected`, `unverified`, `no_face`,
+`mismatch`, `spoof` and `tailgating` do not: the card alone is one factor and the study
+requires both (PC-027). The summary, the late flag and the
 `attendance_sessions` view all apply the same rule (`decision.counts_as_present()`).
 
 Every tap that failed a check is added to the review queue (Review page, `GET /api/review`)

@@ -15,7 +15,11 @@ logbook. Enforcement rejects only on an *explicit* False.
 
 import os
 
-ENFORCE_2FA = os.environ.get("ENFORCE_2FA", "false").lower() in ("1", "true", "yes", "on")
+_TRUE = ("1", "true", "yes", "on")
+
+# Default for the switch. The Settings page saves `enforce_2fa` to the settings table,
+# and a saved value wins over this one (see enforcing()).
+ENFORCE_2FA = os.environ.get("ENFORCE_2FA", "false").lower() in _TRUE
 
 # status values written to attendance_logs.status
 UNREGISTERED = "unregistered"  # no student row for this uid
@@ -41,7 +45,18 @@ _NEEDS_REVIEW = {FLAGGED, REJECTED, NO_FACE, MISMATCH, SPOOF, TAILGATING, UNVERI
 
 
 def enforcing() -> bool:
-    return ENFORCE_2FA
+    """The switch as saved on the Settings page; ENFORCE_2FA when nothing is saved or the
+    settings table cannot be read (a tap must never fail on this lookup)."""
+    try:
+        from . import db  # db imports this module, so not at the top
+
+        saved = db.get_setting("enforce_2fa")
+    except Exception as e:
+        print(f"enforce_2fa setting unreadable, using ENFORCE_2FA: {e}")
+        saved = None
+    if saved is None:
+        return ENFORCE_2FA
+    return saved.strip().lower() in _TRUE
 
 
 def decide(student, face_match, liveness_pass, enforce=None) -> str:
@@ -53,7 +68,7 @@ def decide(student, face_match, liveness_pass, enforce=None) -> str:
     enforce:       override ENFORCE_2FA (mainly for tests)
     """
     if enforce is None:
-        enforce = ENFORCE_2FA
+        enforce = enforcing()
     if student is None:
         return UNREGISTERED
     failed = face_match is False or liveness_pass is False

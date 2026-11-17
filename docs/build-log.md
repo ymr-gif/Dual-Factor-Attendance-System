@@ -329,6 +329,16 @@ stays, as before. A size the camera does not give is printed with the one it giv
 on the A4tech or the MacBook Air yet; the size to use is for the dry run to settle (PC-045).
 `pytest tests`: 409 passed, 10 skipped (new `tests/test_camera_size.py`).
 
+**Two-factor switch on the Settings page.** `decision.enforcing()` now reads `enforce_2fa`
+from the `settings` table on every decision, so the key the Settings page could already save
+takes effect; before this, only `ENFORCE_2FA` was read and a saved value did nothing. Nothing
+saved, or the table unreadable, falls back to `ENFORCE_2FA` (default false). The page has an
+ON/OFF switch at the top and notes that with the camera pipeline on, a wrong face or a spoof
+never counts either way. Switch keys (`enforce_2fa`, `use_gpu`, `face_consent_required`)
+take only `true` or `false`. Every settings change is now written to the audit log. The
+tests get an in-memory settings table (autouse), so no test reads the real one.
+`pytest tests`: 414 passed, 10 skipped (new `tests/test_enforce_switch.py`).
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.
