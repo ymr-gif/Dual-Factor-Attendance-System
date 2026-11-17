@@ -13,6 +13,7 @@ and erasure. It is a feature, not an afterthought.
 | Consent | `students.face_consent`, `students.face_consent_at` | Explicit biometric consent flag + timestamp. |
 | Attendance logs | `attendance_logs` | uid, student, timestamp, method, per-tap status, and the raw face/liveness scores. |
 | Operator actions | `audit_log` | actor, action (enroll/consent/erase), target, timestamp. |
+| Recently seen faces | backend memory only (`matcher._dwells`) | Embeddings of faces at the reader, unnamed, so one person is not flagged twice (PC-046). Dropped `DWELL_GAP_SEC` (60 s) after last seen and at most 512; never written to disk. |
 
 A face embedding is **not invertible to a photograph**, but it is still biometric
 **PII** and is treated as such. Embeddings are never sent to browser clients (the
@@ -45,6 +46,8 @@ Purge **never touches the roster**.
 
 `DELETE /api/students/{id}` drops the student's embedding (roster row) **and** their
 attendance logs, and records an `erase` entry in the audit log. This is irreversible.
+The matcher's memory of recently seen faces is not touched: it holds no name or ID and
+is gone within `DWELL_GAP_SEC` of the person leaving.
 
 ## Audit log
 

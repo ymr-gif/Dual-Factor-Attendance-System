@@ -368,6 +368,18 @@ threshold still needs calibrating on the study camera (PC-025). The serial reade
 `TAP_URL` default is now port 8001, the backend's port (findings 2).
 `pytest tests`: 420 passed, 10 skipped (new `tests/test_liveness.py`).
 
+**PC-046: one person, one tailgating row, even when frames stall (findings 5).** On the
+4 GB Mac, frames arrived 9-48 s apart, the IoU tracker gave the same person a new track
+ID after each stall, and the per-track memory saw a new person every time: 98 rows in a
+minute. The matcher now also remembers each settled presence by its embedding
+(`_dwells`: embedding and last seen, refreshed by every later face of that person). A
+face with no tap that matches one (cosine >= the match threshold) seen within
+`DWELL_GAP_SEC` (60 s) is the same dwell: no row, and its new track is settled too. A
+different face is still flagged; tap claims are unchanged. Bounded by
+`MAX_TAILGATED_TRACKS`, memory only (see `docs/privacy.md`). The tailgating tests now give
+each track its own face, since before every test person had the same embedding.
+`pytest tests`: 427 passed, 10 skipped.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

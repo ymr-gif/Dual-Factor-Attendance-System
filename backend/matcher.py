@@ -54,12 +54,26 @@ TAILGATE_NAME_THRESHOLD = _env_f("TAILGATE_NAME_THRESHOLD", face.FACE_THRESHOLD)
 RESOLVE_INTERVAL_SEC = _env_f("RESOLVE_INTERVAL_SEC", 0.5)
 MAX_FACE_BUFFER = int(os.environ.get("MAX_FACE_BUFFER", "256"))
 MAX_TAILGATED_TRACKS = int(os.environ.get("MAX_TAILGATED_TRACKS", "512"))
+# Seconds a settled face is remembered after it was last seen (PC-046). A face with no
+# tap that matches one of them is the same person still at the reader, even when the
+# tracker lost them and gave a new track id (frames stalling on a slow machine), so it
+# is not flagged again. 0 turns the memory off.
+DWELL_GAP_SEC = _env_f("DWELL_GAP_SEC", 60.0)
 
 # Review reason for a tap the camera gave no frame for: the student was let in on the
 # card alone and the face could not be checked (PC-033). Logged `unverified`, not counted.
 CAMERA_DOWN_REASON = "student scans and enters, camera down -- cannot verify face"
 
 _BIG = 10.0  # cost sentinel for time-invalid tap/face pairs
+
+
+def _cosine(a, b) -> float:
+    """Cosine similarity for the dwell memory; kept apart from face.cosine, which the
+    tap-to-face verdict uses."""
+    a = np.asarray(a, dtype=np.float32)
+    b = np.asarray(b, dtype=np.float32)
+    denom = float(np.linalg.norm(a) * np.linalg.norm(b))
+    return float(np.dot(a, b) / denom) if denom else 0.0
 
 
 class PendingTap:
@@ -102,6 +116,7 @@ class Matcher:
         max_face_buffer=MAX_FACE_BUFFER,
         max_tailgated_tracks=MAX_TAILGATED_TRACKS,
         camera_heartbeat=False,
+        dwell_gap=DWELL_GAP_SEC,
     ):
         import time as _time
 
@@ -126,6 +141,11 @@ class Matcher:
         # claimable by a later tap. Bounded/drop-oldest so a long-running kiosk
         # process never grows this unbounded.
         self._settled_tracks: OrderedDict = OrderedDict()
+        # The same presences remembered by face, not track id (PC-046): [embedding,
+        # last_seen] per person, most recently seen last, bounded like the tracks and
+        # dropped DWELL_GAP_SEC after last seen. Held in memory only.
+        self.dwell_gap = dwell_gap
+        self._dwells: list = []
         self._taps: list[PendingTap] = []
         self._faces: list[PendingFace] = []
         self._last_tap: dict[str, float] = {}
@@ -205,7 +225,7 @@ class Matcher:
                 # only genuinely unassigned faces go on to be tailgating.
                 f = faces[j]
                 f.consumed = True
-                self._settle(f.track_id)
+                self._settle(f)
                 sim = face.cosine(t.embedding, f.embedding)
                 if sim < self.threshold:
                     outcomes.append(self._mismatch(t))
@@ -233,9 +253,18 @@ class Matcher:
                     # same continuous dwell, not a new tailgater. Still evicted
                     # normally (f.emitted above), just no repeat outcome.
                     self._settled_tracks.move_to_end(f.track_id)
+                    self._remember(f)
                     continue
-                self._settle(f.track_id)
+                if self._dwell_index(f) is not None:
+                    # A new track for a face already settled within DWELL_GAP_SEC: the
+                    # tracker lost the person, they did not leave (PC-046).
+                    self._settle(f)
+                    continue
+                self._settle(f)
                 outcomes.append(self._tailgating(f))
+
+        if self.dwell_gap > 0:
+            self._dwells = [d for d in self._dwells if now - d[1] <= self.dwell_gap]
 
         # Evict resolved / stale faces; keep live (within-window, unclaimed) ones.
         self._faces = [
@@ -248,9 +277,11 @@ class Matcher:
             self._emit(o)
         return outcomes
 
-    def _settle(self, track_id):
-        """Remember that this track's presence has had its verdict. A face event
-        without a track id identifies no presence, so it is never remembered."""
+    def _settle(self, f):
+        """Remember that this face's presence has had its verdict: by track id, and by
+        the face itself for DWELL_GAP_SEC (PC-046)."""
+        self._remember(f)
+        track_id = f.track_id
         if track_id is None:
             return
         self._settled_tracks[track_id] = None
@@ -258,6 +289,30 @@ class Matcher:
         # max(..., 0): a zero or negative setting remembers nothing; it must not raise.
         while len(self._settled_tracks) > max(self.max_tailgated_tracks, 0):
             self._settled_tracks.popitem(last=False)
+
+    def _dwell_index(self, f):
+        """Index of the remembered presence this face belongs to, or None."""
+        best_i, best = None, self.threshold
+        for i, (emb, seen) in enumerate(self._dwells):
+            if abs(f.ts - seen) > self.dwell_gap:
+                continue
+            sim = _cosine(emb, f.embedding)
+            if sim >= best:
+                best_i, best = i, sim
+        return best_i
+
+    def _remember(self, f):
+        """Record or refresh this face's presence in the dwell memory (PC-046)."""
+        if self.dwell_gap <= 0:
+            return
+        i = self._dwell_index(f)
+        if i is None:
+            self._dwells.append([f.embedding, f.ts])
+        else:
+            _, seen = self._dwells.pop(i)
+            self._dwells.append([f.embedding, max(seen, f.ts)])
+        while len(self._dwells) > max(self.max_tailgated_tracks, 0):
+            self._dwells.pop(0)
 
     def _assign(self, taps, faces):
         """Optimal (Hungarian) tap->face assignment. Only time-valid pairs (within

@@ -35,8 +35,22 @@ def build(**kwargs):
     return m, emitted
 
 
-def face_event(m, track_id, at):
-    m.on_face({"track_id": track_id, "embedding": [0.1, 0.2, 0.3], "is_live": True, "ts": at})
+_unnamed = iter(range(1000, 2000))
+
+
+def face_of(person):
+    """A distinct unit embedding per person, so two people never look alike."""
+    emb = [0.0] * 2048
+    emb[person] = 1.0
+    return emb
+
+
+def face_event(m, track_id, at, person=None):
+    """A face event. By default each track is its own person, and a face with no track
+    id is a new person; pass `person` to show the same face on another track."""
+    if person is None:
+        person = track_id if track_id is not None else next(_unnamed)
+    m.on_face({"track_id": track_id, "embedding": face_of(person), "is_live": True, "ts": at})
 
 
 def pin_pairing(monkeypatch, m, score=0.86):
@@ -173,3 +187,77 @@ def test_a_memory_of_no_tracks_flags_every_refresh_and_does_not_raise(cap):
 
     assert statuses(m.resolve(now=4.0)) == [decision.TAILGATING]
     assert statuses(m.resolve(now=6.0)) == [decision.TAILGATING]
+
+
+# --- PC-046: the tracker loses a person when frames stall ---
+
+
+def test_a_lost_track_that_comes_back_as_a_new_one_is_not_flagged_again():
+    # Frames stall for 30 s; the same face returns on a new track id.
+    m, _ = build()
+    face_event(m, track_id=1, at=0.0, person=7)
+    assert statuses(m.resolve(now=4.0)) == [decision.TAILGATING]
+    face_event(m, track_id=2, at=30.0, person=7)
+    face_event(m, track_id=3, at=60.0, person=7)
+
+    assert m.resolve(now=34.0) + m.resolve(now=64.0) == []
+
+
+def test_the_same_face_after_the_dwell_gap_is_a_new_presence():
+    m, _ = build(dwell_gap=60.0)
+    face_event(m, track_id=1, at=0.0, person=7)
+    m.resolve(now=4.0)
+    face_event(m, track_id=2, at=90.0, person=7)
+
+    assert statuses(m.resolve(now=94.0)) == [decision.TAILGATING]
+
+
+def test_two_different_faces_at_once_are_two_rows():
+    m, _ = build()
+    face_event(m, track_id=1, at=0.0, person=7)
+    face_event(m, track_id=2, at=0.0, person=8)
+
+    assert statuses(m.resolve(now=4.0)) == [decision.TAILGATING, decision.TAILGATING]
+
+
+def test_a_student_who_tapped_and_stays_is_not_flagged_when_the_track_is_lost(monkeypatch):
+    m, _ = build()
+    monkeypatch.setattr(m, "_assign", lambda taps, faces: {0: 0} if faces else {})
+    monkeypatch.setattr(matcher_mod.face, "cosine", lambda a, b: 0.86)
+    face_event(m, track_id=1, at=0.0, person=7)
+    m.add_tap("C3BE343A", "S001", face_of(7), student=STUDENT, ts=1.0)
+    assert statuses(m.resolve(now=5.0)) == [decision.ACCEPTED]
+
+    face_event(m, track_id=9, at=25.0, person=7)
+
+    assert m.resolve(now=29.0) == []
+
+
+def test_a_dwell_gap_of_zero_turns_the_face_memory_off():
+    m, _ = build(dwell_gap=0)
+    face_event(m, track_id=1, at=0.0, person=7)
+    m.resolve(now=4.0)
+    face_event(m, track_id=2, at=5.0, person=7)
+
+    assert statuses(m.resolve(now=9.0)) == [decision.TAILGATING]
+
+
+def test_the_face_memory_is_bounded():
+    m, _ = build(max_tailgated_tracks=2)
+    for person in (7, 8, 9):
+        face_event(m, track_id=person, at=0.0, person=person)
+    m.resolve(now=4.0)
+    assert len(m._dwells) == 2
+
+
+def test_a_long_stall_on_a_slow_machine_gives_one_row_not_dozens():
+    # The Mac bring-up (findings 5): one person for about a minute, frames 9-48 s apart,
+    # a new track id after every stall.
+    m, _ = build()
+    seen, at, track = [], 0.0, 1
+    for gap in (9, 14, 48, 11, 20, 30):
+        face_event(m, track_id=track, at=at, person=7)
+        seen += m.resolve(now=at + 4.0)
+        at, track = at + gap, track + 1
+
+    assert statuses(seen) == [decision.TAILGATING]
