@@ -12,7 +12,7 @@ it's decided or still open.
 ## 1. Assumptions
 - **Population**: children at a controlled kiosk; they stop and face the camera. Faces are close
   and roughly frontal. (Recognition accuracy on children is *worse* than on adults — see §7.)
-- **Deployment**: one guardpost, one backend host. Prod target = **RTX 1050 GPU box**; the current
+- **Deployment**: one guardpost, one backend host. Prod target = **GTX 1050 GPU box (the Acer Nitro 5)**; the current
   4-core CPU laptop is a **~1 student/s dev demo only**.
 - **Trust boundary**: the Arduino is relay-only (no decisions on-device); all identity/verification
   logic is on the backend. LAN is semi-trusted (see §6).
