@@ -261,3 +261,38 @@ def test_a_long_stall_on_a_slow_machine_gives_one_row_not_dozens():
         at, track = at + gap, track + 1
 
     assert statuses(seen) == [decision.TAILGATING]
+
+
+def mix(a, b, w):
+    """Unit embedding w of the way from person a to person b."""
+    import math
+    emb = [0.0] * 2048
+    emb[a], emb[b] = math.cos(w * math.pi / 2), math.sin(w * math.pi / 2)
+    return emb
+
+
+def test_the_remembered_face_does_not_drift_to_someone_else():
+    # Each face is close to the one before it (cosine 0.92) and the first two are close
+    # to the first face, so they are the same dwell. The last is close to the one before
+    # it but far from the first (cosine 0.38). The memory keeps the first face, so the
+    # last is flagged; a memory that took the newest face would have hidden it.
+    m, _ = build()
+    for n, w in enumerate((0.0, 0.25, 0.5)):
+        m.on_face({"track_id": n + 1, "embedding": mix(7, 8, w), "is_live": True,
+                   "ts": n * 5.0})
+        m.resolve(now=n * 5.0 + 4.0)
+    m.on_face({"track_id": 99, "embedding": mix(7, 8, 0.75), "is_live": True, "ts": 15.0})
+
+    assert statuses(m.resolve(now=19.0)) == [decision.TAILGATING]
+
+
+def test_a_look_alike_below_the_dwell_threshold_is_still_flagged():
+    # cosine 0.55: above the 0.5 match threshold, below the 0.6 dwell threshold.
+    import math
+    m, _ = build()
+    m.on_face({"track_id": 1, "embedding": face_of(7), "is_live": True, "ts": 0.0})
+    m.resolve(now=4.0)
+    w = math.acos(0.55) / (math.pi / 2)
+    m.on_face({"track_id": 2, "embedding": mix(7, 8, w), "is_live": True, "ts": 5.0})
+
+    assert statuses(m.resolve(now=9.0)) == [decision.TAILGATING]

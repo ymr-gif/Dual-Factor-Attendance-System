@@ -379,6 +379,11 @@ different face is still flagged; tap claims are unchanged. Bounded by
 `MAX_TAILGATED_TRACKS`, memory only (see `docs/privacy.md`). The tailgating tests now give
 each track its own face, since before every test person had the same embedding.
 `pytest tests`: 427 passed, 10 skipped.
+Follow-up (security review): the remembered embedding is the first face seen and is never
+replaced, so a chain of look-alikes cannot drift it to another person, and the same-person
+cutoff is `DWELL_THRESHOLD` (default 0.6, stricter than the 0.5 match). A face judged
+`mismatch` or `spoof` is still remembered: that person already has a row. `pytest tests`:
+429 passed, 10 skipped.
 
 ## Design-only stubs (not built)
 

@@ -59,6 +59,9 @@ MAX_TAILGATED_TRACKS = int(os.environ.get("MAX_TAILGATED_TRACKS", "512"))
 # tracker lost them and gave a new track id (frames stalling on a slow machine), so it
 # is not flagged again. 0 turns the memory off.
 DWELL_GAP_SEC = _env_f("DWELL_GAP_SEC", 60.0)
+# Similarity a face needs to a remembered one to count as the same person. Stricter
+# than the 1:1 match threshold, since a wrong merge hides a person with no tap.
+DWELL_THRESHOLD = _env_f("DWELL_THRESHOLD", max(MATCH_THRESHOLD, 0.6))
 
 # Review reason for a tap the camera gave no frame for: the student was let in on the
 # card alone and the face could not be checked (PC-033). Logged `unverified`, not counted.
@@ -117,6 +120,7 @@ class Matcher:
         max_tailgated_tracks=MAX_TAILGATED_TRACKS,
         camera_heartbeat=False,
         dwell_gap=DWELL_GAP_SEC,
+        dwell_threshold=DWELL_THRESHOLD,
     ):
         import time as _time
 
@@ -143,8 +147,11 @@ class Matcher:
         self._settled_tracks: OrderedDict = OrderedDict()
         # The same presences remembered by face, not track id (PC-046): [embedding,
         # last_seen] per person, most recently seen last, bounded like the tracks and
-        # dropped DWELL_GAP_SEC after last seen. Held in memory only.
+        # dropped DWELL_GAP_SEC after last seen. The embedding is the first face seen
+        # and is never replaced, so a chain of look-alikes cannot drift it to someone
+        # else. Held in memory only.
         self.dwell_gap = dwell_gap
+        self.dwell_threshold = dwell_threshold
         self._dwells: list = []
         self._taps: list[PendingTap] = []
         self._faces: list[PendingFace] = []
@@ -292,7 +299,7 @@ class Matcher:
 
     def _dwell_index(self, f):
         """Index of the remembered presence this face belongs to, or None."""
-        best_i, best = None, self.threshold
+        best_i, best = None, self.dwell_threshold
         for i, (emb, seen) in enumerate(self._dwells):
             if abs(f.ts - seen) > self.dwell_gap:
                 continue
@@ -309,8 +316,8 @@ class Matcher:
         if i is None:
             self._dwells.append([f.embedding, f.ts])
         else:
-            _, seen = self._dwells.pop(i)
-            self._dwells.append([f.embedding, max(seen, f.ts)])
+            emb, seen = self._dwells.pop(i)
+            self._dwells.append([emb, max(seen, f.ts)])
         while len(self._dwells) > max(self.max_tailgated_tracks, 0):
             self._dwells.pop(0)
 
