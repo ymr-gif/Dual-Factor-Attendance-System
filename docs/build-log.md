@@ -401,6 +401,13 @@ no UID: it restores the most recently lost card (deviation from the spec, which 
 `tests/test_lost_card.py`); with `TEST_DB_DSN` on the scratch database the real
 statements pass too.
 
+**Calibration windows (PC-025).** `backend.calibrate` takes `--since` / `--until` (HH:MM
+today or a full timestamp, on the attendance clock) and a second window
+`--against-since` / `--against-until` for the spoof round. With both it prints the two
+distributions, the highest spoof and lowest genuine score, a threshold halfway between
+them when they do not overlap (or the fewest-error point when they do), and the errors
+on each side. `pytest tests`: 448 passed, 11 skipped (new `tests/test_calibrate.py`).
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

@@ -183,7 +183,14 @@ LIVENESS_THRESHOLD=       # unset: the model's own live/spoof verdict. Set a p_l
 ```bash
 python -m backend.fetch_liveness_models          # download the weights once (sha256-checked)
 python -m backend.calibrate --metric liveness    # score distribution from logged taps
+# genuine round 09:00-09:20, spoof round 09:25-09:45 (PC-025): both distributions,
+# the overlap, and a threshold between them
+python -m backend.calibrate --metric liveness --since 09:00 --until 09:20 \
+    --against-since 09:25 --against-until 09:45
 ```
+
+Note the times of each round on the Spoof Trial Record and keep the rounds apart: every
+scored row in a window counts, including faces with no tap.
 
 While `LIVENESS_THRESHOLD` is unset the tap-to-face matcher logs the liveness score but
 does not turn a matched face into `spoof`.
