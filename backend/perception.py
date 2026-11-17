@@ -63,7 +63,9 @@ FACE_REFRESH_SEC = float(os.environ.get("FACE_REFRESH_SEC", "2.0"))
 # as a missed frame for every track: the tracker did not see who came and went.
 TRACK_STALE_SEC = float(os.environ.get("TRACK_STALE_SEC", "1.0"))
 # Consecutive failed reads (~0.1s apart) tolerated before a live camera is given up on.
-CAMERA_MAX_MISSES = int(os.environ.get("CAMERA_MAX_MISSES", "600"))
+CAMERA_MAX_MISSES = int(os.environ.get("CAMERA_MAX_MISSES", "100"))
+# Seconds between attempts to reopen a live camera that stopped or was never there.
+CAMERA_RETRY_SEC = float(os.environ.get("CAMERA_RETRY_SEC", "5"))
 
 
 def enabled() -> bool:
@@ -281,16 +283,49 @@ def run(frames, tracker: FaceTracker | None = None, max_frames: int | None = Non
     return tracker
 
 
+def _is_live_source() -> bool:
+    """A camera (unset, an index, or a /dev/ path), as opposed to a video file."""
+    src = PERCEPTION_SOURCE
+    return src is None or str(src).isdigit() or str(src).startswith("/dev/")
+
+
+def run_forever(sleep=time.sleep, max_rounds: int | None = None):
+    """Camera-owner loop (PC-033). Runs the pipeline on the camera; when a live camera
+    stops delivering frames or is not there, closes it and reopens it every
+    CAMERA_RETRY_SEC, so an unplugged camera works again once plugged back without a
+    backend restart. The camera is re-resolved on each try, so another USB socket is
+    fine. A video file runs once."""
+    live = _is_live_source()
+    rounds = 0
+    waiting = False
+    while True:
+        try:
+            tracker = run(_camera_frames())
+        except Exception as e:
+            print(f"[perception] pipeline error: {e}")
+            tracker = None
+        rounds += 1
+        if not live or (max_rounds is not None and rounds >= max_rounds):
+            return
+        if tracker is not None and tracker.last_done_ts:
+            waiting = False  # frames came through this round: announce the next outage
+        if not waiting:
+            print(f"[perception] no camera — trying again every {CAMERA_RETRY_SEC:g} s")
+            waiting = True
+        sleep(CAMERA_RETRY_SEC)
+
+
 def _camera_frames():
     """Yield frames from the owned camera / video source until EOF or error."""
     cap = face.open_capture(PERCEPTION_SOURCE)
     if not cap.isOpened():
-        print("[perception] camera/source not available — perception idle")
-        return
+        if not _is_live_source():
+            print("[perception] video source not available — perception idle")
+        return  # a live camera: run_forever says so once and tries again
     # A live camera needs a moment before it delivers frames (AVFoundation on macOS
     # returns ok=False for the first reads while the capture session starts), and can
     # hiccup later. A video file, by contrast, means EOF the first time read() fails.
-    is_live = PERCEPTION_SOURCE is None or str(PERCEPTION_SOURCE).isdigit()
+    is_live = _is_live_source()
     if is_live:
         for _ in range(face.CAMERA_WARMUP_FRAMES):
             cap.read()
@@ -306,7 +341,7 @@ def _camera_frames():
                 if misses == 1 or misses % 100 == 0:
                     print(f"[perception] no frame from camera (x{misses}) — retrying")
                 if misses > CAMERA_MAX_MISSES:
-                    print("[perception] camera stopped delivering frames — perception idle")
+                    print("[perception] camera stopped delivering frames — closing it")
                     break
                 time.sleep(0.1)
                 continue

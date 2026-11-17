@@ -519,6 +519,7 @@ def client(backend_main, monkeypatch, tmp_path, fake_db, camera, fake_matcher, s
     perception_starts = []
     monkeypatch.setattr(perception, "run", lambda *a, **k: perception_starts.append("run"))
     monkeypatch.setattr(perception, "_camera_frames", lambda: iter(()))
+    monkeypatch.setattr(perception, "run_forever", lambda: perception_starts.append("run_forever"))
     monkeypatch.setattr(backend_main, "matcher", fake_matcher)
 
     # Side channels: guardian notify (console + SMTP) and the WebSocket event bus.

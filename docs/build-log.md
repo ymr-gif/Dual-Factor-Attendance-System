@@ -345,6 +345,17 @@ reason `student scans and enters, camera down -- cannot verify face`, shown on t
 page and the live feed. Only the perception path can tell a dead camera from an empty frame;
 the direct path keeps `face not checked`. `pytest tests`: 414 passed, 10 skipped.
 
+**Camera reopened after an outage (PC-033).** Before, the camera loop ran once: after
+`CAMERA_MAX_MISSES` failed reads (600, about 60 s) it stopped for good, and a camera
+unplugged for longer needed a backend restart. `perception.run_forever()` now owns the
+camera thread: when a live camera (unset, an index, or a `/dev/` path) stops or is missing,
+it reopens it every `CAMERA_RETRY_SEC` (5 s), re-resolving which camera to use, and says so
+once per outage. A pipeline error no longer ends the thread. A video file still runs once.
+`CAMERA_MAX_MISSES` default lowered to 100 (about 10 s) since giving up is no longer final.
+A `/dev/` path now counts as a live camera here too (it already did for the capture size).
+Not tried on the A4tech or the Mac yet: dry-run B21. Not covered: a read that hangs instead
+of failing. `pytest tests`: 418 passed, 10 skipped (new `tests/test_camera_reopen.py`).
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

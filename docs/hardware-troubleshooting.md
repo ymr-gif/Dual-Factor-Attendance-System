@@ -162,6 +162,13 @@ the backend, and `cap.read()` then blocks hard enough that the backend needs a r
 the browser lets go. Close the register tab before expecting the dashboard feed. A second
 USB camera removes the conflict entirely.
 
+**Unplugged camera.** When reads fail (unplugged, driver hiccup), the backend closes the camera
+after `CAMERA_MAX_MISSES` failed reads (default 100, about 10 s) and tries to reopen it every
+`CAMERA_RETRY_SEC` (default 5 s), choosing the camera again each time. Plug it back, into any
+USB socket, and the feed returns without a restart; the log says `no camera — trying again`
+once per outage. Taps in between are `unverified` with the camera-down reason. This does not
+help when `cap.read()` hangs instead of failing, as in the register-tab case above.
+
 **macOS: launchd agents get no camera.** Seen on one Mac, not checked on others. TCC grants
 camera access to a responsible GUI app. A launchd agent has none, and command-line binaries
 cannot be added to the Camera pane manually, so the backend gets no camera when it

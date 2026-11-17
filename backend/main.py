@@ -353,13 +353,12 @@ async def _start_perception():
 
     asyncio.create_task(_resolve_loop())
 
-    # Camera-owner thread. Fail-open: perception.run exits immediately if no camera,
-    # so a headless/no-cam backend still boots (taps then log card-only unverified).
+    # Camera-owner thread. Fail-open: with no camera the backend still boots (taps then
+    # log card-only unverified), and the camera is reopened every CAMERA_RETRY_SEC, so
+    # one unplugged and plugged back works again without a restart.
     import threading
 
-    threading.Thread(
-        target=lambda: perception.run(perception._camera_frames()), daemon=True
-    ).start()
+    threading.Thread(target=perception.run_forever, daemon=True).start()
     print("[main] perception + matcher + MJPEG stream started")
 
 

@@ -541,6 +541,7 @@ def test_startup_registers_the_heartbeat_with_perception(backend_main, monkeypat
     monkeypatch.setattr(perception, "on_face", lambda cb: None)
     monkeypatch.setattr(perception, "run", lambda *a, **k: None)
     monkeypatch.setattr(perception, "_camera_frames", lambda: iter(()))
+    monkeypatch.setattr(perception, "run_forever", lambda: None)
 
     async def start():
         await backend_main._start_perception()
