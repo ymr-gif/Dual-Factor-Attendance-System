@@ -298,17 +298,17 @@ live re-check once the backend is up again):
     this registry lists DroidCam second (index 1 in enumeration order). **Keep
     `CAMERA_INDEX=0` pinned** — do not switch to relying on auto-select for the pilot.
 
+**Pushed 2026-11-19**: all 4 commits (`1c512e0`, `f69d331`, `e5c0637`, `3c9d068`) are now
+on `origin/main` (`560c8d4..3c9d068`). Nothing local-only remains.
+
 ## Still needed before this machine is pilot-ready — updated
-1. **Push commits** (`git push`, by hand) — now 4 local-only: `1c512e0`, `f69d331`,
-   session 2's snapshot-feature commit, and this session's (`.env`/`.env.example` +
-   `backend/cameras.py` fix + this file).
-2. Confirm `LIVENESS_THRESHOLD=0.35` against a real standing-distance test (item 4) once
+1. Confirm `LIVENESS_THRESHOLD=0.35` against a real standing-distance test (item 3) once
    the backend is back up — the number above is deduced from logs, not eyeballed against
    the 25 images as session 2 planned. Adjust on the Settings page if the real test
    disagrees.
-3. Point the phone at the actual kiosk spot (not wherever it happened to be in session 2)
+2. Point the phone at the actual kiosk spot (not wherever it happened to be in session 2)
    and re-run T2–T10 for real, now that T1, camera, and liveness are all confirmed live.
-4. Check face size at real standing distance (640x480 cap, `MIN_FACE_PX=80`).
-5. Fill in `SMTP_USER`, `SMTP_FROM`, `SMTP_PASSWORD` in `.env`; confirm guardian email
+3. Check face size at real standing distance (640x480 cap, `MIN_FACE_PX=80`).
+4. Fill in `SMTP_USER`, `SMTP_FROM`, `SMTP_PASSWORD` in `.env`; confirm guardian email
    actually sends.
-6. Decide phone-as-camera vs. a dedicated USB webcam for a real 3-hour session.
+5. Decide phone-as-camera vs. a dedicated USB webcam for a real 3-hour session.
