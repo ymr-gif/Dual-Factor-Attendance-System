@@ -370,3 +370,49 @@ the fallback is a 30-second edit instead of a scramble:
    the DroidCam fallback index here (see camera section above).
 6. ~~Decide phone-as-camera vs. a dedicated USB webcam~~ — **decided: A4tech primary,
    DroidCam manual fallback.** See item 5.
+
+## Session 4 (2026-11-19) — brought the stack up live, pilot in progress
+
+Brought everything up for the pilot itself:
+- Docker Desktop started, `docker compose up -d db` — Postgres healthy.
+- Backend started on **port `9001`, not `8001`** — Windows had `8001` locked inside a
+  reserved TCP exclusion range (`7972–8071`), most likely claimed by Docker's own
+  networking on this start. Not a code issue; `8001` may free up on a reboot, or stay
+  blocked until `net stop winnat && net start winnat` is run from an elevated prompt.
+  **Dashboard today is at `http://127.0.0.1:9001/app/`, not `:8001`.**
+- Serial reader confirmed: `listening on COM4 @ 9600`.
+- Camera opened at index 0 (DroidCam — A4tech still not plugged in as of this session).
+  Confirms the earlier note: **the camera only gives 640x480** even though `.env` asks
+  for 1280x720 — item 3 above is now a live, confirmed condition, not a guess.
+
+### Bug found and fixed live: login let a mistyped token straight through
+`AuthGate` in `Dashboard.tsx` gated on `authed = !!getToken()` — true the instant *any*
+non-empty string was saved, typo or not. A wrong token looked exactly like a successful
+login, then every real dashboard call 401'd silently with no indication why. This is
+exactly what happened during today's first login attempt. Fixed: the login screen now
+makes one real call (`GET /api/settings`) with the entered token before admitting past
+the gate, and shows "Invalid token" instead of a silent wall of 401s. No backend
+restart needed — picked up on the next page load since it's a static-asset rebuild.
+
+### Settings page: preset dropdowns instead of empty text boxes
+`enforce_2fa` and `liveness_threshold` were raw, empty text inputs in the
+tunable-settings box — easy to mistype under pilot-day pressure, and
+`liveness_threshold` specifically must parse as a number from 0 to 1 or the save is
+rejected. Both are now dropdowns with labeled presets (`0.35` is marked as today's
+deduced value); a value already saved that isn't one of the presets still shows up as
+an extra "current" option rather than silently changing on load.
+
+### What is actually running right now, as of session 4
+- Postgres: Docker container `nfc-scan-postgres`, port 5433.
+- Backend: `uvicorn backend.main:app` on **port 9001** (not 8001 — see above).
+- Serial reader: `backend.serial_reader` on COM4.
+- `CAMERA_INDEX=0` (DroidCam), `LIVENESS_THRESHOLD=0.35`, `OPERATOR_TOKEN` set,
+  `DEBUG_SAVE_SNAPSHOTS=false`, `NOTIFY_EMAIL_ENABLED=true` with working SMTP.
+- `pytest tests -q`: 501 passed, 11 skipped, confirmed after every change above.
+- `git`: everything pushed to `origin/main` through commit `9bb5a0c`. Nothing local-only.
+
+**To shut down cleanly after the pilot** (same rule as session 2 — a clean stop, not
+just closing windows or powering off): `Ctrl+C` the backend window, `Ctrl+C` the serial
+reader window, then `docker compose down` (or `docker compose stop db` to keep the data
+and just stop the container). Don't `docker compose down -v` — that deletes the
+database volume (today's attendance rows) along with the container.
