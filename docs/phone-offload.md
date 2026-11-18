@@ -61,5 +61,6 @@ The PH S24 has an Exynos 2400 [CHECK the exact model on the phone]. Options, eas
 - Android may stop a background app. Keep it in the foreground with the screen on.
 - Privacy (PC-023, D1): the phone stores no frame or embedding, and sends only over
   the cable.
-- The paper's Materials list the laptop doing inference. A phone doing it is a paper
-  change (Ch 3 Materials and Software), queued in the safe-paper repo as PC-047.
+- Paper: not a risk (Cabucos, 18 Nov). The study's niches are passive liveness and the
+  guardian notification, not where inference runs. If built, Ch 3 Materials and
+  Software get one line naming the phone (safe-paper PC-047).
