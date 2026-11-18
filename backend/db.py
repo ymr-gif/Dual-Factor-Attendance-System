@@ -614,7 +614,7 @@ def get_audit(limit: int = 100):
 
 # Audit rows whose target is a student ID. `review_resolve` rows target "review#<n>".
 STUDENT_AUDIT_ACTIONS = ("create", "update", "enroll", "consent", "contact_test", "erase",
-                         "card_lost", "card_new", "card_found")
+                         "card_lost", "card_new", "card_found", "card_capture")
 
 
 def names_student(text: str | None, student_id: str, uid: str | None = None) -> bool:

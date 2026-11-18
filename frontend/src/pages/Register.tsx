@@ -141,7 +141,8 @@ export default function Register() {
       <h2 style={{ margin: '0 0 6px', fontSize: 18 }}>Register Face</h2>
       <p style={{ fontSize: 12, opacity: 0.6, margin: '0 0 12px' }}>
         While this page is open, faces at the camera with no tap are not flagged, and a card
-        scanned into the UID field is not logged as attendance. Close it before entries start.
+        scanned into the UID field is not logged as attendance. This lasts 15 minutes at most;
+        reopen the page to continue. Close it before entries start.
       </p>
       {error && <p style={{ color: '#e53e3e', marginBottom: 8 }}>{error}</p>}
 

@@ -844,20 +844,35 @@ def api_enroll_card_cancel():
     return {"armed_until": None}
 
 
+def _audit(actor, action, detail=None):
+    try:
+        db.insert_audit(actor, action, None, detail)
+    except Exception as e:
+        print(f"audit failed: {e}")
+
+
 @app.post("/api/enroll/active", dependencies=[Depends(require_operator)])
-def api_enroll_active():
-    """Register page heartbeat: someone is enrolling at the camera."""
+def api_enroll_active(actor: str = Depends(_actor)):
+    """Register page heartbeat: someone is enrolling at the camera. Ends by itself
+    ENROLLING_SEC after the last call, and after ENROLLING_MAX_SEC in any case."""
     was = enrollment.active()
-    enrollment.keep_enrolling()
-    if not was:
+    on = enrollment.keep_enrolling()
+    if on and not was:
         print("[enroll] enrollment started at the camera: faces with no tap are not flagged")
-    return {"active": True, "seconds": enrollment.ENROLLING_SEC}
+        _audit(actor, "enroll_mode_on")
+    elif was and not on:
+        print(f"[enroll] enrollment reached {enrollment.ENROLLING_MAX_SEC / 60:.0f} min: faces "
+              "with no tap are flagged again until the Register page is reopened")
+        _audit(actor, "enroll_mode_off", "time limit")
+    return {"active": on, "seconds": enrollment.ENROLLING_SEC,
+            "max_seconds": enrollment.ENROLLING_MAX_SEC}
 
 
 @app.delete("/api/enroll/active", dependencies=[Depends(require_operator)])
-def api_enroll_inactive():
+def api_enroll_inactive(actor: str = Depends(_actor)):
     if enrollment.active():
         print("[enroll] enrollment ended: faces with no tap are flagged again")
+        _audit(actor, "enroll_mode_off")
     enrollment.stop_enrolling()
     return {"active": False}
 
@@ -1069,12 +1084,19 @@ def perception_state():
 @app.post("/tap")
 def tap(req: TapRequest):
     uid = req.uid.strip().upper()
-    if enrollment.take_card():
-        # Register or Roster is waiting for a card: hand it over, log nothing.
+    # A lost card is never taken for enrollment: it cannot be linked anyway, and its
+    # tap must still be logged `revoked` and reviewed (PC-024).
+    if enrollment.armed() and db.find_revoked_card(uid) is None and enrollment.take_card():
+        # Register or Roster is waiting for a card: hand it over, log no attendance.
         known = db.find_student_by_uid(uid)
         print(f"[enroll] card {uid} read for enrollment"
               + (f" (already on {known['student_id']})" if known else "")
               + ": not logged as attendance")
+        try:  # audited without the UID (PC-044)
+            db.insert_audit("reader", "card_capture", known["student_id"] if known else None,
+                            "card read for enrollment, not logged as attendance")
+        except Exception as e:
+            print(f"audit failed: {e}")
         events.publish({"type": "card_capture", "uid": uid,
                         "student_id": known["student_id"] if known else None})
         return {"status": "captured", "uid": uid}

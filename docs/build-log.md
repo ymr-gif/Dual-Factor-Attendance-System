@@ -476,6 +476,12 @@ became `tailgating` rows. `backend/enrollment.py`:
   guardian message (no guardian email on file, SMS off)". It used to say "queued"
   even with no address on file.
 `pytest tests`: 492 passed, 11 skipped (new `tests/test_enrollment.py`).
+Follow-up from a security review: a lost card is never captured (its tap is still
+logged `revoked` and the arm keeps waiting); each capture is audited as `card_capture`
+without the UID; Roster arms once per opened field (60 s) instead of re-arming; an
+enrollment session ends after 15 min however long Register stays open, and its start
+and end are audited (`enroll_mode_on` / `enroll_mode_off`). Not done: limiting the
+suppression to the one face being enrolled. 497 passed, 11 skipped.
 
 ## Design-only stubs (not built)
 

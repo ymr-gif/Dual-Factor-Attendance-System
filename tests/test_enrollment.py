@@ -70,6 +70,53 @@ def test_a_cancelled_arm_logs_the_tap(client, fake_db):
     assert len(fake_db.logs) == 1
 
 
+def test_a_capture_is_audited_without_the_card_uid(client, fake_db):
+    fake_db.add_student(student())
+    client.post("/api/enroll/card", json={})
+
+    client.post("/tap", json={"uid": UID})
+
+    caps = [a for a in fake_db.audits if a["action"] == "card_capture"]
+    assert [a["target"] for a in caps] == ["S001"]
+    assert UID not in str(fake_db.audits)
+
+
+def test_a_lost_card_is_not_captured_and_is_still_logged_revoked(client, fake_db, sinks):
+    fake_db.add_student(student())
+    client.post("/api/students/S001/card/lost")
+    client.post("/api/enroll/card", json={})
+
+    body = client.post("/tap", json={"uid": UID}).json()
+
+    assert body["status"] != "captured"
+    assert [log["status"] for log in fake_db.logs] == [decision.REVOKED]
+    assert enrollment.armed()  # the arm still waits for the new card
+
+
+def test_an_enrollment_session_has_a_hard_limit():
+    assert enrollment.keep_enrolling(now=0.0)
+    t = 0.0
+    while t < enrollment.ENROLLING_MAX_SEC - 4:
+        t += 4
+        enrollment.keep_enrolling(now=t)
+    assert not enrollment.keep_enrolling(now=enrollment.ENROLLING_MAX_SEC)
+    assert not enrollment.active(now=enrollment.ENROLLING_MAX_SEC + 1)
+
+
+def test_a_reopened_register_page_starts_a_new_session():
+    enrollment.keep_enrolling(now=0.0)
+    enrollment.keep_enrolling(now=enrollment.ENROLLING_MAX_SEC + 1)  # gap: page was closed
+    assert enrollment.active(now=enrollment.ENROLLING_MAX_SEC + 2)
+
+
+def test_turning_enrollment_on_and_off_is_audited(client, fake_db):
+    client.post("/api/enroll/active")
+    client.post("/api/enroll/active")
+    client.delete("/api/enroll/active")
+
+    assert [a["action"] for a in fake_db.audits] == ["enroll_mode_on", "enroll_mode_off"]
+
+
 def test_an_arm_ends_by_itself():
     enrollment.arm_card(20, now=100.0)
     assert not enrollment.take_card(now=121.0)

@@ -36,13 +36,12 @@ export default function Roster() {
   // this page instead of logging it as attendance, and it fills the field. A later tap
   // never replaces it (someone else at the reader); the operator checks the UID and
   // presses Link, or clears the field to take the next tap.
+  // One arm per opened field (60 s); after that, close and reopen it, or type the UID.
   const waitingForCard = cardFor !== null && newUid.trim() === ''
   useEffect(() => {
     if (!waitingForCard) return
-    const arm = () => { armCardCapture(20).catch(e => setErr(String(e))) }
-    arm()
-    const id = setInterval(arm, 15000)
-    return () => { clearInterval(id); cancelCardCapture().catch(() => {}) }
+    armCardCapture(60).catch(e => setErr(String(e)))
+    return () => { cancelCardCapture().catch(() => {}) }
   }, [waitingForCard])
 
   useTapStream(undefined, e => {
