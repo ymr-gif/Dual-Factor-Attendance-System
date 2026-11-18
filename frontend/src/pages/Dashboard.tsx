@@ -3,7 +3,7 @@
 // Stacks into one column on a narrow screen (index.css .dash).
 
 import { useCallback, useEffect, useState } from 'react'
-import { getHealth, getLogs, setToken, getToken, type Health, type LogLine, type StreamEvent } from '../api'
+import { getHealth, getLogs, getSettings, setToken, getToken, type Health, type LogLine, type StreamEvent } from '../api'
 import { useTapStream } from '../useTapStream'
 import TodayPanel from '../components/TodayPanel'
 import LiveFeed from '../components/LiveFeed'
@@ -16,12 +16,26 @@ const MAX_LOG_LINES = 500
 function AuthGate({ onAuth }: { onAuth: () => void }) {
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [checking, setChecking] = useState(false)
 
-  const submit = () => {
-    if (!value.trim()) { setError('Token required'); return }
-    setToken(value.trim())
-    window.dispatchEvent(new CustomEvent('auth-changed'))
-    onAuth()
+  // A saved token used to be trusted on sight (bool-cast of "something is in
+  // localStorage"), so a typo looked identical to a successful login and every
+  // real API call 401'd silently after. Check it against the backend first.
+  const submit = async () => {
+    const v = value.trim()
+    if (!v) { setError('Token required'); return }
+    setToken(v)
+    setChecking(true); setError(null)
+    try {
+      await getSettings()
+      window.dispatchEvent(new CustomEvent('auth-changed'))
+      onAuth()
+    } catch {
+      setToken('')
+      setError('Invalid token — check for typos and try again')
+    } finally {
+      setChecking(false)
+    }
   }
 
   return (
@@ -33,7 +47,8 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
           placeholder="Enter operator token"
           value={value}
           onChange={(e) => { setValue(e.target.value); setError(null) }}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          onKeyDown={(e) => e.key === 'Enter' && !checking && submit()}
+          disabled={checking}
           style={{
             width: '100%',
             background: '#1c1f27',
@@ -48,6 +63,7 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
         {error && <p style={{ color: '#e53e3e', margin: '0 0 8px', fontSize: 13 }}>{error}</p>}
         <button
           onClick={submit}
+          disabled={checking}
           style={{
             width: '100%',
             background: '#1f5c2a',
@@ -56,10 +72,11 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
             borderRadius: 4,
             padding: '8px 12px',
             fontSize: 14,
-            cursor: 'pointer',
+            cursor: checking ? 'default' : 'pointer',
+            opacity: checking ? 0.6 : 1,
           }}
         >
-          Enter
+          {checking ? 'Checking...' : 'Enter'}
         </button>
       </div>
     </div>
