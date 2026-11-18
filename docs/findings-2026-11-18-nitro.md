@@ -309,14 +309,64 @@ credentials returned `AUTH OK`. **Not yet tested**: an actual guardian-notificat
 through `backend/notify.py` end-to-end (needs a registered student with a guardian
 contact and a real tap, once the backend is up).
 
+**Guardian email confirmed end-to-end, 2026-11-19**: sent the real entry-notification
+template (via `notify._send` + `notify.entry_sentence`, the actual send path, not a
+synthetic test) to `cabucosyamierzane@gmail.com`, `yamier@eidetic.work`, and
+`safehsci@gmail.com` (self). All three arrived — Cabucos confirmed receipt in all three
+inboxes. Item 4 below is closed.
+
+### Calibration panel added to the dashboard, 2026-11-19
+`GET /api/calibrate` (operator-gated) + a new "Calibration" card on the Settings page,
+above the existing tunable-settings box. Shows count, min/mean/max, percentiles, and a
+histogram for face or liveness scores — the web-UI version of
+`python -m backend.calibrate`, sharing one `summarize()` function with the CLI so the
+two never disagree. Lets Cabucos read the distribution and type a threshold into the box
+right above it without a terminal. `pytest tests -q`: **501 passed, 11 skipped** (4 new
+tests for this).
+
+### Camera auto-select on unplug/replug — what actually happens, 2026-11-19
+Asked whether the system already auto-switches cameras if the A4tech gets unplugged.
+Short answer: **partially, and it's currently turned off on purpose.**
+
+- `perception.run_forever()` *does* re-resolve the camera on every retry (every
+  `CAMERA_RETRY_SEC`, default 5s) when a live camera stops delivering frames — see its
+  own docstring, "the camera is re-resolved on each try, so another USB socket is fine."
+  If `CAMERA_INDEX` is **unset**, that re-resolution runs `cameras.pick_index()` again,
+  which would pick up a camera that appeared or disappeared since the last try.
+- But **`CAMERA_INDEX=0` is pinned in `.env` right now**, specifically because of the
+  enumeration-order problem found this session (`cameras.py`'s reported list order does
+  not reliably match the index `cv2.VideoCapture` actually opens — see the camera-fix
+  entry above). A pinned `CAMERA_INDEX` short-circuits auto-select entirely; the retry
+  loop just keeps reopening *that same index* if the camera drops, it does not switch
+  devices.
+- Even with the pin removed, auto-select only has a built-in-vs-external preference
+  (`CAMERA_PREFER_EXTERNAL`) — there is no "prefer the A4tech by name, fall back to
+  DroidCam" logic. With both plugged in at once, which external camera it opens is
+  whichever the OS lists first; that is not guaranteed to be the A4tech.
+- Turning auto-select back on, untested, with real students already arriving, risks
+  repeating this session's own false-positive bug (`VTubeStudioCam` silently opened
+  instead of the real camera, 12 fps of solid black frames that looked fine until
+  someone looked at the actual picture).
+
+**Recommended procedure for today, not code**: once the A4tech is physically plugged in,
+run `python -m backend.cameras` to see its real resolved index and pin `CAMERA_INDEX` to
+that number explicitly (keep pinning — don't switch to auto for the pilot). If it fails
+mid-pilot, the fallback is manual: edit `CAMERA_INDEX` in `.env` to DroidCam's index and
+restart the backend. Write down both numbers here the moment the A4tech is tested, so
+the fallback is a 30-second edit instead of a scramble:
+- A4tech resolved index: **TBD — run `python -m backend.cameras` once it's plugged in**
+- DroidCam resolved index: `0` (confirmed working all of session 2 on this machine)
+
 ## Still needed before this machine is pilot-ready — updated
 1. Confirm `LIVENESS_THRESHOLD=0.35` against a real standing-distance test (item 2) once
    the backend is back up — the number above is deduced from logs, not eyeballed against
-   the 25 images as session 2 planned. Adjust on the Settings page if the real test
-   disagrees.
-2. Point the phone at the actual kiosk spot (not wherever it happened to be in session 2)
-   and re-run T2–T10 for real, now that T1, camera, and liveness are all confirmed live.
+   the 25 images as session 2 planned. Adjust on the Settings page (now with the
+   Calibration panel to read from) if the real test disagrees.
+2. Point the camera at the actual kiosk spot and re-run T2–T10 for real, now that T1,
+   camera, and liveness are all confirmed live.
 3. Check face size at real standing distance (640x480 cap, `MIN_FACE_PX=80`).
-4. Confirm one real guardian-notification email actually arrives, end-to-end through
-   `backend/notify.py` (SMTP auth itself is now confirmed working — see above).
-5. Decide phone-as-camera vs. a dedicated USB webcam for a real 3-hour session.
+4. ~~Confirm one real guardian-notification email actually arrives~~ — **done above.**
+5. Plug in the A4tech, run `python -m backend.cameras`, pin its real index, and record
+   the DroidCam fallback index here (see camera section above).
+6. ~~Decide phone-as-camera vs. a dedicated USB webcam~~ — **decided: A4tech primary,
+   DroidCam manual fallback.** See item 5.
