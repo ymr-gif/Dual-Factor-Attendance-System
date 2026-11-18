@@ -47,6 +47,7 @@ report each result to Cabucos. Code at `fbafb3e` or later.
 ```bash
 git pull                          # main, at fbafb3e or later
 pip install -r requirements.txt   # no new packages since 17 Nov; harmless to re-run
+python -m backend.fetch_liveness_models   # skip if backend/models/anti_spoof has 2 .onnx files
 cd frontend && npm ci && npm run build && cd ..   # the dashboard changed on 18 Nov
 ```
 

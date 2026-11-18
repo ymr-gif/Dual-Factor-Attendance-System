@@ -33,6 +33,7 @@ git pull                                   # 5aad152 or later
 py -3.11 -m venv .venv                     # skip if .venv exists
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+python -m backend.fetch_liveness_models   # without it liveness fails open: every face "live"
 cd frontend; npm ci; npm run build; cd ..
 docker compose up -d db                    # pgvector/pgvector:pg16 on port 5433
 ```
@@ -88,6 +89,10 @@ python -u -m backend.serial_reader
 
 Health: `curl.exe -s localhost:8001/health` gives `"status":"ok","db":true`.
 Dashboard: `http://localhost:8001/app/`.
+
+Check the camera by eye before trusting any fps number: open the dashboard and look at
+the picture. On 18 Nov index 0 was a virtual camera giving black frames at 12 fps.
+Prefer the A4tech USB webcam (the camera the paper names) over a phone camera.
 
 ## 4. Tests
 
