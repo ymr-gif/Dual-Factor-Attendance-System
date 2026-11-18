@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getConfig, getSettings, setSetting } from '../api'
+import CalibrationPanel from '../components/CalibrationPanel'
 import CamerasPanel from '../components/CamerasPanel'
 import SerialPortsPanel from '../components/SerialPortsPanel'
 
@@ -70,6 +71,8 @@ export default function Settings() {
           {perceptionOn && ' The camera pipeline is on: a wrong face or a spoof never counts either way, so this switch only matters with the pipeline off.'}
         </p>
       </div>
+
+      <CalibrationPanel />
 
       {tunable.length === 0 ? (
         <p style={{ opacity: 0.4 }}>No tunable settings.</p>

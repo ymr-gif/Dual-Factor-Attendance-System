@@ -2,7 +2,45 @@
 
 from datetime import date
 
+import pytest
+
 from backend import calibrate
+
+
+def test_summarize_reports_the_same_numbers_the_cli_prints():
+    rows = [(0.9, True), (0.95, True), (0.05, False)]
+    s = calibrate.summarize(rows, threshold=0.5, labels=("live", "spoof"))
+    assert s["count"] == 3 and s["pos"] == 2 and s["neg"] == 1
+    assert s["min"] == pytest.approx(0.05) and s["max"] == pytest.approx(0.95)
+    assert s["threshold"] == 0.5
+    assert sum(b["count"] for b in s["histogram"]) == 3
+
+
+def test_the_api_route_serves_the_same_summary(client, monkeypatch):
+    from backend import calibrate as c
+
+    rows = [(0.9, True), (0.95, True), (0.05, False)]
+    monkeypatch.setattr(c, "_fetch", lambda *a, **k: rows)
+
+    r = client.get("/api/calibrate?metric=liveness")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["metric"] == "liveness"
+    assert body["count"] == 3 and body["pos"] == 2 and body["neg"] == 1
+
+
+def test_the_api_route_handles_no_scores_yet(client, monkeypatch):
+    from backend import calibrate as c
+
+    monkeypatch.setattr(c, "_fetch", lambda *a, **k: [])
+    r = client.get("/api/calibrate?metric=face")
+    assert r.status_code == 200
+    assert r.json() == {"metric": "face", "count": 0, "threshold": 0.5}
+
+
+def test_an_unknown_metric_is_rejected(client):
+    r = client.get("/api/calibrate?metric=nonsense")
+    assert r.status_code == 422
 
 DAY = date(2026, 11, 18)
 

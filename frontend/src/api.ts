@@ -231,6 +231,20 @@ export interface SettingsResponse {
   tunable_keys: string[]
 }
 
+export interface Calibration {
+  metric: string
+  count: number
+  labels?: { pos: string; neg: string }
+  pos?: number
+  neg?: number
+  min?: number
+  mean?: number
+  max?: number
+  percentiles?: Record<string, number>
+  histogram?: { low: number; high: number; count: number }[]
+  threshold: number | null
+}
+
 export interface AttendanceSummary {
   date: string
   expected: number
@@ -312,6 +326,9 @@ export const resolveReview = (id: number, resolution: string, studentId?: string
   )
 
 export const getSettings = () => req<SettingsResponse>('/api/settings')
+
+export const getCalibration = (metric: 'face' | 'liveness', days?: number) =>
+  req<Calibration>(`/api/calibrate?metric=${metric}${days ? `&days=${days}` : ''}`)
 
 export const setSetting = (key: string, value: string) =>
   reqJson<{ key: string; value: string }>('/api/settings', 'PUT', { key, value })

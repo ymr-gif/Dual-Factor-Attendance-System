@@ -721,6 +721,25 @@ def api_set_settings(body: SettingsUpdate, actor: str = Depends(_actor)):
     return {"key": body.key, "value": body.value}
 
 
+@app.get("/api/calibrate", dependencies=[Depends(require_operator)])
+def api_calibrate(metric: str = "liveness", days: int | None = None):
+    """Read-only score distribution for the Settings page's calibration panel —
+    the web-UI counterpart to `python -m backend.calibrate`."""
+    from . import calibrate, face, liveness
+
+    metrics = {
+        "face": ("face_score", "face_match", face.FACE_THRESHOLD, ("match", "mismatch")),
+        "liveness": ("liveness_score", "liveness_pass", liveness.threshold(), ("live", "spoof")),
+    }
+    if metric not in metrics:
+        raise HTTPException(status_code=422, detail=f"metric must be one of {sorted(metrics)}")
+    score_col, verdict_col, threshold, labels = metrics[metric]
+    rows = calibrate._fetch(*calibrate.query(score_col, verdict_col, days=days))
+    if not rows:
+        return {"metric": metric, "count": 0, "threshold": threshold}
+    return {"metric": metric, **calibrate.summarize(rows, threshold, labels)}
+
+
 class ConsentRequest(BaseModel):
     granted: bool
 

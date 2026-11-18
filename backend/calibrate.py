@@ -32,21 +32,44 @@ METRICS = {
 }
 
 
-def _report(rows, score_col, verdict_col, threshold, labels):
+def summarize(rows, threshold, labels) -> dict:
+    """The distribution stats `_report` prints and the web UI's calibration panel
+    reads, as plain data: count, pos/neg verdict counts, min/mean/max, percentiles,
+    a 10-bucket histogram, and the threshold in force. No writes, no printing."""
     scores = np.array([r[0] for r in rows], dtype=np.float32)
     pos = sum(1 for r in rows if r[1] is True)
     neg = sum(1 for r in rows if r[1] is False)
+    percentiles = {p: float(np.percentile(scores, p)) for p in (1, 5, 10, 25, 50, 75, 90, 95, 99)}
+    hist, edges = np.histogram(scores, bins=10, range=(0.0, 1.0))
+    histogram = [
+        {"low": float(edges[i]), "high": float(edges[i + 1]), "count": int(c)}
+        for i, c in enumerate(hist)
+    ]
+    return {
+        "count": len(scores),
+        "labels": {"pos": labels[0], "neg": labels[1]},
+        "pos": pos,
+        "neg": neg,
+        "min": float(scores.min()),
+        "mean": float(scores.mean()),
+        "max": float(scores.max()),
+        "percentiles": percentiles,
+        "histogram": histogram,
+        "threshold": threshold,
+    }
 
-    print(f"scored taps: {len(scores)}  ({labels[0]}={pos}, {labels[1]}={neg})")
-    print(f"min={scores.min():.3f}  mean={scores.mean():.3f}  max={scores.max():.3f}")
+
+def _report(rows, score_col, verdict_col, threshold, labels):
+    s = summarize(rows, threshold, labels)
+    print(f"scored taps: {s['count']}  ({labels[0]}={s['pos']}, {labels[1]}={s['neg']})")
+    print(f"min={s['min']:.3f}  mean={s['mean']:.3f}  max={s['max']:.3f}")
     print("percentiles:")
-    for p in (1, 5, 10, 25, 50, 75, 90, 95, 99):
-        print(f"  p{p:<2} = {np.percentile(scores, p):.3f}")
+    for p, v in s["percentiles"].items():
+        print(f"  p{p:<2} = {v:.3f}")
 
     print(f"histogram ({score_col} bucket : count):")
-    hist, edges = np.histogram(scores, bins=10, range=(0.0, 1.0))
-    for i, c in enumerate(hist):
-        print(f"  {edges[i]:.1f}-{edges[i + 1]:.1f} | {'#' * int(c)} {int(c)}")
+    for b in s["histogram"]:
+        print(f"  {b['low']:.1f}-{b['high']:.1f} | {'#' * b['count']} {b['count']}")
 
     thr = "unset (argmax verdict)" if threshold is None else threshold
     print(f"\ncurrent threshold = {thr}")
