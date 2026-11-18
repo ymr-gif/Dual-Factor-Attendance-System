@@ -57,6 +57,12 @@ The same installer runs on macOS. Four things differ from Linux:
 - A backend started by launchd may get no camera, because macOS grants camera access to
   the app that started the process. `make dev-cam` runs it in a terminal instead. See
   [`hardware-troubleshooting.md`](hardware-troubleshooting.md); this was seen on one Mac.
+- Speed. The MacBook Air 2016 runs the pipeline at about 5 fps (17 Nov). The camera is
+  read on its own thread and only the newest frame is processed, so a slow machine works
+  on what the camera sees now instead of a queue of old frames (18 Nov). Set
+  `CAMERA_WIDTH=640` and `CAMERA_HEIGHT=480` there, and close the dashboard's camera
+  view when nobody watches it: each viewed frame is drawn and encoded as a JPEG. The
+  `[perception] N fps, detection N ms a frame` line in the log shows the real speed.
 
 Prerequisites, once:
 

@@ -440,6 +440,21 @@ Roster are unchanged. All pages: fluid width (`.page` up to 1400 px, `.wrap` 180
 padding that scales, a nav bar that scrolls on a narrow screen, cameras on Register and
 Lookup capped at 60 % of the screen height. Below 1000 px the dashboard is one column.
 
+**Newest-frame camera reader (18 Nov, MacBook lag).** On the MacBook Air the pipeline
+ran at about 5 fps with a long lag: frames were read one by one while the camera kept
+capturing, so they queued and the pipeline worked on old pictures, and the loop slept
+1/`PERCEPTION_FPS` after every frame on top of the processing time.
+`perception._Newest` now reads a live camera on its own thread and keeps only the newest
+read; a video file is still read frame by frame. Only the unused part of a frame's
+budget is slept. `PERCEPTION_STATS_SEC` (default 30) prints
+`[perception] N fps, detection N ms a frame, N camera frames skipped`. The MJPEG sink in
+`main.py` skips drawing and encoding when no viewer is connected. Measured here (i5-6500,
+A4tech): 10.2 fps, detection 54 ms, 59 stale frames skipped in 10 s.
+`pytest tests`: 475 passed, 11 skipped (new `tests/test_camera_newest.py`).
+Still a fixed wait: each verdict comes `ASSOC_WINDOW_SEC` (4 s) after the tap; early bind
+(design-notes 5a) is not built.
+Phone offload (S24 over USB) is on hold: `docs/phone-offload.md`.
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

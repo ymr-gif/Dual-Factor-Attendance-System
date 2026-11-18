@@ -33,6 +33,7 @@ it is down / not yet correlating, `/tap` logs card-only `unverified` (never sile
 """
 
 import os
+import threading
 import time
 from time import perf_counter  # timings in the log; tests replace `time` itself
 
@@ -67,6 +68,9 @@ TRACK_STALE_SEC = float(os.environ.get("TRACK_STALE_SEC", "1.0"))
 CAMERA_MAX_MISSES = int(os.environ.get("CAMERA_MAX_MISSES", "100"))
 # Seconds between attempts to reopen a live camera that stopped or was never there.
 CAMERA_RETRY_SEC = float(os.environ.get("CAMERA_RETRY_SEC", "5"))
+# Seconds between the speed lines in the log (frames per second, detection time,
+# camera frames skipped). 0 turns them off.
+PERCEPTION_STATS_SEC = float(os.environ.get("PERCEPTION_STATS_SEC", "30"))
 
 
 def enabled() -> bool:
@@ -228,11 +232,43 @@ def _recognize(tr: _Track, frame, det) -> None:
           f"in {(t1 - t0) * 1000:.0f} ms, liveness {live} in {(t2 - t1) * 1000:.0f} ms")
 
 
+class _Stats:
+    """Pipeline speed for the log: frames processed, time spent detecting, and camera
+    frames skipped because the pipeline was busy. One line every PERCEPTION_STATS_SEC."""
+
+    def __init__(self):
+        self._reset(perf_counter())
+        self.skipped = 0
+
+    def _reset(self, now):
+        self.since = now
+        self.frames = 0
+        self.detect_sec = 0.0
+
+    def detected(self, sec: float) -> None:
+        self.frames += 1
+        self.detect_sec += sec
+        now = perf_counter()
+        span = now - self.since
+        if PERCEPTION_STATS_SEC <= 0 or span < PERCEPTION_STATS_SEC:
+            return
+        skipped, self.skipped = self.skipped, 0
+        print(f"[perception] {self.frames / span:.1f} fps, detection "
+              f"{self.detect_sec / self.frames * 1000:.0f} ms a frame, "
+              f"{skipped} camera frames skipped (last {span:.0f} s)")
+        self._reset(now)
+
+
+_stats = _Stats()
+
+
 def process_frame(frame, tracker: FaceTracker) -> list:
     """Detect + track one frame, recognize any newly-usable track, refresh the
     tracks that are due, and emit the frame (boxes) + face (embedding) events.
     Returns the tracker's updates."""
+    t0 = perf_counter()
     dets = face.detect(frame)
+    _stats.detected(perf_counter() - t0)
     ts = time.time()
     # No frame was processed for longer than TRACK_STALE_SEC: the tracker counted no
     # missed frame, but whoever is in a track now may not be who was recognized.
@@ -330,6 +366,48 @@ def run_forever(sleep=time.sleep, max_rounds: int | None = None):
         sleep(CAMERA_RETRY_SEC)
 
 
+class _Newest:
+    """Reads a live camera on its own thread and keeps only its newest read.
+
+    A camera keeps capturing while a frame is processed. Read one by one, the frames
+    queue up in the driver, and on a slow machine (the MacBook Air at about 5 fps) the
+    pipeline works on what the camera saw a while ago, so a tap is judged against an
+    old picture. Here a read that was not taken in time is replaced by the next one,
+    so read() always returns what the camera sees now. Failed reads are passed on the
+    same way, so the caller's miss counting is unchanged."""
+
+    def __init__(self, cap):
+        self._cap = cap
+        self._cond = threading.Condition()
+        self._latest = None  # (ok, frame) not yet taken
+        self._stop = False
+        self._thread = threading.Thread(target=self._run, name="camera-reader", daemon=True)
+        self._thread.start()
+
+    def _run(self):
+        while not self._stop:
+            ok, frame = self._cap.read()
+            good = ok and frame is not None
+            with self._cond:
+                if self._latest is not None and self._latest[0]:
+                    _stats.skipped += 1
+                self._latest = (good, frame if good else None)
+                self._cond.notify()
+            if not good:
+                time.sleep(0.1)
+
+    def read(self):
+        with self._cond:
+            while self._latest is None:
+                self._cond.wait()
+            got, self._latest = self._latest, None
+        return got
+
+    def close(self):
+        self._stop = True
+        self._thread.join(timeout=2.0)  # a read in progress ends within a frame
+
+
 def _camera_frames():
     """Yield frames from the owned camera / video source until EOF or error."""
     cap = face.open_capture(PERCEPTION_SOURCE)
@@ -344,11 +422,16 @@ def _camera_frames():
     if is_live:
         for _ in range(face.CAMERA_WARMUP_FRAMES):
             cap.read()
-    delay = 1.0 / PERCEPTION_FPS if PERCEPTION_FPS > 0 else 0.0
+    # A live camera is read through _Newest so no frame waits; a video file is read
+    # frame by frame so offline runs see every frame.
+    source = _Newest(cap) if is_live else cap
+    # PERCEPTION_FPS caps the loop rate; only the part of a frame's budget that
+    # processing did not use is slept, so a slow machine does not wait on top.
+    budget = 1.0 / PERCEPTION_FPS if PERCEPTION_FPS > 0 else 0.0
     misses = 0
     try:
         while True:
-            ok, frame = cap.read()
+            ok, frame = source.read()
             if not ok or frame is None:
                 if not is_live:
                     break  # EOF (video file)
@@ -358,13 +441,16 @@ def _camera_frames():
                 if misses > CAMERA_MAX_MISSES:
                     print("[perception] camera stopped delivering frames — closing it")
                     break
-                time.sleep(0.1)
-                continue
+                continue  # _Newest already waited 0.1 s after the failed read
             misses = 0
+            started = perf_counter()
             yield frame
-            if delay:
-                time.sleep(delay)
+            left = budget - (perf_counter() - started)
+            if left > 0:
+                time.sleep(left)
     finally:
+        if is_live:
+            source.close()
         cap.release()
 
 

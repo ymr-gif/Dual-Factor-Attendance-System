@@ -101,6 +101,10 @@ def _on_frame_event(frame, ev):
         "center_off": center_off,
     }
 
+    loop = _mjpeg_loop
+    if loop is None or not _mjpeg_subscribers:
+        return  # no viewers connected: skip drawing and encoding (a JPEG a frame is not free on a slow laptop)
+
     # Draw bounding boxes on the frame
     annotated = frame.copy()
     for track in ev.get("tracks", []):
@@ -113,9 +117,6 @@ def _on_frame_event(frame, ev):
     ok, jpeg = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
     if not ok:
         return
-    loop = _mjpeg_loop
-    if loop is None or not _mjpeg_subscribers:
-        return  # no viewers connected — skip the fan-out entirely
     try:
         loop.call_soon_threadsafe(_broadcast_frame, jpeg.tobytes())
     except RuntimeError:
