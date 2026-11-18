@@ -72,6 +72,33 @@ def _macos_cameras() -> list:
     return cameras
 
 
+def _windows_cameras() -> list:
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-PnpDevice -Class Camera -Status OK | Select-Object FriendlyName | ConvertTo-Json"],
+            capture_output=True, text=True, timeout=15,
+        )
+        data = json.loads(out.stdout or "[]")
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return []
+
+    if isinstance(data, dict):
+        data = [data]
+
+    cameras = []
+    for i, entry in enumerate(data):
+        name = entry.get("FriendlyName") or f"camera {i}"
+        cameras.append({
+            "index": i,
+            "name": name,
+            "model": None,
+            "unique_id": None,
+            "builtin": _looks_builtin(name, ""),
+        })
+    return cameras
+
+
 def _linux_cameras() -> list:
     cameras = []
     for path in sorted(glob.glob("/dev/video*")):
@@ -100,7 +127,12 @@ def list_cameras(use_cache: bool = True) -> list:
     global _cache
     if use_cache and _cache and (time.time() - _cache[0]) < _CACHE_TTL:
         return _cache[1]
-    cameras = _macos_cameras() if os.uname().sysname == "Darwin" else _linux_cameras()
+    if os.name == "nt":
+        cameras = _windows_cameras()
+    elif os.uname().sysname == "Darwin":
+        cameras = _macos_cameras()
+    else:
+        cameras = _linux_cameras()
     _cache = (time.time(), cameras)
     return cameras
 
