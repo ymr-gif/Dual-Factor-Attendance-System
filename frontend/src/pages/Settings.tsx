@@ -4,6 +4,32 @@ import CalibrationPanel from '../components/CalibrationPanel'
 import CamerasPanel from '../components/CamerasPanel'
 import SerialPortsPanel from '../components/SerialPortsPanel'
 
+// Preset choices for the tunable-settings boxes below, so pilot day is picking from a
+// list instead of typing a raw value under pressure. Any tunable key without a preset
+// here still falls back to a free-text box.
+const PRESETS: Record<string, { value: string; label: string }[]> = {
+  enforce_2fa: [
+    { value: 'false', label: 'false — failed 2nd factor still counts (flagged)' },
+    { value: 'true', label: 'true — failed 2nd factor is rejected, does not count' },
+  ],
+  liveness_threshold: [
+    { value: '', label: '(unset) — the model\'s own argmax verdict' },
+    { value: '0.3', label: '0.3' },
+    { value: '0.35', label: '0.35 — deduced from the 2026-11-18 session log' },
+    { value: '0.4', label: '0.4' },
+    { value: '0.5', label: '0.5' },
+    { value: '0.6', label: '0.6' },
+  ],
+}
+
+function presetOptions(key: string, current: string) {
+  const base = PRESETS[key] ?? []
+  if (base.some(o => o.value === current)) return base
+  // The saved value doesn't match a preset (e.g. a custom number set earlier) --
+  // show it anyway rather than silently swap it for the first option.
+  return [{ value: current, label: `${current || '(empty)'} — current` }, ...base]
+}
+
 export default function Settings() {
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [tunable, setTunable] = useState<string[]>([])
@@ -78,16 +104,26 @@ export default function Settings() {
         <p style={{ opacity: 0.4 }}>No tunable settings.</p>
       ) : (
         <div className="card">
-          {tunable.map(key => (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #1c1f27' }}>
-              <code style={{ minWidth: 200, fontSize: 12 }}>{key}</code>
-              <input value={editing[key] ?? ''} onChange={e => setEditing(p => ({ ...p, [key]: e.target.value }))}
-                style={{ flex: 1, background: '#12141a', color: '#e6e8ee', border: '1px solid #333', borderRadius: 4, padding: '4px 8px', fontSize: 13 }} />
-              <button className="btn btn-sm" onClick={() => handleSave(key)} disabled={saving === key}>
-                {saving === key ? '...' : 'Save'}
-              </button>
-            </div>
-          ))}
+          {tunable.map(key => {
+            const value = editing[key] ?? ''
+            const options = PRESETS[key] ? presetOptions(key, value) : null
+            const fieldStyle = { flex: 1, background: '#12141a', color: '#e6e8ee', border: '1px solid #333', borderRadius: 4, padding: '4px 8px', fontSize: 13 }
+            return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #1c1f27' }}>
+                <code style={{ minWidth: 200, fontSize: 12 }}>{key}</code>
+                {options ? (
+                  <select value={value} onChange={e => setEditing(p => ({ ...p, [key]: e.target.value }))} style={fieldStyle}>
+                    {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                ) : (
+                  <input value={value} onChange={e => setEditing(p => ({ ...p, [key]: e.target.value }))} style={fieldStyle} />
+                )}
+                <button className="btn btn-sm" onClick={() => handleSave(key)} disabled={saving === key}>
+                  {saving === key ? '...' : 'Save'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
 
