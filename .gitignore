@@ -16,6 +16,9 @@ backend/failed_taps.jsonl
 *.log
 *.launchd.log
 
+# DEBUG_SAVE_SNAPSHOTS debug output (test/dev only — never real pilot data)
+backend/debug_snapshots/
+
 # Model weights — fetched, not committed (sha256-pinned):
 #   python -m backend.fetch_liveness_models
 backend/models/

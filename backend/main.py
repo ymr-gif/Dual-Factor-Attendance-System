@@ -3,6 +3,8 @@ import os
 import secrets
 import time
 
+from collections import OrderedDict
+
 from datetime import datetime, timedelta, timezone
 
 from fastapi import (
@@ -63,6 +65,52 @@ def _note_frame(frame, ev):
     """Perception frame sink: tell the matcher the camera delivered a frame, so it can
     tell a tap nobody showed their face for from a tap the camera never watched."""
     matcher.note_frame(ev.get("ts"))
+
+
+# Debug-only (DEBUG_SAVE_SNAPSHOTS): the project otherwise never writes a face photo to
+# disk (README) — this exists for calibrating LIVENESS_THRESHOLD against real spoof
+# attempts by eye, for test/dev sessions only. Never enable it for a real pilot with
+# real students. track_id -> (frame, bbox) for whatever's currently in view; consumed by
+# _save_snapshot when a tap resolves against that track.
+_track_frames: "OrderedDict[int, tuple]" = OrderedDict()
+_MAX_TRACK_FRAMES = 64
+
+
+def _snapshot_frame_sink(frame, ev):
+    for track in ev.get("tracks", []):
+        tid = track["track_id"]
+        _track_frames[tid] = (frame.copy(), track["bbox"])
+        _track_frames.move_to_end(tid)
+    while len(_track_frames) > _MAX_TRACK_FRAMES:
+        _track_frames.popitem(last=False)
+
+
+def _save_snapshot(log, o):
+    """One annotated JPEG per present/spoof/tailgating outcome (the only ones with a
+    track_id — nothing to show for a mismatch/no-face/unwatched tap), named so it can be
+    matched back to its attendance_logs row by eye: {id}_{status}_{liveness}_{uid}.jpg"""
+    track_id = o.get("track_id")
+    entry = _track_frames.get(track_id) if track_id is not None else None
+    if entry is None:
+        return
+    try:
+        import cv2
+        frame, bbox = entry
+        annotated = frame.copy()
+        x1, y1, x2, y2 = bbox
+        status = log.get("status") or "unknown"
+        color = (0, 180, 0) if status == decision.ACCEPTED else (0, 0, 220)
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+        live = o.get("liveness_score")
+        label = f"{status} live={live:.2f}" if live is not None else status
+        cv2.putText(annotated, label, (x1, max(0, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, color, 1, cv2.LINE_AA)
+        live_pass = o.get("liveness_pass")
+        live_tag = "na" if live is None else f"{'live' if live_pass else 'spoof'}{live:.2f}"
+        name = f"{log['id']}_{status}_{live_tag}_{o.get('uid') or 'notap'}.jpg"
+        cv2.imwrite(os.path.join(SNAPSHOT_DIR, name), annotated)
+    except Exception as e:
+        print(f"[debug] snapshot save failed: {e}")
 
 
 def _on_frame_event(frame, ev):
@@ -171,6 +219,8 @@ def _write_outcome(o):
             f"[ALERT] camera delivered no frame for tap uid={o['uid']}: "
             "logged card-only, queued for review"
         )
+    if DEBUG_SAVE_SNAPSHOTS:
+        _save_snapshot(log, o)
     _queue_review(log, o.get("reason"), force=camera_down)
     student = o.get("student")
     try:
@@ -284,6 +334,10 @@ matcher = matcher_mod.Matcher(
 # set it to lock down reads + writes. WS passes it as ?token=; the camera stream uses
 # a short-lived ticket instead (see require_stream_access). CORS/hardening is Step 16.
 OPERATOR_TOKEN = os.environ.get("OPERATOR_TOKEN", "")
+
+# Debug-only, off by default — see _save_snapshot.
+DEBUG_SAVE_SNAPSHOTS = os.environ.get("DEBUG_SAVE_SNAPSHOTS", "false").strip().lower() in ("true", "1", "yes")
+SNAPSHOT_DIR = os.path.join(os.path.dirname(__file__), "debug_snapshots")
 
 
 class TapRequest(BaseModel):
@@ -413,6 +467,10 @@ async def _start_perception():
     perception.on_face(matcher.on_face)  # in-process face events -> matcher
     perception.on_frame(_note_frame)  # camera heartbeat -> matcher
     perception.on_frame(_on_frame_event)  # annotated frames -> MJPEG stream
+    if DEBUG_SAVE_SNAPSHOTS:
+        os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+        perception.on_frame(_snapshot_frame_sink)
+        print(f"[debug] DEBUG_SAVE_SNAPSHOTS on — saving to {SNAPSHOT_DIR}")
 
     async def _resolve_loop():
         while True:
