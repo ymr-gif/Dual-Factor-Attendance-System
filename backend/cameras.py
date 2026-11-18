@@ -73,10 +73,17 @@ def _macos_cameras() -> list:
 
 
 def _windows_cameras() -> list:
+    # Get-PnpDevice -Class Camera misses cameras that register under a different PnP
+    # class (e.g. DroidCam's virtual cam shows up as class MEDIA, not Camera) and so
+    # under-reports real hardware. The DirectShow video-input-device registry category
+    # is what cv2.VideoCapture's own enumeration is actually built on, and it caught
+    # both a real and a virtual camera in testing where Get-PnpDevice saw neither.
     try:
         out = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
-             "Get-PnpDevice -Class Camera -Status OK | Select-Object FriendlyName | ConvertTo-Json"],
+             "Get-ItemProperty -Path "
+             "'HKLM:\\SOFTWARE\\Classes\\CLSID\\{860BB310-5D01-11d0-BD3B-00A0C911CE86}\\Instance\\*' "
+             "-ErrorAction SilentlyContinue | Select-Object FriendlyName | ConvertTo-Json"],
             capture_output=True, text=True, timeout=15,
         )
         data = json.loads(out.stdout or "[]")

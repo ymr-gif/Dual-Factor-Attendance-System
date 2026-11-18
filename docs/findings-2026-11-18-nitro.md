@@ -265,19 +265,50 @@ Three commits now local-only, still need `git push` by hand:
 `1c512e0`, `f69d331`, and tonight's (`backend/main.py` snapshot feature + `.gitignore` +
 `.env.example`, about to be committed as this file is).
 
+## Session 3 (2026-11-19) — cleanup + the two code fixes, done ahead of time
+Done at Cabucos's go-ahead, with the laptop off and no DB/backend running (so nothing
+here was exercised against real traffic — it's config and code only; still needs a
+live re-check once the backend is up again):
+
+- **`LIVENESS_THRESHOLD` set to `0.35`** in `.env`, deduced from session 2's own 102-tap
+  histogram (above) rather than from eyeballing the 25 images — the empty `0.3-0.4`
+  bucket sits cleanly below the live cluster's low tail and above every spoof score
+  seen. This closes the actual blocker from session 2 (spoofs counted as attendance) as
+  a fallback value; the Settings page's DB-saved value still wins once set there, so
+  review this against a standing-distance test (item 4 below) before trusting it as final.
+- **`DEBUG_SAVE_SNAPSHOTS` set back to `false`** and **`backend/debug_snapshots/` deleted**
+  (25 files removed) — done, no longer a pre-pilot blocker.
+- **`OPERATOR_TOKEN` generated and set** in `.env`. Cabucos needs to enter the same value
+  into the dashboard's token field next time `/app/` asks for it (it was open/no-login
+  before this).
+- **`backend/cameras.py` Windows camera detection actually fixed.** `Get-PnpDevice -Class
+  Camera` (session 1's fix) only stopped the crash — it reported zero cameras all of
+  session 2 even with DroidCam attached, because DroidCam's virtual device registers
+  under PnP class `MEDIA`, not `Camera`. Switched to reading the DirectShow
+  video-input-device registry category directly
+  (`HKLM:\SOFTWARE\Classes\CLSID\{860BB310-5D01-11d0-BD3B-00A0C911CE86}\Instance`), which
+  is what `cv2.VideoCapture`'s own enumeration is actually built on. Verified with
+  `python -m backend.cameras`: now correctly lists both `VTubeStudioCam` and `DroidCam
+  Source 2` (session 2 only ever saw neither). `pytest tests -q` still **497 passed, 11
+  skipped**.
+  - **Caveat, not fully solved**: this fixes *detection* (the CLI/API can now see real
+    cameras), but the module's own documented caveat still applies — enumeration order
+    here is not guaranteed to match the index `cv2.VideoCapture` assigns on Windows. On
+    this machine `CAMERA_INDEX=0` empirically opens DroidCam (confirmed session 2), while
+    this registry lists DroidCam second (index 1 in enumeration order). **Keep
+    `CAMERA_INDEX=0` pinned** — do not switch to relying on auto-select for the pilot.
+
 ## Still needed before this machine is pilot-ready — updated
-1. **Push all 3 commits** (`git push`, by hand).
-2. **Review the 25 snapshot images**, then **set `LIVENESS_THRESHOLD`** (~0.3–0.4
-   suggested) on the Settings page once Cabucos agrees — this is the actual blocker: spoof
-   attempts are currently being counted as attendance.
-3. **Turn `DEBUG_SAVE_SNAPSHOTS` back off and delete `backend/debug_snapshots/`** before
-   any real student's face is in front of this camera.
-4. Fix Windows camera detection for real (still just `CAMERA_INDEX=0` pinned by hand —
-   see Problems above; unchanged this session).
-5. Point the phone at the actual kiosk spot (not wherever it happened to be tonight) and
-   re-run T2–T10 for real, now that T1, camera, and liveness are all confirmed live.
-6. Check face size at real standing distance (640x480 cap, `MIN_FACE_PX=80`).
-7. Fill in `SMTP_USER`, `SMTP_FROM`, `SMTP_PASSWORD` in `.env`; confirm guardian email
+1. **Push commits** (`git push`, by hand) — now 4 local-only: `1c512e0`, `f69d331`,
+   session 2's snapshot-feature commit, and this session's (`.env`/`.env.example` +
+   `backend/cameras.py` fix + this file).
+2. Confirm `LIVENESS_THRESHOLD=0.35` against a real standing-distance test (item 4) once
+   the backend is back up — the number above is deduced from logs, not eyeballed against
+   the 25 images as session 2 planned. Adjust on the Settings page if the real test
+   disagrees.
+3. Point the phone at the actual kiosk spot (not wherever it happened to be in session 2)
+   and re-run T2–T10 for real, now that T1, camera, and liveness are all confirmed live.
+4. Check face size at real standing distance (640x480 cap, `MIN_FACE_PX=80`).
+5. Fill in `SMTP_USER`, `SMTP_FROM`, `SMTP_PASSWORD` in `.env`; confirm guardian email
    actually sends.
-8. Decide phone-as-camera vs. a dedicated USB webcam for a real 3-hour session.
-9. Set `OPERATOR_TOKEN` before the real pilot.
+6. Decide phone-as-camera vs. a dedicated USB webcam for a real 3-hour session.
