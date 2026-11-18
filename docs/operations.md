@@ -63,6 +63,7 @@ The same installer runs on macOS. Four things differ from Linux:
   `CAMERA_WIDTH=640` and `CAMERA_HEIGHT=480` there, and close the dashboard's camera
   view when nobody watches it: each viewed frame is drawn and encoded as a JPEG. The
   `[perception] N fps, detection N ms a frame` line in the log shows the real speed.
+  Pilot bring-up on the MacBook: [`pilot-macbook.md`](pilot-macbook.md).
 
 Prerequisites, once:
 
