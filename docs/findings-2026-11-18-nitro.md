@@ -301,14 +301,22 @@ live re-check once the backend is up again):
 **Pushed 2026-11-19**: all 4 commits (`1c512e0`, `f69d331`, `e5c0637`, `3c9d068`) are now
 on `origin/main` (`560c8d4..3c9d068`). Nothing local-only remains.
 
+**SMTP set 2026-11-19**: Cabucos gave the guardian-email account (`safehsci@gmail.com` +
+Gmail app password) directly; set `SMTP_USER`/`SMTP_PASSWORD` in `.env` (never committed —
+`.env` stays gitignored as always). `SMTP_FROM` left unset, defaults to `SMTP_USER`.
+Verified live: a real `smtplib` STARTTLS login against `smtp.gmail.com:587` with these
+credentials returned `AUTH OK`. **Not yet tested**: an actual guardian-notification send
+through `backend/notify.py` end-to-end (needs a registered student with a guardian
+contact and a real tap, once the backend is up).
+
 ## Still needed before this machine is pilot-ready — updated
-1. Confirm `LIVENESS_THRESHOLD=0.35` against a real standing-distance test (item 3) once
+1. Confirm `LIVENESS_THRESHOLD=0.35` against a real standing-distance test (item 2) once
    the backend is back up — the number above is deduced from logs, not eyeballed against
    the 25 images as session 2 planned. Adjust on the Settings page if the real test
    disagrees.
 2. Point the phone at the actual kiosk spot (not wherever it happened to be in session 2)
    and re-run T2–T10 for real, now that T1, camera, and liveness are all confirmed live.
 3. Check face size at real standing distance (640x480 cap, `MIN_FACE_PX=80`).
-4. Fill in `SMTP_USER`, `SMTP_FROM`, `SMTP_PASSWORD` in `.env`; confirm guardian email
-   actually sends.
+4. Confirm one real guardian-notification email actually arrives, end-to-end through
+   `backend/notify.py` (SMTP auth itself is now confirmed working — see above).
 5. Decide phone-as-camera vs. a dedicated USB webcam for a real 3-hour session.
