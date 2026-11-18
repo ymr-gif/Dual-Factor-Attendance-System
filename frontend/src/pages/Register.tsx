@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   getStudents, createStudent, enrollStudent, getPerceptionState,
+  armCardCapture, cancelCardCapture, keepEnrolling, stopEnrolling,
   type Student, type EnrollResult, type PerceptionState,
 } from '../api'
 import { useTapStream } from '../useTapStream'
@@ -60,22 +61,32 @@ export default function Register() {
     return () => { alive = false; clearInterval(id) }
   }, [])
 
-  // Scan-to-fill UID: while armed, the next tapped card fills the UID field.
-  useTapStream(e => {
-    if (!scanningUid) return
-    const uid = e.log?.uid
-    if (!uid) return
-    setCf(f => ({ ...f, uid }))
-    stopScan()
+  // Enrolling at the kiosk is not attendance: while this page is open and shown, the
+  // backend does not flag a face with no tap (the person having their face taken).
+  useEffect(() => {
+    const beat = () => { if (document.visibilityState === 'visible') keepEnrolling().catch(() => {}) }
+    beat()
+    const id = setInterval(beat, 4000)
+    return () => { clearInterval(id); stopEnrolling().catch(() => {}) }
+  }, [])
+
+  // Scan-to-fill UID: while armed, the backend hands the next card read to this page
+  // instead of logging it, and it fills the UID field.
+  useTapStream(undefined, e => {
+    if (e.type !== 'card_capture' || !scanningUid) return
+    setCf(f => ({ ...f, uid: e.uid }))
+    stopScan(false)
   })
 
-  const stopScan = () => {
+  const stopScan = (cancel = true) => {
     if (scanTimer.current) { clearTimeout(scanTimer.current); scanTimer.current = null }
     setScanningUid(false)
+    if (cancel) cancelCardCapture().catch(() => {})
   }
   const startScan = () => {
     setError(null)
     setScanningUid(true)
+    armCardCapture(20).catch(e => { setError(String(e)); setScanningUid(false) })
     scanTimer.current = setTimeout(() => { setScanningUid(false); scanTimer.current = null }, 20000)
   }
 
@@ -127,7 +138,11 @@ export default function Register() {
 
   return (
     <div className="page">
-      <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>Register Face</h2>
+      <h2 style={{ margin: '0 0 6px', fontSize: 18 }}>Register Face</h2>
+      <p style={{ fontSize: 12, opacity: 0.6, margin: '0 0 12px' }}>
+        While this page is open, faces at the camera with no tap are not flagged, and a card
+        scanned into the UID field is not logged as attendance. Close it before entries start.
+      </p>
       {error && <p style={{ color: '#e53e3e', marginBottom: 8 }}>{error}</p>}
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -147,7 +162,7 @@ export default function Register() {
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               <input placeholder="UID *" value={cf.uid} onChange={e => setCf(f => ({ ...f, uid: e.target.value }))} style={is} />
               <button className="btn btn-sm btn-ghost" type="button"
-                onClick={scanningUid ? stopScan : startScan}
+                onClick={scanningUid ? () => stopScan() : startScan}
                 title="Tap a blank NFC card on the reader to fill this automatically">
                 {scanningUid ? 'Waiting… cancel' : 'Scan UID'}
               </button>

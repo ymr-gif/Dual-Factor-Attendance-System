@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTapStream } from '../useTapStream'
-import { getStudents, createStudent, updateStudent, deleteStudent, setConsent, cardLost, cardNew, cardFound, type Student } from '../api'
+import { getStudents, createStudent, updateStudent, deleteStudent, setConsent, cardLost, cardNew, cardFound, armCardCapture, cancelCardCapture, type Student } from '../api'
 
 interface FormState { student_id: string; uid: string; name: string; guardian_email: string; guardian_mobile: string }
 const empty = (): FormState => ({ student_id: '', uid: '', name: '', guardian_email: '', guardian_mobile: '' })
@@ -32,13 +32,22 @@ export default function Roster() {
 
   useEffect(() => { fetch() }, [])
 
-  // While a New card field is open and empty, the next unknown card tapped fills it.
-  // A later tap never replaces it (someone else at the reader); the operator checks
-  // the UID and presses Link, or clears the field to take the next tap.
-  useTapStream(e => {
-    if (!cardFor || e.log?.status !== 'unregistered' || !e.log.uid) return
-    const uid = e.log.uid
-    setNewUid(cur => cur.trim() ? cur : uid)
+  // While a New card field is open and empty, the backend hands the next card read to
+  // this page instead of logging it as attendance, and it fills the field. A later tap
+  // never replaces it (someone else at the reader); the operator checks the UID and
+  // presses Link, or clears the field to take the next tap.
+  const waitingForCard = cardFor !== null && newUid.trim() === ''
+  useEffect(() => {
+    if (!waitingForCard) return
+    const arm = () => { armCardCapture(20).catch(e => setErr(String(e))) }
+    arm()
+    const id = setInterval(arm, 15000)
+    return () => { clearInterval(id); cancelCardCapture().catch(() => {}) }
+  }, [waitingForCard])
+
+  useTapStream(undefined, e => {
+    if (e.type !== 'card_capture' || !cardFor) return
+    setNewUid(cur => cur.trim() ? cur : e.uid)
   })
 
   const handleAdd = async () => {

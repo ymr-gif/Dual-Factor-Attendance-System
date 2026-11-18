@@ -131,7 +131,16 @@ export interface TapEvent {
 // Live backend log line and scan step, from /ws/taps and /api/logs (backend/livelog.py).
 export interface LogLine { seq: number; ts: string; source: string; text: string }
 export interface StageEvent { type: 'stage'; uid: string; stage: string; text: string; done: boolean; ts: string }
-export type StreamEvent = ({ type: 'log' } & LogLine) | StageEvent
+// A card read taken for enrollment (Register / Roster), not logged as attendance.
+export interface CardCaptureEvent { type: 'card_capture'; uid: string; student_id: string | null }
+export type StreamEvent = ({ type: 'log' } & LogLine) | StageEvent | CardCaptureEvent
+
+// Enrollment at the kiosk stays out of the attendance data (backend/enrollment.py).
+export const armCardCapture = (seconds = 20) =>
+  reqJson<{ armed_until: number }>('/api/enroll/card', 'POST', { seconds })
+export const cancelCardCapture = () => del<{ armed_until: null }>('/api/enroll/card')
+export const keepEnrolling = () => reqJson<{ active: boolean }>('/api/enroll/active', 'POST', {})
+export const stopEnrolling = () => del<{ active: boolean }>('/api/enroll/active')
 
 export interface Health {
   status: string

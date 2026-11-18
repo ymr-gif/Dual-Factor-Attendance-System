@@ -38,7 +38,7 @@ from collections import OrderedDict
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-from . import decision, face, liveness
+from . import decision, enrollment, face, liveness
 
 
 def _env_f(name: str, default: float) -> float:
@@ -75,6 +75,8 @@ def _cosine(a, b) -> float:
     tap-to-face verdict uses."""
     a = np.asarray(a, dtype=np.float32)
     b = np.asarray(b, dtype=np.float32)
+    if a.shape != b.shape:
+        return 0.0  # embeddings from different models cannot be the same person
     denom = float(np.linalg.norm(a) * np.linalg.norm(b))
     return float(np.dot(a, b) / denom) if denom else 0.0
 
@@ -153,6 +155,12 @@ class Matcher:
         self.dwell_gap = dwell_gap
         self.dwell_threshold = dwell_threshold
         self._dwells: list = []
+        # Students just accepted, by their enrolled face: [reference embedding,
+        # last_seen]. A face with no tap that the 1:1 check would accept as one of them
+        # (>= the match threshold) within DWELL_GAP_SEC is that student still in view,
+        # not a tailgater (18 Nov: a student who tapped and stayed made a row a minute,
+        # the live faces too far from the first one seen for DWELL_THRESHOLD).
+        self._accepted: list = []
         self._taps: list[PendingTap] = []
         self._faces: list[PendingFace] = []
         self._last_tap: dict[str, float] = {}
@@ -247,6 +255,10 @@ class Matcher:
                     outcomes.append(self._spoof(t, f, sim))
                 else:
                     outcomes.append(self._present(t, f, sim))
+                    if self.dwell_gap > 0 and t.embedding is not None:
+                        self._accepted.append([t.embedding, f.ts])
+                        while len(self._accepted) > max(self.max_tailgated_tracks, 0):
+                            self._accepted.pop(0)
             self._taps = [t for t in self._taps if now - t.ts < self.window]
 
         # Tailgating: a ripe face with no consumed match and no pending tap that could
@@ -271,6 +283,18 @@ class Matcher:
                     # tracker lost the person, they did not leave (PC-046).
                     self._settle(f)
                     continue
+                if self._accepted_index(f) is not None:
+                    # A student accepted moments ago, still in view on a new track.
+                    print(f"[matcher] face with no tap, track {f.track_id}: matches a "
+                          f"student accepted in the last {self.dwell_gap:.0f} s, not flagged")
+                    self._settle(f)
+                    continue
+                if enrollment.active():
+                    # The operator is enrolling at this camera (Register page open).
+                    print(f"[matcher] face with no tap, track {f.track_id}: enrollment "
+                          "in progress, not flagged")
+                    self._settle(f)
+                    continue
                 near = self._dwell_nearest(f)
                 if near is not None:
                     # Logged so DWELL_THRESHOLD can be tuned on the real camera.
@@ -282,6 +306,7 @@ class Matcher:
 
         if self.dwell_gap > 0:
             self._dwells = [d for d in self._dwells if now - d[1] <= self.dwell_gap]
+            self._accepted = [a for a in self._accepted if now - a[1] <= self.dwell_gap]
 
         # Evict resolved / stale faces; keep live (within-window, unclaimed) ones.
         self._faces = [
@@ -317,6 +342,15 @@ class Matcher:
             if sim >= best:
                 best_i, best = i, sim
         return best_i
+
+    def _accepted_index(self, f):
+        """Index of the just-accepted student this face would pass the 1:1 check as,
+        refreshing when they were last seen; or None."""
+        for i, a in enumerate(self._accepted):
+            if abs(f.ts - a[1]) <= self.dwell_gap and _cosine(a[0], f.embedding) >= self.threshold:
+                a[1] = max(a[1], f.ts)
+                return i
+        return None
 
     def _dwell_nearest(self, f):
         """(similarity, seconds since seen) of the closest remembered face, or None."""

@@ -455,6 +455,28 @@ Still a fixed wait: each verdict comes `ASSOC_WINDOW_SEC` (4 s) after the tap; e
 (design-notes 5a) is not built.
 Phone offload (S24 over USB) is on hold: `docs/phone-offload.md`.
 
+**Enrollment stays out of the attendance data (18 Nov, Cabucos).** Tests on the
+desktop showed enrollment polluting the day's rows: the card tapped into Roster's New
+card field was logged `unregistered`, and the person at the camera during enrollment
+became `tailgating` rows. `backend/enrollment.py`:
+- Card capture. Register (Scan card) and Roster (New card field, while empty) arm
+  `POST /api/enroll/card`; the next card read is published as
+  `{"type": "card_capture"}` to that page and `/tap` answers `captured` with nothing
+  logged. One card per arm, 20 s (capped at 60), `DELETE` cancels.
+- Enrolling. The Register page calls `POST /api/enroll/active` every 4 s while open
+  and shown; for 10 s after each call a face with no tap is not flagged. The page says
+  so and asks the operator to close it before entries start.
+- A student accepted moments ago who stays in view: the matcher remembers the enrolled
+  face of each accepted student for `DWELL_GAP_SEC`; a face with no tap that would pass
+  the 1:1 check as one of them is that student, not a tailgater. Seen on the desktop: a
+  student who tapped and stayed made rows at 0.41-0.46 to the first face remembered,
+  below `DWELL_THRESHOLD` 0.6, while their match to the enrolled face was 0.63-0.70.
+- The guardian step of a scan reports what happened: "sending guardian email" while
+  it goes out, then "guardian email sent in N s" or "not sent (reason)", or "no
+  guardian message (no guardian email on file, SMS off)". It used to say "queued"
+  even with no address on file.
+`pytest tests`: 492 passed, 11 skipped (new `tests/test_enrollment.py`).
+
 ## Design-only stubs (not built)
 
 **Adaptive/late-bind matcher** — documented in `docs/design-notes.md` §5a: resolve a tap the instant the match is certain (strong unambiguous face already buffered) instead of always waiting `ASSOC_WINDOW_SEC`; keep the timed batch resolve as fallback when ambiguous/crowded. Cons driven to ~zero via an early-bind margin (`top1−top2`) + singleton-context guard, so it's never worse than today's optimal batch — a strict latency win behind an `ADAPTIVE_BIND` off-switch. Matcher-only change when built.

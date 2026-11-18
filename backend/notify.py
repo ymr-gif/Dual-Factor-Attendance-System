@@ -41,14 +41,14 @@ address shows up at the roster desk and not on the first school day (PC-019).
 import os
 import smtplib
 import ssl
-from datetime import datetime
+from datetime import datetime, timezone
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
 
 import requests
 from urllib3.exceptions import MaxRetryError, NewConnectionError
 
-from . import db, decision, sender
+from . import db, decision, livelog, sender
 from .sender import DELIVERED, FAILED, PENDING, Retryable  # noqa: F401  (statuses are read from here)
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
@@ -336,7 +336,36 @@ def _job(channel: str, student: dict, log: dict):
     """What the sender thread calls for one message: it is given the seconds it may
     take and returns the provider's message ID or None."""
     send = _SENDERS[channel]
-    return lambda timeout: send(student, log, timeout)
+    name = "email" if channel == "email" else "SMS"
+
+    def job(timeout):
+        # The dashboard's scan steps show what became of the message (a scan's
+        # guardian step stays open until this answers).
+        try:
+            message_id = send(student, log, timeout)
+        except Exception as e:
+            retry = ", trying again" if isinstance(e, Retryable) else ""
+            _step(log, f"guardian {name} not sent ({sender.error_text(e)}{retry})", not retry)
+            raise
+        _step(log, f"guardian {name} sent in {_since(log):.1f} s", True)
+        return message_id
+
+    return job
+
+
+def _since(log: dict) -> float:
+    """Seconds from the entry to now: what notification_log stores as latency."""
+    ts = log.get("ts")
+    if not isinstance(ts, datetime):
+        return 0.0
+    if ts.tzinfo is None:
+        ts = ts.astimezone()
+    return (datetime.now(timezone.utc) - ts).total_seconds()
+
+
+def _step(log: dict, text: str, done: bool) -> None:
+    if log.get("uid"):
+        livelog.stage(log["uid"], "notify", text, done=done)
 
 
 def _queue(channel: str, student: dict, log: dict) -> None:

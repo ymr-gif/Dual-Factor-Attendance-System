@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import (
-    cameras, contacts, db, decision, events, face, livelog, liveness, matcher as matcher_mod,
+    cameras, contacts, db, decision, enrollment, events, face, livelog, liveness, matcher as matcher_mod,
     notify as notify_mod, notify_report, perception, ports, privacy,
 )
 from .notify import contact_test, notify
@@ -177,7 +177,7 @@ def _write_outcome(o):
         notify(student, log)
     except Exception as e:
         print(f"matcher notify failed: {e}")
-    _trace_result(log)
+    _trace_result(log, student)
     try:
         events.publish(
             jsonable_encoder(
@@ -212,7 +212,27 @@ def _revoked_tap(uid, method):
     return {"status": "logged", "student": _public_student(owner), "log": log}
 
 
-def _trace_result(log):
+def _notify_step(log, student) -> tuple[str, bool]:
+    """The guardian step of a scan: (text, done). A message being sent leaves the step
+    open; notify reports the result when the mail server or SMS provider answers."""
+    if not (decision.counts_as_present(log.get("status")) and log.get("student_id") is not None):
+        return "no guardian message", True
+    sending, off = [], []
+    for channel in notify_mod.CHANNELS:
+        name = "email" if channel == "email" else "SMS"
+        reason = notify_mod._off_reason(channel, student or {})
+        if reason is None:
+            sending.append(name)
+        elif reason == notify_mod.NO_RECIPIENT:
+            off.append(f"no guardian {name} on file")
+        else:
+            off.append(f"{name} off")
+    if sending:
+        return f"sending guardian {' and '.join(sending)}", False
+    return f"no guardian message ({', '.join(off)})", True
+
+
+def _trace_result(log, student=None):
     """The last steps of a scan for the dashboard's scan animation: the face and
     liveness scores when there are any, the verdict, and whether a guardian message
     goes out. Faces with no tap (no UID) are not a scan."""
@@ -227,12 +247,8 @@ def _trace_result(log):
                       f" ({'live' if log.get('liveness_pass') else 'not live'})")
     status = log.get("status") or "logged"
     livelog.stage(uid, "verdict", status)
-    if not (decision.counts_as_present(status) and log.get("student_id") is not None):
-        text = "no guardian message"
-    else:
-        on = [c for c, en in (("email", notify_mod.EMAIL_ENABLED), ("SMS", notify_mod.SMS_ENABLED)) if en]
-        text = f"guardian message queued ({', '.join(on)})" if on else "guardian message: email and SMS are off"
-    livelog.stage(uid, "notify", text, done=True)
+    text, done = _notify_step(log, student)
+    livelog.stage(uid, "notify", text, done=done)
 
 
 def _post_log(student, log):
@@ -241,7 +257,7 @@ def _post_log(student, log):
         notify(student, log)
     except Exception as e:
         print(f"notify failed: {e}")
-    _trace_result(log)
+    _trace_result(log, student)
     try:
         events.publish(
             jsonable_encoder({"type": "tap", "student": _public_student(student), "log": log})
@@ -811,6 +827,41 @@ def api_update_student(student_id: str, body: StudentUpdate, actor: str = Depend
 # PC-024: lost cards. The audit rows name the student, never the card UID (PC-044).
 
 
+class CardCapture(BaseModel):
+    seconds: float = 20.0
+
+
+@app.post("/api/enroll/card", dependencies=[Depends(require_operator)])
+def api_enroll_card(req: CardCapture):
+    """The next card read goes to the enrolling page, not to attendance."""
+    until = enrollment.arm_card(req.seconds)
+    return {"armed_until": until}
+
+
+@app.delete("/api/enroll/card", dependencies=[Depends(require_operator)])
+def api_enroll_card_cancel():
+    enrollment.disarm_card()
+    return {"armed_until": None}
+
+
+@app.post("/api/enroll/active", dependencies=[Depends(require_operator)])
+def api_enroll_active():
+    """Register page heartbeat: someone is enrolling at the camera."""
+    was = enrollment.active()
+    enrollment.keep_enrolling()
+    if not was:
+        print("[enroll] enrollment started at the camera: faces with no tap are not flagged")
+    return {"active": True, "seconds": enrollment.ENROLLING_SEC}
+
+
+@app.delete("/api/enroll/active", dependencies=[Depends(require_operator)])
+def api_enroll_inactive():
+    if enrollment.active():
+        print("[enroll] enrollment ended: faces with no tap are flagged again")
+    enrollment.stop_enrolling()
+    return {"active": False}
+
+
 @app.post("/api/students/{student_id}/card/lost", dependencies=[Depends(require_operator)])
 def api_card_lost(student_id: str, actor: str = Depends(_actor)):
     try:
@@ -1018,6 +1069,15 @@ def perception_state():
 @app.post("/tap")
 def tap(req: TapRequest):
     uid = req.uid.strip().upper()
+    if enrollment.take_card():
+        # Register or Roster is waiting for a card: hand it over, log nothing.
+        known = db.find_student_by_uid(uid)
+        print(f"[enroll] card {uid} read for enrollment"
+              + (f" (already on {known['student_id']})" if known else "")
+              + ": not logged as attendance")
+        events.publish({"type": "card_capture", "uid": uid,
+                        "student_id": known["student_id"] if known else None})
+        return {"status": "captured", "uid": uid}
     livelog.stage(uid, "card", "card read")
     student = db.find_student_by_uid(uid)
     if student is not None:
