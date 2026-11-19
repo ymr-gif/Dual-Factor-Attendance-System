@@ -354,8 +354,10 @@ that number explicitly (keep pinning — don't switch to auto for the pilot). If
 mid-pilot, the fallback is manual: edit `CAMERA_INDEX` in `.env` to DroidCam's index and
 restart the backend. Write down both numbers here the moment the A4tech is tested, so
 the fallback is a 30-second edit instead of a scramble:
-- A4tech resolved index: **TBD — run `python -m backend.cameras` once it's plugged in**
-- DroidCam resolved index: `0` (confirmed working all of session 2 on this machine)
+- **A4tech resolved index: `1`** — confirmed 2026-11-19 (session 5, below), real video at
+  full 1280x720.
+- DroidCam / other source resolved index: `0` — **do not trust this as a working
+  fallback without re-checking first.** See session 5.
 
 ## Still needed before this machine is pilot-ready — updated
 1. Confirm `LIVENESS_THRESHOLD=0.35` against a real standing-distance test (item 2) once
@@ -416,3 +418,41 @@ just closing windows or powering off): `Ctrl+C` the backend window, `Ctrl+C` the
 reader window, then `docker compose down` (or `docker compose stop db` to keep the data
 and just stop the container). Don't `docker compose down -v` — that deletes the
 database volume (today's attendance rows) along with the container.
+
+## Session 5 (2026-11-19, mid-pilot) — the camera was showing a fake frame, caught live
+
+Cabucos spotted the dashboard camera panel showing solid orange and asked why. This was
+not the face-tracking overlay (that only draws a thin box, not a full-frame fill) — it
+was the actual picture. Pulled a raw frame from `/stream.mjpeg` and measured it
+directly: **every pixel in the 640x480 frame was the identical value**, `std = 0` across
+all channels. That is not possible from real video, even pointed at a blank wall — it
+was a flat placeholder image, not a live picture. The last real attendance activity in
+the DB was 06:10 that morning, so this had potentially been blind for hours with no
+error surfaced anywhere (perception still reported a healthy fps — it was receiving
+valid, just fake, frames).
+
+**Root cause**: `CAMERA_INDEX=0` resolved to a virtual/placeholder source (unclear if
+`VTubeStudioCam` resurfacing, or DroidCam's own "no signal" idle screen — both are
+visually similar flat colors and the registry didn't disambiguate reliably). The repo's
+own camera-detection tooling (both the original `Get-PnpDevice -Class Camera` and
+today's DirectShow-registry fix) **never saw the A4tech webcam at all**, even once it
+was confirmed physically plugged in — only `Get-PnpDevice -Class Camera, MEDIA` (no
+filtering by DirectShow's legacy device category) found it, as `A4tech FHD 1080P PC
+Camera`. This is a second, independent camera-enumeration gap beyond the one found
+earlier today — worth real work after the pilot, not patched live under time pressure.
+
+**Fix applied**: stopped the backend (releasing the camera handle), probed indices 0–4
+directly with `cv2.VideoCapture` with a proper warm-up (real hardware auto-exposure
+takes a second or two to settle — the first read is not enough, confirmed indices 0 and
+3 stayed flatly solid for a full 3-second probe while index 1 showed changing,
+texture-bearing frames throughout). Index 1 also delivered the full requested 1280x720
+(DroidCam is hard-capped to 640x480, confirmed session 4), which independently points
+to it being the A4tech. Set `CAMERA_INDEX=1`, restarted the backend, pulled a fresh
+frame through the real `/stream.mjpeg` path: real image confirmed (overexposed/blurry
+from being handled at the moment, but genuinely varying pixel content, not flat).
+
+**Still true and now more urgent**: there is no automatic failover (see the earlier
+camera auto-select section). If `CAMERA_INDEX=1` stops giving real video mid-pilot, the
+same check has to be repeated by hand — pull a frame, check it is not flat-colored,
+don't trust fps numbers alone. `index 0` is **not a safe fallback to flip to blind**;
+whatever is there was faking a working camera all morning.
