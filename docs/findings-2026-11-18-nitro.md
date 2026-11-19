@@ -452,7 +452,32 @@ frame through the real `/stream.mjpeg` path: real image confirmed (overexposed/b
 from being handled at the moment, but genuinely varying pixel content, not flat).
 
 **Still true and now more urgent**: there is no automatic failover (see the earlier
-camera auto-select section). If `CAMERA_INDEX=1` stops giving real video mid-pilot, the
-same check has to be repeated by hand — pull a frame, check it is not flat-colored,
-don't trust fps numbers alone. `index 0` is **not a safe fallback to flip to blind**;
-whatever is there was faking a working camera all morning.
+camera auto-select section). If a camera stops giving real video mid-pilot, the same
+check has to be repeated by hand — pull a frame, check it is not flat-colored, don't
+trust fps numbers alone.
+
+### Switched to DroidCam for the pilot itself, same session
+Cabucos's call: use DroidCam (phone), not the A4tech, for the actual pilot. What
+`index 0` was faking all morning turned out to be exactly where DroidCam resolves once
+its Android app is actually open and foregrounded — **the earlier fake frame was not a
+wrong index, it was DroidCam's own idle/no-signal placeholder, sent because the phone
+app had gone to the background or the screen had locked.** Re-probed `index 0` and
+`index 3` with the DroidCam app confirmed open on the phone: both now gave real,
+matching video (the same live scene) — DroidCam appears to register more than one
+virtual device for the same feed. Picked `index 0`. Set `CAMERA_INDEX=0`, restarted the
+backend, confirmed via a real `/stream.mjpeg` frame: a genuine picture, perception drew
+a green "OK" box around a recognized face. `pytest tests -q` unaffected (no code
+changed, config + restart only): 501 passed, 11 skipped.
+
+**The operational lesson, not a code bug**: DroidCam needs its Android app actively
+open and foregrounded to deliver real video — if the phone screen locks or the app gets
+backgrounded mid-pilot, the picture silently reverts to this same flat placeholder, with
+no error anywhere in the logs (perception keeps reporting a normal fps the whole time,
+because it's still receiving valid, just fake, frames). **Whoever is minding the kiosk
+should keep the phone awake and the DroidCam app in the foreground for the whole
+session**, and anyone watching the dashboard should know a flat, static-colored camera
+panel means check the phone, not a code problem.
+
+**Camera index in force for the pilot: `CAMERA_INDEX=0` (DroidCam).** `1` (A4tech) is
+the documented alternative if DroidCam is swapped back — see the earlier section for its
+own confirmed-working index.
