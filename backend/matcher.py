@@ -247,7 +247,7 @@ class Matcher:
                 self._settle(f)
                 sim = face.cosine(t.embedding, f.embedding)
                 if sim < self.threshold:
-                    outcomes.append(self._mismatch(t))
+                    outcomes.append(self._mismatch(t, f, sim))
                 elif f.is_live is False and liveness.calibrated():
                     # Only a *calibrated* liveness verdict may reject a genuine card+face
                     # match as spoof. Uncalibrated (LIVENESS_THRESHOLD unset) -> advisory:
@@ -421,9 +421,13 @@ class Matcher:
         )
         return o
 
-    def _mismatch(self, t):
+    def _mismatch(self, t, f, sim):
         o = self._base(t.uid, t.student_id, t.student, decision.MISMATCH, method="nfc+face")
-        o.update(face_match=False, reason="face in window below match threshold")
+        o.update(
+            face_score=sim, face_match=False, liveness_score=f.live_score,
+            liveness_pass=f.is_live, track_id=f.track_id,
+            reason="face in window below match threshold",
+        )
         return o
 
     def _no_face(self, t):
